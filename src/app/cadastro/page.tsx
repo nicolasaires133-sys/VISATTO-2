@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 import AuthShell from "@/components/AuthShell";
+import PasswordField from "@/components/PasswordField";
 
 export default function Cadastro() {
   const router = useRouter();
-  const [f, setF] = useState({ name: "", email: "", whatsapp: "", password: "" });
+  const [f, setF] = useState({ name: "", email: "", whatsapp: "", password: "", acceptTerms: false });
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -39,10 +40,11 @@ export default function Cadastro() {
           <label className="label" htmlFor="zap">WhatsApp do restaurante</label>
           <input id="zap" className="input h-12" inputMode="tel" autoComplete="tel" value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} placeholder="(11) 99999-9999" />
         </div>
-        <div>
-          <label className="label" htmlFor="senha">Crie uma senha (mínimo de 6 caracteres)</label>
-          <input id="senha" className="input h-12" type="password" autoComplete="new-password" required minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
-        </div>
+        <PasswordField id="senha" label="Crie uma senha" isNew value={f.password} onChange={(v) => setF({ ...f, password: v })} />
+        <label className="flex items-start gap-2.5 text-[14px] text-black/70">
+          <input type="checkbox" required className="mt-0.5 h-5 w-5 shrink-0 accent-[#e4572e]" checked={f.acceptTerms} onChange={(e) => setF({ ...f, acceptTerms: e.target.checked })} />
+          <span>Li e aceito os <Link href="/termos" target="_blank" className="font-semibold text-ink underline">Termos de Uso</Link> e a <Link href="/privacidade" target="_blank" className="font-semibold text-ink underline">Política de Privacidade</Link>.</span>
+        </label>
         {err && <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-[14px] text-red-800">{err}</p>}
         <button className="btn-primary !mt-6 h-[54px] w-full text-[16px]" disabled={busy}>{busy ? "Criando..." : "Criar conta grátis"}</button>
         <p className="text-center text-[14.5px] text-black/60">

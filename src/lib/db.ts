@@ -163,6 +163,18 @@ CREATE TABLE IF NOT EXISTS app_settings (
   value TEXT NOT NULL
 );
 
+-- v6: segurança da conta (sair de todos os aparelhos, recuperação de senha)
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash TEXT PRIMARY KEY,
+  restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS password_resets_rest ON password_resets(restaurant_id);
+
 -- v5: inteligência de venda (sugestões, alergênicos, horários, custo, idiomas, avaliações)
 ALTER TABLE items ADD COLUMN IF NOT EXISTS allergens JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS allergens_known BOOLEAN DEFAULT FALSE;

@@ -390,7 +390,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
       )}
 
       <p className="px-5 pb-2 pt-12 text-center text-[12px] text-black/40">
-        {t("by")} <a href="/" className="font-semibold underline">Visatto</a>
+        {t("by")} <a href="/" className="font-semibold underline">Visatto</a> · <a href="/privacidade" className="underline-offset-2 hover:underline">{t("privacy")}</a>
       </p>
 
       {/* Barra inferior */}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
+import PasswordField from "@/components/PasswordField";
 import { usePainel } from "../ctx";
 import { PageHead, SwitchRow } from "../ui";
 
@@ -55,6 +56,7 @@ export default function Config() {
   }
 
   return (
+    <>
     <form onSubmit={save} className="max-w-2xl space-y-5 pb-24">
       <PageHead title="Configurações" />
 
@@ -155,20 +157,7 @@ export default function Config() {
         </div>
       </section>}
 
-      <section className="card p-5">
-        <h2 className="text-[18px] font-extrabold">Conta</h2>
-        <p className="mt-1 text-[14px] text-black/60">Entrou como <b className="text-ink">{r.email}</b></p>
-        <button
-          type="button"
-          className="btn-ghost mt-3"
-          onClick={async () => {
-            await api("/api/auth/logout", { method: "POST" }).catch(() => {});
-            router.push("/entrar");
-          }}
-        >
-          <Icon name="logout" size={17} /> Sair da conta
-        </button>
-      </section>
+      
 
       {/* barra de salvar: fica sempre à vista */}
       <div className="no-print fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-20 border-t border-line bg-white/95 px-4 py-3 backdrop-blur md:bottom-0 md:left-[260px]">
@@ -184,6 +173,8 @@ export default function Config() {
         </div>
       </div>
     </form>
+    <div className="max-w-2xl pb-28 -mt-20"><Account email={r.email} /></div>
+    </>
   );
 }
 
@@ -229,6 +220,117 @@ function Languages({ initial, aiEnabled }: { initial: string[]; aiEnabled: boole
       )}
       {msg && <p role={msg.ok ? "status" : "alert"} className={`text-[14px] font-semibold ${msg.ok ? "text-leaf" : "text-red-700"}`}>{msg.text}</p>}
       <p className="text-[12.5px] text-black/45">Quando você muda o nome ou a descrição de um prato, toque aqui de novo para traduzir as mudanças.</p>
+    </section>
+  );
+}
+
+/** Conta: trocar senha, sair de todos os aparelhos, sair, excluir a conta. */
+function Account({ email }: { email: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState<"" | "senha" | "excluir">("");
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [conf, setConf] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await fn();
+    } catch (e: any) {
+      setMsg({ ok: false, text: e.message });
+    }
+    setBusy(false);
+  };
+  return (
+    <section className="card space-y-4 p-5">
+      <div>
+        <h2 className="text-[18px] font-extrabold">Conta e segurança</h2>
+        <p className="mt-1 text-[14px] text-black/60">Entrou como <b className="text-ink">{email}</b></p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-ghost" onClick={() => { setOpen(open === "senha" ? "" : "senha"); setMsg(null); }}>
+          <Icon name="lock" size={17} /> Trocar senha
+        </button>
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={busy}
+          onClick={() => run(async () => {
+            await api("/api/auth/logout-all", { method: "POST" });
+            setMsg({ ok: true, text: "Pronto: todos os outros aparelhos saíram da conta. Este continua conectado." });
+          })}
+        >
+          <Icon name="shield" size={17} /> Sair de todos os outros aparelhos
+        </button>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={async () => {
+            await api("/api/auth/logout", { method: "POST" }).catch(() => {});
+            router.push("/entrar");
+          }}
+        >
+          <Icon name="logout" size={17} /> Sair da conta
+        </button>
+      </div>
+
+      {open === "senha" && (
+        <form
+          className="animate-enter space-y-3 rounded-2xl bg-cream p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              await api("/api/auth/password", { body: { current: cur, next } });
+              setCur("");
+              setNext("");
+              setOpen("");
+              setMsg({ ok: true, text: "Senha trocada. Os outros aparelhos vão precisar entrar de novo." });
+            });
+          }}
+        >
+          <PasswordField id="pw-atual" label="Senha atual" value={cur} onChange={setCur} />
+          <PasswordField id="pw-nova" label="Senha nova" isNew value={next} onChange={setNext} />
+          <button className="btn-dark h-11" disabled={busy}>{busy ? "Salvando..." : "Salvar senha nova"}</button>
+        </form>
+      )}
+
+      {msg && <p role={msg.ok ? "status" : "alert"} className={`text-[14px] font-semibold ${msg.ok ? "text-leaf" : "text-red-700"}`}>{msg.text}</p>}
+
+      <div className="border-t border-line pt-4">
+        {open !== "excluir" ? (
+          <button type="button" className="text-[14px] font-semibold text-red-700 underline-offset-2 hover:underline" onClick={() => { setOpen("excluir"); setMsg(null); }}>
+            Excluir minha conta
+          </button>
+        ) : (
+          <form
+            className="animate-enter space-y-3 rounded-2xl bg-red-50 p-4 ring-1 ring-red-200"
+            onSubmit={(e) => {
+              e.preventDefault();
+              run(async () => {
+                await api("/api/auth/delete", { body: { password: cur, confirm: conf } });
+                router.push("/?conta=excluida");
+              });
+            }}
+          >
+            <p className="text-[14.5px] font-bold text-red-900">Excluir a conta apaga tudo, para sempre</p>
+            <p className="text-[13.5px] text-red-900/80">Cardápio, fotos, pratos em 3D, pedidos, avaliações e os dados dos seus clientes. Não dá para desfazer.</p>
+            <PasswordField id="del-pw" label="Sua senha" value={cur} onChange={setCur} />
+            <div>
+              <label className="label" htmlFor="del-conf">Digite EXCLUIR para confirmar</label>
+              <input id="del-conf" className="input h-12" value={conf} onChange={(e) => setConf(e.target.value)} autoComplete="off" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button className="btn h-11 bg-red-700 text-white hover:bg-red-800" disabled={busy || conf.trim().toUpperCase() !== "EXCLUIR" || !cur}>
+                {busy ? "Excluindo..." : "Excluir conta para sempre"}
+              </button>
+              <button type="button" className="btn-ghost h-11" onClick={() => { setOpen(""); setCur(""); setConf(""); }}>Cancelar</button>
+            </div>
+          </form>
+        )}
+      </div>
     </section>
   );
 }

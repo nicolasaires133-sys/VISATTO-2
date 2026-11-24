@@ -92,6 +92,7 @@ const D = {
   typeTable: { pt: "Digite o número da sua mesa.", en: "Type your table number.", es: "Escribe el número de tu mesa." },
   billAsked: { pt: "Conta pedida para a mesa {t}", en: "Bill requested for table {t}", es: "Cuenta pedida para la mesa {t}" },
   serverComing: { pt: "Atendente a caminho da mesa {t}", en: "A server is on the way to table {t}", es: "Un mesero va a la mesa {t}" },
+  privacy: { pt: "Privacidade", en: "Privacy", es: "Privacidad" },
   language: { pt: "Idioma", en: "Language", es: "Idioma" },
   viaWhatsapp: { pt: "Prefiro pedir pelo WhatsApp", en: "I'd rather order on WhatsApp", es: "Prefiero pedir por WhatsApp" },
 } as const;

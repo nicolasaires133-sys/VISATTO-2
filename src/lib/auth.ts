@@ -34,8 +34,11 @@ function secret(): Promise<Uint8Array> {
   return g.__gia_secret;
 }
 
+/** Cria o login neste aparelho. A "versão da sessão" muda quando o dono troca a senha ou sai de todos os aparelhos. */
 export async function createSession(restaurantId: string) {
-  const token = await new SignJWT({ rid: restaurantId })
+  const db = await getDB();
+  const [row] = await db.query<{ session_version: number }>(`SELECT session_version FROM restaurants WHERE id=$1`, [restaurantId]);
+  const token = await new SignJWT({ rid: restaurantId, sv: row?.session_version ?? 1 })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
@@ -61,10 +64,32 @@ export async function getRestaurantId(): Promise<string | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, await secret());
-    return typeof payload.rid === "string" ? payload.rid : null;
+    if (typeof payload.rid !== "string") return null;
+    // login antigo (de antes de trocar a senha ou de "sair de todos os aparelhos") deixa de valer
+    const db = await getDB();
+    const [row] = await db.query<{ session_version: number }>(`SELECT session_version FROM restaurants WHERE id=$1`, [payload.rid]);
+    if (!row || (Number(payload.sv) || 1) !== row.session_version) return null;
+    return payload.rid;
   } catch {
     return null;
   }
+}
+
+/** Derruba todos os logins da conta (o aparelho atual entra de novo em seguida, se quiser). */
+export async function bumpSessions(restaurantId: string) {
+  const db = await getDB();
+  await db.query(`UPDATE restaurants SET session_version = session_version + 1 WHERE id=$1`, [restaurantId]);
+}
+
+const COMMON = new Set(["12345678", "123456789", "1234567890", "senha123", "senha1234", "password", "password1", "qwerty123", "abc12345", "11111111", "00000000", "12341234", "87654321", "iloveyou", "restaurante", "cardapio"]);
+/** Regra única de senha: 8 caracteres ou mais e nada óbvio. Devolve a mensagem de erro, ou "" se está boa. */
+export function passwordProblem(pw: string, email = ""): string {
+  if (pw.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
+  if (pw.length > 200) return "Senha longa demais.";
+  const low = pw.toLowerCase();
+  if (COMMON.has(low) || /^(.)\1+$/.test(pw) || (email && low.includes(email.split("@")[0].toLowerCase()) && email.split("@")[0].length >= 4))
+    return "Essa senha é fácil de adivinhar. Misture palavras, números e símbolos.";
+  return "";
 }
 
 /** Para rotas do painel: devolve o restaurante logado ou null. */

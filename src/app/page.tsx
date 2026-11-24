@@ -219,7 +219,11 @@ export default function Home() {
         </div>
         <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t border-white/10 px-5 py-8 text-[14px] text-white/50">
           <Logo size={24} className="text-white" />
-          <p>© {new Date().getFullYear()} Visatto. Veja o prato antes de pedir.</p>
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>© {new Date().getFullYear()} Visatto</span>
+            <Link href="/privacidade" className="hover:text-white">Política de Privacidade</Link>
+            <Link href="/termos" className="hover:text-white">Termos de Uso</Link>
+          </p>
         </footer>
       </section>
     </main>
