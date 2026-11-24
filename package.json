@@ -1,0 +1,51 @@
+{
+  "name": "visatto",
+  "version": "0.16.2",
+  "engines": {
+    "node": "22.x"
+  },
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@electric-sql/pglite": "^0.5.15",
+    "@fontsource-variable/gabarito": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "@google/model-viewer": "^4.4.0",
+    "@vercel/blob": "^2.8.2",
+    "bcryptjs": "^3.0.3",
+    "draco3dgltf": "^1.5.9",
+    "exifr": "^7.1.3",
+    "jose": "^6.2.15",
+    "js-aruco2": "^2.0.0",
+    "meshoptimizer": "^1.3.0",
+    "next": "^16.4.5",
+    "onnxruntime-web": "^1.31.1",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sharp": "^0.35.5",
+    "three": "^0.183.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "tailwindcss": "^4.3.4",
+    "typescript": "^7.0.2"
+  }
+}

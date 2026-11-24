@@ -1,0 +1,83 @@
+export const BRAND = "Visatto";
+export const TAGLINE = "Veja o prato na sua mesa antes de pedir";
+
+export function brl(cents: number) {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export const STATUS_LABEL: Record<string, string> = {
+  novo: "Novo",
+  preparo: "Em preparo",
+  pronto: "Pronto",
+  saiu: "Saiu para entrega",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
+
+export const TAG_OPTIONS = [
+  "vegano",
+  "vegetariano",
+  "sem glúten",
+  "sem lactose",
+  "picante",
+  "mais pedido",
+  "novidade",
+  "fit",
+  "kids",
+];
+
+export type MenuItem = {
+  id: string;
+  category_id: string | null;
+  name: string;
+  description: string;
+  price_cents: number;
+  image: string;
+  serves: number;
+  tags: string[];
+  available: boolean;
+  featured: boolean;
+  position: number;
+  model_status?: ModelStatus;
+  model_glb_url?: string;
+  model_usdz_url?: string;
+  model_width_cm?: number;
+  model_dims?: { w: number; d: number; h: number } | null;
+  model_progress?: number;
+  model_published?: boolean;
+  model_error?: string;
+};
+
+/** nenhum → gerando (IA) → processando → revisar (dono confere) → pronto | erro */
+export type ModelStatus = "nenhum" | "gerando" | "processando" | "revisar" | "pronto" | "erro";
+
+/** Item como o cliente recebe (sem dados internos). */
+export type PublicItem = Omit<MenuItem, `model_${string}`> & {
+  model: { glb: string; usdz: string; dims: { w: number; d: number; h: number } | null } | null;
+};
+
+export type Category = { id: string; name: string; position: number };
+
+export type PublicRestaurant = {
+  slug: string;
+  name: string;
+  primary_color: string;
+  whatsapp: string;
+  address: string;
+  delivery_enabled: boolean;
+  dine_in_enabled: boolean;
+  delivery_fee_cents: number;
+  min_order_cents: number;
+  ai_name: string;
+  accepting_orders?: boolean;
+  pix_key?: string;
+};
+
+export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };
+
+export type CartLine = { itemId: string; qty: number; notes: string; viaAi: boolean };
+
+export type WaiterAction =
+  | { type: "add"; itemId: string; qty: number; notes?: string }
+  | { type: "remove"; itemId: string }
+  | { type: "show"; itemIds: string[] };
