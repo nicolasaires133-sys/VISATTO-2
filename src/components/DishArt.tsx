@@ -283,7 +283,7 @@ function Drawing({ art }: { art: Art }) {
       return (
         <>
           {shadow(50, 88, 18)}
-          <path d="M58 10l-8 32" stroke="#1d1a16" strokeWidth="3" strokeLinecap="round" opacity=".75" />
+          <path d="M58 10l-8 32" stroke="#172033" strokeWidth="3" strokeLinecap="round" opacity=".75" />
           <path d="M32 30h36l-4 54c0 2-2 4-4 4H40c-2 0-4-2-4-4Z" fill="#fff" opacity=".8" />
           <path d="M33.4 38h33.2l-3.6 46c0 1.4-1.4 2.4-2.8 2.4H39.8c-1.4 0-2.8-1-2.8-2.4Z" fill="#5a2a1d" />
           {[[42, 48], [55, 56], [46, 66]].map(([x, y]) => <rect key={x} x={x - 5} y={y - 5} width="10" height="10" rx="2" fill="#fff" opacity=".45" transform={`rotate(12 ${x} ${y})`} />)}
@@ -295,7 +295,7 @@ function Drawing({ art }: { art: Art }) {
       return (
         <>
           {shadow(50, 88, 18)}
-          <path d="M60 12l-6 28" stroke="#1d1a16" strokeWidth="3" strokeLinecap="round" opacity=".75" />
+          <path d="M60 12l-6 28" stroke="#172033" strokeWidth="3" strokeLinecap="round" opacity=".75" />
           <path d="M32 30h36l-4 54c0 2-2 4-4 4H40c-2 0-4-2-4-4Z" fill="#fff" opacity=".8" />
           <path d="M33.4 40h33.2l-3.2 44c0 1.4-1.4 2.4-2.8 2.4H39.4c-1.4 0-2.8-1-2.8-2.4Z" fill="#f4a531" />
           <path d="M38 44l2 30" stroke="#fff" strokeWidth="2.4" opacity=".4" strokeLinecap="round" />

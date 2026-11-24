@@ -1,4 +1,5 @@
 "use client";
+import { ComoUsar } from "../ajuda-ui";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { usePainel } from "../ctx";
@@ -39,7 +40,7 @@ export default function QRCodes() {
 
   return (
     <div>
-      <PageHead title="QR codes e links" sub="Um QR por mesa: o pedido já chega com o número da mesa." />
+      <PageHead title="QR codes e links" sub="Um QR por mesa: o pedido já chega com o número da mesa."><ComoUsar tela="qrcodes" /></PageHead>
       <div className="no-print">
         {r.delivery_enabled && (
           <div className="card mt-6 space-y-3 p-5">

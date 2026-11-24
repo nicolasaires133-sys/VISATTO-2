@@ -9,14 +9,16 @@ import { api } from "@/lib/client";
 import Logo from "@/components/Logo";
 import Icon from "@/components/Icon";
 import InstallApp from "./InstallApp";
+import { Tour } from "./ajuda-ui";
 
 const NAV = [
-  { href: "/painel", label: "Pedidos", short: "Pedidos", icon: "receipt" },
-  { href: "/painel/cardapio", label: "Cardápio", short: "Cardápio", icon: "list" },
-  { href: "/painel/importar", label: "Importar por foto", short: "Importar", icon: "camera", ai: true },
-  { href: "/painel/insights", label: "Resultados", short: "Resultados", icon: "chart" },
-  { href: "/painel/qrcodes", label: "QR codes e links", short: "QR codes", icon: "qr" },
-  { href: "/painel/config", label: "Configurações", short: "Ajustes", icon: "settings" },
+  { href: "/painel", label: "Pedidos", short: "Pedidos", icon: "receipt", group: "Dia a dia" },
+  { href: "/painel/cardapio", label: "Cardápio", short: "Cardápio", icon: "list", group: "Dia a dia" },
+  { href: "/painel/qrcodes", label: "QR codes e links", short: "QR codes", icon: "qr", group: "Dia a dia" },
+  { href: "/painel/importar", label: "Importar por foto", short: "Importar", icon: "camera", ai: true, group: "Dia a dia" },
+  { href: "/painel/insights", label: "Resultados", short: "Resultados", icon: "chart", group: "Acompanhar" },
+  { href: "/painel/config", label: "Configurações", short: "Ajustes", icon: "settings", group: "Acompanhar" },
+  { href: "/painel/ajuda", label: "Ajuda e tutoriais", short: "Ajuda", icon: "help", group: "Acompanhar", mobileHidden: true },
 ];
 
 let audio: AudioContext | null = null;
@@ -156,43 +158,51 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   return (
     <PainelCtx.Provider value={{ ...state, reload, orders, calls, offline, refreshOrders, setOrders, setCalls, sound, setSound }}>
       <div className="min-h-dvh md:flex">
-        {/* Computador: menu lateral */}
-        <aside className="no-print sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col overflow-y-auto bg-ink p-4 text-white md:flex">
-          <Link href="/painel" className="px-2 pt-1">
-            <Logo size={30} />
+        {/* Computador: menu lateral claro, agrupado pelo que a pessoa faz */}
+        <aside className="no-print sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col overflow-y-auto border-r border-line bg-white px-3.5 py-4 md:flex">
+          <Link href="/painel" className="px-2.5 pt-1 text-ink">
+            <Logo size={28} />
           </Link>
-          <div className="mt-6 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10">
-            <p className="truncate font-display text-[16px] font-bold">{r.name}</p>
-            <a href={`/r/${r.slug}`} target="_blank" className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-semibold text-white/60 transition-colors hover:text-ember">
+          <div className="mt-5 rounded-xl px-2.5 py-2">
+            <p className="truncate text-[15px] font-bold">{r.name}</p>
+            <a href={`/r/${r.slug}`} target="_blank" data-tour="ver-cardapio" className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-semibold text-slate transition-colors hover:text-brand">
               Ver meu cardápio <Icon name="external" size={13} />
             </a>
           </div>
-          <nav className="mt-4 space-y-1" aria-label="Painel">
-            {nav.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                aria-current={isActive(n.href) ? "page" : undefined}
-                className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] font-semibold transition-colors duration-200 ${isActive(n.href) ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white"}`}
-              >
-                <span aria-hidden className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-brand transition-all duration-300 ${isActive(n.href) ? "opacity-100" : "scale-y-0 opacity-0"}`} />
-                <Icon name={n.icon} size={19} className={isActive(n.href) ? "text-ember" : ""} />
-                <span className="flex-1">{n.label}</span>
-                {n.href === "/painel" && pending > 0 && (
-                  <span className="tnum grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11.5px] font-bold text-white">{pending}</span>
-                )}
-              </Link>
+          <nav className="mt-3" aria-label="Painel">
+            {["Dia a dia", "Acompanhar"].map((g) => (
+              <div key={g} className="mt-3 first:mt-0">
+                <p className="px-2.5 pb-1.5 text-[12.5px] font-semibold text-slate/80">{g}</p>
+                <div className="space-y-0.5">
+                  {nav.filter((n) => n.group === g).map((n) => (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      data-tour={`nav-${n.href}`}
+                      aria-current={isActive(n.href) ? "page" : undefined}
+                      className={`group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[14.5px] font-semibold transition-colors duration-150 ${isActive(n.href) ? "bg-ink/[0.06] text-ink" : "text-slate hover:bg-ink/[0.04] hover:text-ink"}`}
+                    >
+                      <span aria-hidden className={`absolute -left-3.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand transition-all duration-300 ${isActive(n.href) ? "opacity-100" : "scale-y-0 opacity-0"}`} />
+                      <Icon name={n.icon} size={18} className={isActive(n.href) ? "text-brand" : "text-slate/80 group-hover:text-ink"} />
+                      <span className="flex-1">{n.label}</span>
+                      {n.href === "/painel" && pending > 0 && (
+                        <span className="tnum grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11.5px] font-bold text-white">{pending}</span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
-          <div className="mt-auto space-y-3 pt-6">
+          <div className="mt-auto space-y-2 pt-6">
             <InstallApp />
             {trialDays != null && r.plan === "trial" && (
-              <p className="rounded-xl bg-white/[0.06] p-3 text-[13px] text-white/70 ring-1 ring-white/10">
-                <b className="text-white">Teste grátis:</b> {trialDays > 0 ? `${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}` : "encerrado"}
+              <p className="rounded-xl bg-cream px-3 py-2.5 text-[13px] text-slate">
+                <b className="text-ink">Teste grátis:</b> {trialDays > 0 ? `${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}` : "encerrado"}
               </p>
             )}
-            <button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14.5px] font-semibold text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white">
-              <Icon name="logout" size={19} />
+            <button onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[14px] font-semibold text-slate transition-colors hover:bg-ink/[0.04] hover:text-ink">
+              <Icon name="logout" size={18} />
               Sair
             </button>
           </div>
@@ -200,27 +210,31 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
 
         <div className="min-w-0 flex-1">
           {/* Celular: topo com o nome do restaurante */}
-          <header className="no-print sticky top-0 z-20 flex items-center gap-3 bg-ink px-4 py-2.5 text-white md:hidden">
+          <header className="no-print sticky top-0 z-20 flex items-center gap-2.5 border-b border-line bg-white/90 px-4 py-2.5 backdrop-blur-lg md:hidden">
             <Logo size={26} className="[&>span:last-child]:hidden" />
-            <p className="min-w-0 flex-1 truncate font-display text-[16px] font-bold">{r.name}</p>
-            <a href={`/r/${r.slug}`} target="_blank" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold ring-1 ring-white/15">
+            <p className="min-w-0 flex-1 truncate text-[16px] font-bold">{r.name}</p>
+            <Link href="/painel/ajuda" aria-label="Ajuda e tutoriais" data-tour="nav-/painel/ajuda" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate ring-1 ring-black/10">
+              <Icon name="help" size={18} />
+            </Link>
+            <a href={`/r/${r.slug}`} target="_blank" data-tour="ver-cardapio" className="inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold ring-1 ring-black/10">
               Cardápio <Icon name="external" size={13} />
             </a>
           </header>
           <div className="no-print px-4 md:hidden">
             <InstallApp dismissible />
           </div>
-          <div key={path} className="animate-enter mx-auto max-w-6xl px-4 pb-28 pt-5 md:p-10">{children}</div>
+          <div key={path} className="animate-enter mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-10 md:py-9">{children}</div>
         </div>
 
         {/* Celular: barra inferior */}
         <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden" aria-label="Painel">
-          {nav.filter((n) => !n.ai).map((n) => (
+          {nav.filter((n) => !n.ai && !n.mobileHidden).map((n) => (
             <Link
               key={n.href}
               href={n.href}
+              data-tour={`nav-${n.href}`}
               aria-current={isActive(n.href) ? "page" : undefined}
-              className={`relative flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-semibold ${isActive(n.href) ? "text-ink" : "text-black/45"}`}
+              className={`relative flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-semibold ${isActive(n.href) ? "text-ink" : "text-slate/80"}`}
             >
               <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors duration-200 ${isActive(n.href) ? "bg-ink text-white" : ""}`}>
                 <Icon name={n.icon} size={19} />
@@ -233,6 +247,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           ))}
         </nav>
       </div>
+      <Tour />
     </PainelCtx.Provider>
   );
 }

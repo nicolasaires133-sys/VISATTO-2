@@ -1,4 +1,5 @@
 "use client";
+import { ComoUsar } from "../ajuda-ui";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, dataUrlToBlob, resizeImage, uploadFile } from "@/lib/client";
@@ -112,6 +113,7 @@ export default function Cardapio() {
         title="Cardápio"
         sub={items.length ? <>{items.length} {items.length === 1 ? "prato" : "pratos"} · <b className="text-ink">{with3d} com 3D na mesa</b>. O que você muda aqui aparece na hora para o cliente{waiter ? " e para o garçom de IA" : ""}.</> : "Cadastre seus pratos e escaneie cada um em 3D."}
       >
+        <ComoUsar tela="cardapio" />
         {aiEnabled && (
           <Link href="/painel/importar" className="btn-ghost">
             <Icon name="camera" size={17} /> Importar por foto
@@ -546,7 +548,7 @@ function SellFields({ f, setF, others }: { f: Draft; setF: React.Dispatch<React.
           ))}
         </div>
         <label className="mt-3 flex items-start gap-2.5 text-[14px]">
-          <input type="checkbox" className="mt-0.5 h-5 w-5 accent-[#1d1a16]" checked={!!f.allergens_known} onChange={(e) => setF({ ...f, allergens_known: e.target.checked })} />
+          <input type="checkbox" className="mt-0.5 h-5 w-5 accent-[#172033]" checked={!!f.allergens_known} onChange={(e) => setF({ ...f, allergens_known: e.target.checked })} />
           <span><b>Conferi a ficha deste prato.</b> {allergens.length ? "" : "Se nada estiver marcado, o cliente vê “não contém os alergênicos principais”."}</span>
         </label>
       </section>

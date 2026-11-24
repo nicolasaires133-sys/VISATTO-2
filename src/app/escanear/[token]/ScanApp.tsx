@@ -861,11 +861,11 @@ function CaptureIllustration() {
       <ellipse cx="204" cy="104" rx="32" ry="7.5" fill="#c9461f" />
       <path d="M186 88q5-10 15-13" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity=".7" />
       {/* caminho do celular */}
-      <ellipse cx="170" cy="100" rx="138" ry="62" fill="none" stroke="#1d1a16" strokeWidth="1.8" strokeDasharray="2 7" strokeLinecap="round" />
-      <polygon points="301,95 315,95 308,108" fill="#1d1a16" />
+      <ellipse cx="170" cy="100" rx="138" ry="62" fill="none" stroke="#172033" strokeWidth="1.8" strokeDasharray="2 7" strokeLinecap="round" />
+      <polygon points="301,95 315,95 308,108" fill="#172033" />
       {/* celular */}
       <g transform="rotate(-18 46 62)">
-        <rect x="33" y="40" width="26" height="46" rx="6" fill="#1d1a16" />
+        <rect x="33" y="40" width="26" height="46" rx="6" fill="#172033" />
         <rect x="36.5" y="45" width="19" height="32" rx="2.5" fill="#57534e" />
         <circle cx="46" cy="81.5" r="1.8" fill="#57534e" />
       </g>
@@ -901,9 +901,9 @@ function ShotCard({ n, title, text, illustration, onFile, busy }: { n: number; t
       <StepTitle n={n} title={title} text={text} />
       <div className="grid place-items-center rounded-2xl bg-black/[0.03] py-6">
         {illustration === "cima" ? (
-          <svg width="200" height="140" viewBox="0 0 200 140"><rect x="40" y="95" width="120" height="8" rx="2" fill="#c9a27a" /><ellipse cx="85" cy="92" rx="34" ry="6" fill="#eee" stroke="#999" /><rect x="125" y="89" width="22" height="5" fill="#222" /><rect x="70" y="8" width="30" height="50" rx="5" fill="#1d1a16" /><path d="M85 60 L85 82" stroke="#E4572E" strokeWidth="2" strokeDasharray="4 3" /><text x="105" y="40" fontSize="11" fill="#555">~50 cm</text></svg>
+          <svg width="200" height="140" viewBox="0 0 200 140"><rect x="40" y="95" width="120" height="8" rx="2" fill="#c9a27a" /><ellipse cx="85" cy="92" rx="34" ry="6" fill="#eee" stroke="#999" /><rect x="125" y="89" width="22" height="5" fill="#222" /><rect x="70" y="8" width="30" height="50" rx="5" fill="#172033" /><path d="M85 60 L85 82" stroke="#E4572E" strokeWidth="2" strokeDasharray="4 3" /><text x="105" y="40" fontSize="11" fill="#555">~50 cm</text></svg>
         ) : (
-          <svg width="200" height="140" viewBox="0 0 200 140"><rect x="40" y="105" width="140" height="8" rx="2" fill="#c9a27a" /><ellipse cx="120" cy="100" rx="34" ry="6" fill="#eee" stroke="#999" /><rect x="105" y="85" width="30" height="14" rx="4" fill="#e7a25a" /><rect x="150" y="99" width="22" height="4" fill="#222" /><rect x="18" y="40" width="12" height="40" rx="3" fill="#1d1a16" transform="rotate(-60 24 60)" /><path d="M35 62 L100 92" stroke="#E4572E" strokeWidth="2" strokeDasharray="4 3" /><text x="40" y="45" fontSize="11" fill="#555">~30°</text></svg>
+          <svg width="200" height="140" viewBox="0 0 200 140"><rect x="40" y="105" width="140" height="8" rx="2" fill="#c9a27a" /><ellipse cx="120" cy="100" rx="34" ry="6" fill="#eee" stroke="#999" /><rect x="105" y="85" width="30" height="14" rx="4" fill="#e7a25a" /><rect x="150" y="99" width="22" height="4" fill="#222" /><rect x="18" y="40" width="12" height="40" rx="3" fill="#172033" transform="rotate(-60 24 60)" /><path d="M35 62 L100 92" stroke="#E4572E" strokeWidth="2" strokeDasharray="4 3" /><text x="40" y="45" fontSize="11" fill="#555">~30°</text></svg>
         )}
       </div>
       <label className={`btn-primary h-12 w-full cursor-pointer text-base ${busy ? "pointer-events-none opacity-50" : ""}`}>
@@ -1161,7 +1161,7 @@ function TopEditor({ calib, outline, onChange, rect, refSize }: { calib: Calib; 
         const [X, Y] = toW(x, y);
         onChange({ ...outline, b: Math.max(2, -(X - outline.cx) * sr + (Y - outline.cy) * cr) });
       })} />
-      <Handle x={hr[0]} y={hr[1]} color="#1d1a16" label="⟳" onDown={(e) => drag(e, el(), (x, y) => {
+      <Handle x={hr[0]} y={hr[1]} color="#172033" label="⟳" onDown={(e) => drag(e, el(), (x, y) => {
         const [X, Y] = toW(x, y);
         onChange({ ...outline, rot: Math.atan2(Y - outline.cy, X - outline.cx) - 0.6 });
       })} />

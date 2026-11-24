@@ -393,7 +393,7 @@ export default function ModelStudio({ itemId, itemName, image, onChanged }: { it
                 <input type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </label>
               <label className="flex items-start gap-2.5 text-[14px]">
-                <input type="checkbox" className="mt-1 h-4 w-4 accent-[#1d1a16]" checked={keepScale} onChange={(e) => setKeepScale(e.target.checked)} />
+                <input type="checkbox" className="mt-1 h-4 w-4 accent-[#172033]" checked={keepScale} onChange={(e) => setKeepScale(e.target.checked)} />
                 <span>O arquivo já está no tamanho real (escaneado com iPhone Pro / LiDAR)</span>
               </label>
               {!keepScale && <WidthField value={width} onChange={setWidth} />}

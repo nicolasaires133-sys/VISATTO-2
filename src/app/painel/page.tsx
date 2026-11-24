@@ -1,5 +1,6 @@
 "use client";
 // Pedidos ao vivo: chamados das mesas no topo, depois Novos → Em preparo → Prontos.
+import { ComoUsar } from "./ajuda-ui";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
@@ -100,7 +101,7 @@ export default function Pedidos() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[28px] font-extrabold leading-tight">Pedidos</h1>
+          <h1 className="text-[30px] font-bold leading-tight">Pedidos</h1>
           <p className="text-[14px] text-black/55">
             {offline ? (
               <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800"><Icon name="alert" size={15} /> Sem conexão. Tentando de novo...</span>
@@ -110,6 +111,7 @@ export default function Pedidos() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ComoUsar tela="pedidos" />
           <button onClick={() => setSound(!sound)} aria-pressed={sound} className={sound ? "btn-dark" : "btn-ghost"}>
             <Icon name={sound ? "sound" : "mute"} size={17} />
             {sound ? "Som ligado" : "Ligar som de aviso"}

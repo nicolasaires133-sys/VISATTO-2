@@ -1,4 +1,5 @@
 "use client";
+import { ComoUsar } from "../ajuda-ui";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { brl } from "@/lib/format";
@@ -48,6 +49,7 @@ export default function Insights() {
   return (
     <div>
       <PageHead title="Resultados" sub={waiter ? "Quanto o garçom de IA está trazendo para o seu caixa." : "Seus pedidos e quantos clientes viram os pratos na mesa."}>
+        <ComoUsar tela="resultados" />
         <div className="flex rounded-xl bg-black/[0.05] p-1 text-[14px] font-semibold" role="tablist" aria-label="Período">
           {[7, 30, 90].map((n) => (
             <button key={n} role="tab" aria-selected={days === n} onClick={() => setDays(n)} className={`rounded-lg px-3.5 py-2 ${days === n ? "bg-white shadow-sm" : "text-black/55"}`}>

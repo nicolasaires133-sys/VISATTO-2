@@ -467,7 +467,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                           onClick={(e) => addToCart(i.id, 1, "", false, false, e.currentTarget)}
                           aria-label={t("addAria", { name: name(i) })}
                           className={`absolute bottom-[-6px] right-[-6px] grid h-9 min-w-9 place-items-center rounded-full px-2 text-white shadow-md ring-2 ring-white transition-transform active:scale-90 ${qtyOf(i.id) ? "animate-bump" : ""}`}
-                          style={{ background: qtyOf(i.id) ? "#1d1a16" : color }}
+                          style={{ background: qtyOf(i.id) ? "#172033" : color }}
                         >
                           {qtyOf(i.id) ? <span className="tnum text-[13.5px] font-bold">{qtyOf(i.id)}</span> : <Icon name="plus" size={17} stroke={2.4} />}
                         </button>
@@ -696,7 +696,7 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
             onClick={(e) => onAdd(e.currentTarget)}
             aria-label={t("addAria", { name })}
             className={`absolute bottom-[-6px] right-[-6px] grid h-10 min-w-10 place-items-center rounded-full px-2 text-white shadow-md ring-2 ring-white transition-transform active:scale-90 ${qty ? "animate-bump" : ""}`}
-            style={{ background: qty ? "#1d1a16" : color }}
+            style={{ background: qty ? "#172033" : color }}
           >
             {qty ? <span className="tnum text-[14px] font-bold">{qty}</span> : <Icon name="plus" size={18} stroke={2.4} />}
           </button>
@@ -1072,7 +1072,7 @@ function CartSheet(props: {
                 {payment === "pix" && <p className="mt-2 text-[13.5px] text-black/60">{t("pixNext")}</p>}
               </fieldset>
               <label className="flex items-start gap-2.5 text-[13.5px] text-black/70">
-                <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[#1d1a16]" checked={optin} onChange={(e) => setOptin(e.target.checked)} />
+                <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[#172033]" checked={optin} onChange={(e) => setOptin(e.target.checked)} />
                 {t("optin")}
               </label>
             </div>

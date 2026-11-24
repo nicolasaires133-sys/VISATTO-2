@@ -1,4 +1,5 @@
 "use client";
+import { ComoUsar } from "../ajuda-ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
@@ -69,7 +70,7 @@ export default function Config() {
   return (
     <>
     <form onSubmit={save} className="max-w-2xl space-y-5 pb-24">
-      <PageHead title="Configurações" />
+      <PageHead title="Configurações" sub="Pagamento, fidelidade, entrega e a cara do seu cardápio."><ComoUsar tela="config" /></PageHead>
 
       <section className="card space-y-4 p-5">
         <h2 className="text-[18px] font-extrabold">Restaurante</h2>

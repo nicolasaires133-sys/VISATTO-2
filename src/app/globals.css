@@ -1,17 +1,20 @@
 @import "tailwindcss";
-@import "@fontsource-variable/anybody/standard.css";
+@import "@fontsource-variable/schibsted-grotesk/wght.css";
 @import "@fontsource-variable/onest/wght.css";
 
-/* Visatto: grafite + brasa (as cores do ícone). A comida é quem tem cor.
-   Tipografia: Anybody (títulos, com largura variável) + Onest (texto). */
+/* Visatto: "ficha técnica do prato". Porcelana clara, tinta azul-marinho e a brasa do ícone só onde importa.
+   Linhas de medida (cotas, em cm) são a assinatura visual: é o tamanho real que o produto entrega.
+   Tipografia: Schibsted Grotesk (títulos, firme e editorial) + Onest (texto e interface). */
 @theme {
   --font-sans: "Onest Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Onest Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-wide: "Anybody Variable", "Onest Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-ink: #1d1a16;
-  --color-smoke: #2a2620;
-  --color-cream: #efefeb;
-  --color-line: #e1e0da;
+  --font-wide: "Schibsted Grotesk Variable", "Onest Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #172033;
+  --color-smoke: #232d42;
+  --color-slate: #5a6476;
+  --color-porcelain: #f6f7f4;
+  --color-cream: #eff0ec;
+  --color-line: #e2e4e1;
   --color-brand: #e4572e;
   --color-brand-dark: #c2431f;
   --color-ember: #ff9a5c;
@@ -21,7 +24,7 @@
 
 html,
 body {
-  background: var(--color-cream);
+  background: var(--color-porcelain);
   color: var(--color-ink);
   -webkit-tap-highlight-color: transparent;
   text-rendering: optimizeLegibility;
@@ -30,8 +33,7 @@ body {
 /* títulos de página: Anybody; títulos menores e rótulos: Onest pesada (lê melhor em tamanho pequeno) */
 h1 {
   font-family: var(--font-wide);
-  font-variation-settings: "wdth" 104;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 h2,
 h3,
@@ -41,9 +43,8 @@ h3,
 /* títulos grandes da página inicial: mais largos e mais pesados */
 .display-wide {
   font-family: var(--font-wide);
-  font-variation-settings: "wdth" 112;
   font-weight: 760;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
 }
 
 /* números alinhados em preços e medidas */
@@ -68,7 +69,7 @@ select:focus-visible {
   @apply btn bg-brand text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_20px_-10px_rgba(228,87,46,0.9)] hover:bg-brand-dark hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_-10px_rgba(228,87,46,1)];
 }
 @utility btn-ghost {
-  @apply btn bg-white text-ink ring-1 ring-black/10 shadow-[0_1px_2px_rgba(29,26,22,0.06)] hover:bg-black/[0.04] hover:ring-black/20;
+  @apply btn bg-white text-ink ring-1 ring-black/10 shadow-[0_1px_2px_rgba(23,32,51,0.06)] hover:bg-black/[0.04] hover:ring-black/20;
 }
 @utility btn-dark {
   @apply btn bg-ink text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:bg-black;
@@ -80,7 +81,7 @@ select:focus-visible {
   @apply mb-1.5 block text-[13px] font-semibold text-black/70;
 }
 @utility card {
-  @apply rounded-2xl bg-white ring-1 ring-black/[0.07] shadow-[0_1px_0_rgba(29,26,22,0.03),0_12px_32px_-22px_rgba(29,26,22,0.35)];
+  @apply rounded-2xl bg-white ring-1 ring-[#172033]/[0.08] shadow-[0_1px_2px_rgba(23,32,51,0.04)];
 }
 
 /* Régua: o "tamanho real" do Visatto vira desenho (marcas de milímetro e centímetro) */
@@ -113,9 +114,10 @@ select:focus-visible {
 .animate-sheet { animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 /* troca de tela no painel: o conteúdo novo assenta no lugar */
+/* termina em "none" (e não translateY(0)): senão a tela vira referência para as janelas fixas e elas não cobrem tudo */
 @keyframes enter {
   0% { transform: translateY(8px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+  100% { transform: none; opacity: 1; }
 }
 .animate-enter { animation: enter 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
@@ -214,9 +216,54 @@ details.faq[open]::details-content { block-size: auto; }
 .hero-stage[data-locked] .hero-corner-2 { transition-delay: 0.1s; }
 .hero-stage[data-locked] .hero-corner-3 { transition-delay: 0.15s; }
 .hero-measure { opacity: 0; transition: opacity 0.4s ease-out 0.55s; }
-.hero-measure-line { transform: scaleX(0); transition: transform 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.65s; }
+.hero-measure-line { transform: scaleX(0); transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s; }
+.hero-measure-line-v { transform: scaleY(0); transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 1.1s; }
 .hero-stage[data-locked] .hero-measure { opacity: 1; }
 .hero-stage[data-locked] .hero-measure-line { transform: scaleX(1); }
+.hero-stage[data-locked] .hero-measure-line-v { transform: scaleY(1); }
+/* o celular com o cardápio sobe depois que o prato está medido */
+.hero-phone { opacity: 0; transform: translateY(28px) rotate(-2deg); transition: opacity 0.6s ease-out 1.5s, transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 1.5s; }
+.hero-stage[data-locked] .hero-phone { opacity: 1; transform: none; }
+
+/* papel milimetrado: linha de 1 cm forte e de 2 mm fraca */
+.mm-grid {
+  background-image:
+    linear-gradient(rgba(23, 32, 51, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 51, 0.09) 1px, transparent 1px),
+    linear-gradient(rgba(23, 32, 51, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 51, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+  background-position: center;
+}
+.mm-grid-dark {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center;
+}
+
+/* marcadores em cima das telas do painel (página inicial) */
+@keyframes spot-in {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+.spot {
+  background: var(--color-ink);
+  box-shadow: 0 0 0 3px #fff, 0 6px 16px -4px rgba(23, 32, 51, 0.5);
+  animation: spot-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: background-color 0.2s;
+}
+.spot[data-on] { background: var(--color-brand); }
+.spot[data-on]::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 2px solid var(--color-brand);
+  animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping { 75%, 100% { transform: scale(1.6); opacity: 0; } }
 .hero-chip { opacity: 0; transform: translateY(6px); transition: opacity 0.4s ease-out 1.8s, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 1.8s; }
 .hero-stage[data-locked] .hero-chip { opacity: 1; transform: none; }
 

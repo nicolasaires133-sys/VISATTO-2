@@ -240,7 +240,7 @@ export default function Conta({ params, searchParams }: { params: Promise<{ slug
           </section>
 
           {sent ? (
-            <section className="animate-enter mt-6 rounded-2xl p-4 text-white" style={{ background: "#1d1a16" }} role="status">
+            <section className="animate-enter mt-6 rounded-2xl p-4 text-white" style={{ background: "#172033" }} role="status">
               <p className="flex items-center gap-2 text-[17px] font-bold"><Icon name="check" size={20} stroke={2.6} /> Equipe avisada</p>
               <p className="mt-1 text-[14.5px] text-white/75">
                 {sent.method === "pix-feito"

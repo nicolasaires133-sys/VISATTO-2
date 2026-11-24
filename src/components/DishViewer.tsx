@@ -43,6 +43,7 @@ export default function DishViewer({
   onEvent,
   showArButton = true,
   hideDims = false,
+  hideHint = false,
   background,
   dark = false,
   orbit = "25deg 62deg 94%",
@@ -55,6 +56,7 @@ export default function DishViewer({
   onEvent?: (type: "view3d" | "ar") => void;
   showArButton?: boolean;
   hideDims?: boolean;
+  hideHint?: boolean;
   /** fundo do palco do 3D (padrão: porcelana clara) */
   background?: string;
   /** textos de carregamento claros, para fundo escuro */
@@ -187,7 +189,7 @@ export default function DishViewer({
             Não foi possível carregar o 3D deste prato.
           </div>
         )}
-        {loaded && !touched && !dark && (
+        {loaded && !touched && !dark && !hideHint && (
           <span className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-black/70">
             <Icon name="rotate" size={14} />
             Gire com o dedo
@@ -200,7 +202,7 @@ export default function DishViewer({
       {showArButton && loaded && (
         <div className="mt-3">
           {canAR ? (
-            <button type="button" onClick={() => setTips(true)} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: "#1d1a16" }}>
+            <button type="button" onClick={() => setTips(true)} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: "#172033" }}>
               <Icon name="scan" size={20} stroke={2} />
               Ver na minha mesa, em tamanho real
             </button>

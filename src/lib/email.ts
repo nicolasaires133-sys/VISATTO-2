@@ -28,7 +28,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 /** E-mail simples, que abre bem em qualquer programa (sem imagens). */
 export function simpleEmail(title: string, paragraphs: string[], button?: { label: string; url: string }) {
-  const html = `<!doctype html><html><body style="margin:0;background:#efefeb;font-family:Arial,Helvetica,sans-serif;color:#1d1a16">
+  const html = `<!doctype html><html><body style="margin:0;background:#efefeb;font-family:Arial,Helvetica,sans-serif;color:#172033">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" style="max-width:480px;background:#ffffff;border-radius:16px" cellpadding="0" cellspacing="0"><tr><td style="padding:28px">
 <p style="margin:0 0 18px;font-size:18px;font-weight:bold">Visatto</p>

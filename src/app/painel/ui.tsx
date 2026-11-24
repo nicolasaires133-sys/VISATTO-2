@@ -8,8 +8,8 @@ export function PageHead({ title, sub, children }: { title: string; sub?: React.
   return (
     <div className="no-print flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-[28px] font-extrabold leading-tight">{title}</h1>
-        {sub && <p className="mt-0.5 text-[14px] text-black/55">{sub}</p>}
+        <h1 className="text-[30px] font-bold leading-tight">{title}</h1>
+        {sub && <p className="mt-1 text-[14.5px] text-slate">{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>

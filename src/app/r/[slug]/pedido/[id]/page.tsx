@@ -124,7 +124,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
       <section aria-live="polite" className="mt-5">
         <span
           className="grid h-14 w-14 place-items-center rounded-2xl text-white"
-          style={{ background: cancelled ? "#7f1d1d" : done ? "#2f7d4f" : "#1d1a16" }}
+          style={{ background: cancelled ? "#7f1d1d" : done ? "#2f7d4f" : "#172033" }}
         >
           <Icon name={cancelled ? "close" : done ? "check" : o.status === "saiu" ? "bike" : "clock"} size={28} stroke={2} />
         </span>
