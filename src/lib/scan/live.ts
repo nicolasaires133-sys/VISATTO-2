@@ -5,6 +5,7 @@
 // Aqui fica só a lógica (sem tela), para poder ser testada com quadros sintéticos.
 import { calibrate, cameraCenter, focalFromHomography, homography, pixelToPlane, type Vec2 } from "./geometry";
 import { detectMarker, MARKER_CM } from "./marker";
+import { A4, detectSheet, rotate, SheetTracker } from "./sheet";
 import { sharpness } from "./recon";
 import type { Frame } from "./video";
 
@@ -37,7 +38,8 @@ export type LiveStatus = {
   done: boolean;
 };
 
-type Slot = { frame: ImageData; sharp: number };
+type Slot = { frame: ImageData; sharp: number; corners: Vec2[] };
+type Ref = "folha" | "marcador";
 
 export class LiveSession {
   private slots = new Map<number, Slot>(); // chave: fatia * 2 + faixa de altura (0 baixa, 1 alta)
@@ -47,6 +49,31 @@ export class LiveSession {
   private last: { az: number; t: number } | null = null;
   private everFound = false;
   private speed = 0;
+  /** referência usada nesta captura (decidida no primeiro quadro em que aparece) */
+  private ref: Ref | null = null;
+  private tracker = new SheetTracker();
+
+  /** Acha a referência num quadro: o quadrado impresso (se for o caso) ou a folha em branco, já na ordem certa. */
+  private find(img: ImageData, t: number): Vec2[] | null {
+    if (this.ref !== "folha") {
+      const m = detectMarker(img);
+      if (m) {
+        this.ref = "marcador";
+        return m;
+      }
+      if (this.ref === "marcador") return null;
+    }
+    const c = detectSheet(img);
+    if (!c) return null;
+    const o = this.tracker.orient(c, img, t);
+    if (o) this.ref = "folha";
+    return o;
+  }
+
+  /** tamanho da referência no mundo (cm) */
+  private dims() {
+    return this.ref === "marcador" ? { w: MARKER_CM, h: MARKER_CM } : { w: A4.w, h: A4.h };
+  }
 
   /**
    * @param small quadro reduzido (≈480 px) para achar a folha rápido
@@ -59,22 +86,26 @@ export class LiveSession {
       const count = covered.filter(Boolean).length;
       return { hint, corners, bin, covered, count, captured, canFinish: count >= LIVE_MIN, done: count >= LIVE_DONE };
     };
-    const corners = detectMarker(small);
+    const corners = this.find(small, t);
     if (!corners) {
       this.last = null;
       return base(!this.everFound ? "procurando" : t - this.lastSeen > 500 ? "sem-folha" : "bom");
     }
     this.everFound = true;
     this.lastSeen = t;
-    const w = small.width, h = small.height, m = MARKER_CM / 2;
+    const w = small.width, h = small.height;
+    const D = this.dims(), hw = D.w / 2, hh = D.h / 2;
 
     // foco da câmera: mediana das estimativas até aqui (fica estável depois de poucos quadros)
-    const H = homography([[-m, m], [m, m], [m, -m], [-m, -m]], corners);
+    const H = homography([[-hw, hh], [hw, hh], [hw, -hh], [-hw, -hh]], corners);
     const f = focalFromHomography(H, w / 2, h / 2);
-    if (f && this.focals.length < 200) this.focals.push(f / Math.max(w, h));
+    if (f && this.focals.length < 200) {
+      this.focals.push(f / Math.max(w, h));
+      this.tracker.addFocal(f / Math.max(w, h));
+    }
     const fs = [...this.focals].sort((a, b) => a - b);
     const fKnown = fs.length >= 5 ? fs[fs.length >> 1] * Math.max(w, h) : null;
-    const cam = calibrate({ corners, refW: MARKER_CM, refH: MARKER_CM, width: w, height: h, fKnown }).cam;
+    const cam = calibrate({ corners, refW: D.w, refH: D.h, width: w, height: h, fKnown }).cam;
     const C = cameraCenter(cam);
 
     // centro da cena: para onde o celular costuma apontar (o prato e a folha)
@@ -101,8 +132,8 @@ export class LiveSession {
     } else this.speed = 0;
     this.last = { az, t };
 
-    // tamanho do quadrado na imagem: muito pequeno = longe demais para medir bem
-    const side = Math.hypot(corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]);
+    // tamanho da referência na imagem: muito pequena = longe demais para medir bem
+    const side = Math.hypot(corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]) * (MARKER_CM / D.w);
     const sideFrac = side / Math.max(w, h);
 
     if (C[2] < 4 || elev < 14) return base("levantar", corners, bin);
@@ -120,9 +151,21 @@ export class LiveSession {
     if (!cur || sharp > cur.sharp * 1.15) {
       // só guarda se a folha também é encontrada no quadro em resolução de trabalho (é ele que vai para o 3D)
       const fr = full();
-      if (detectMarker(fr)) {
+      const big = this.ref === "marcador" ? detectMarker(fr) : detectSheet(fr);
+      if (big) {
+        // na resolução de trabalho, os cantos seguem a mesma ordem já decidida no quadro pequeno
+        const k = fr.width / w;
+        let oriented = big;
+        if (this.ref === "folha") {
+          let bestR = 0, bestD = Infinity;
+          for (let r = 0; r < 4; r++) {
+            const d = rotate(big, r).reduce((acc, c, i) => acc + Math.hypot(c[0] - corners[i][0] * k, c[1] - corners[i][1] * k), 0);
+            if (d < bestD) (bestD = d), (bestR = r);
+          }
+          oriented = rotate(big, bestR);
+        }
         const isNewAngle = !this.slots.has(bin * 2) && !this.slots.has(bin * 2 + 1);
-        this.slots.set(key, { frame: fr, sharp });
+        this.slots.set(key, { frame: fr, sharp, corners: oriented });
         captured = isNewAngle;
       }
     }
@@ -137,7 +180,8 @@ export class LiveSession {
 
   /** Quadros guardados, prontos para reconstructFromFrames. */
   frames(): Frame[] {
-    return [...this.slots.entries()].sort((a, b) => a[0] - b[0]).map(([, s]) => ({ data: s.frame }));
+    const ref = this.ref ?? "folha";
+    return [...this.slots.entries()].sort((a, b) => a[0] - b[0]).map(([, s]) => ({ data: s.frame, corners: s.corners, ref }));
   }
 }
 

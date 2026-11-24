@@ -117,6 +117,10 @@ export async function reconstructHeightfield(views: View[], opts: ReconOptions =
   const inMarker = (X: number, Y: number) => !!ex && Math.abs(X) < mk && Math.abs(Y) < mk;
 
   // ---- 1. a mesa vista de cima: cor de cada ponto do chão em cada quadro + a cor "de consenso" (mediana)
+  // As cores do chão saem de imagens borradas na escala de uma célula: numa mesa de madeira com veios finos,
+  // cada quadro cairia num veio diferente e "discordaria" da mesa, que viraria objeto.
+  const groundBlur = Math.max(2, Math.round(views[0].img.width / 220));
+  const gviews = views.map((v) => ({ img: blurImage(v.img, groundBlur), cam: v.cam }));
   const gm = 16; // margem extra (cm): raios inclinados batem no chão longe do prato
   const gh = half + gm, gn = Math.round((2 * gh) / cell), gx0 = cx - gh, gy0 = cy - gh, GN = gn * gn;
   const gcol = new Float32Array(V * GN * 3).fill(NaN);
@@ -128,7 +132,7 @@ export async function reconstructHeightfield(views: View[], opts: ReconOptions =
     const X = gx0 + ((q % gn) + 0.5) * cell, Y = gy0 + (((q / gn) | 0) + 0.5) * cell;
     tmp[0].length = tmp[1].length = tmp[2].length = 0;
     for (let v = 0; v < V; v++) {
-      const c = sampleWorld(views[v], X, Y, 0);
+      const c = sampleWorld(gviews[v], X, Y, 0);
       if (!c) continue;
       const g = gains[v], o = (v * GN + q) * 3;
       for (let ch = 0; ch < 3; ch++) { gcol[o + ch] = c[ch] * g[ch]; tmp[ch].push(c[ch] * g[ch]); }

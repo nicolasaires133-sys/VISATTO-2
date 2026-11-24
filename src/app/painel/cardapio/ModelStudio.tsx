@@ -316,8 +316,8 @@ export default function ModelStudio({ itemId, itemName, image, onChanged }: { it
             <div className="space-y-3">
               <ol className="grid gap-2 text-[14px] sm:grid-cols-3">
                 {[
-                  ["Imprima o marcador", "Uma folha A4 com um quadrado preto. É a régua do escâner."],
-                  ["Coloque ao lado do prato", "Prato montado como é servido, em mesa bem iluminada."],
+                  ["Pegue uma folha A4 em branco", "Sulfite comum, sem imprimir. É a régua do escâner."],
+                  ["Coloque ao lado do prato", "A um palmo, em mesa bem iluminada. Mesa branca? Ponha um pano escuro embaixo."],
                   ["Aponte e dê uma volta", "O celular guia, tira as fotos sozinho e o 3D sai na hora."],
                 ].map(([t, d], i) => (
                   <li key={t} className="rounded-xl bg-cream p-3">
@@ -333,9 +333,6 @@ export default function ModelStudio({ itemId, itemName, image, onChanged }: { it
                     <Icon name="video" size={18} />
                     {onPhone ? "Escanear agora neste celular" : "Escanear com o celular"}
                   </button>
-                  <a href="/marcador" target="_blank" className="btn-ghost h-12">
-                    <Icon name="printer" size={17} /> Imprimir marcador
-                  </a>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-4 rounded-2xl bg-cream p-4 sm:flex-row">

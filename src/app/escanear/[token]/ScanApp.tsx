@@ -51,7 +51,7 @@ export default function ScanApp({ token }: { token: string }) {
   const [result, setResult] = useState<{ url: string; blob: Blob; dims: { w: number; d: number; h: number } } | null>(null);
   const [saved, setSaved] = useState<any>(null);
   const [manual, setManual] = useState<{ photo: Photo; corners: Vec2[]; which: "cima" | "lado" } | null>(null);
-  const [recon, setRecon] = useState<{ found: number; total: number; used: number; markerCm: number; scaleSource: "folha" | "manual" | "padrao" } | null>(null);
+  const [recon, setRecon] = useState<{ found: number; total: number; used: number; markerCm: number; scaleSource: "folha" | "manual" | "padrao" | "folha-branca" } | null>(null);
   const [live, setLive] = useState(false); // câmera guiada aberta
   const [noCam, setNoCam] = useState(""); // a câmera guiada não abriu: mostra o caminho do vídeo comum
   const [markerEdited, setMarkerEdited] = useState(false); // o dono informou o tamanho do quadrado à mão
@@ -427,8 +427,8 @@ export default function ScanApp({ token }: { token: string }) {
 
             <ol className="space-y-2.5">
               {[
-                ["Folha impressa ao lado do produto", "Na mesma mesa, a um palmo. Produto montado como é servido."],
-                ["Toque em Começar e aponte a câmera", "Folha e produto aparecendo juntos na tela."],
+                ["Uma folha A4 em branco ao lado do produto", "Folha de sulfite comum, sem imprimir nada, a um palmo do prato. Em mesa branca, ponha um pano escuro embaixo."],
+                ["Toque em Começar e aponte a câmera", "A folha inteira e o produto aparecendo juntos na tela."],
                 ["Dê a volta até o anel fechar", "Devagar, celular meio inclinado. Leva uns 20 segundos e termina sozinho."],
               ].map(([t, d], i) => (
                 <li key={t} className="flex gap-3 rounded-2xl bg-cream p-3.5">
@@ -441,9 +441,6 @@ export default function ScanApp({ token }: { token: string }) {
               ))}
             </ol>
 
-            <a href="/marcador" target="_blank" className="flex items-center justify-center gap-2 py-1 text-[14.5px] font-semibold underline">
-              <Icon name="printer" size={17} /> Ainda não tenho a folha: imprimir (1 página A4)
-            </a>
 
             {noCam && (
               <div className="space-y-3 rounded-2xl bg-amber-50 p-4 text-amber-950" role="alert">
@@ -473,6 +470,11 @@ export default function ScanApp({ token }: { token: string }) {
                   <p className="mt-1.5 text-[13px] text-black/55">Diga o que é e em que vem (prato, taça, copo de vidro, tábua). Ajuda a medir melhor.</p>
                 </div>
                 <div>
+                  <p className="label">Marcador impresso (opcional)</p>
+                  <p className="mb-2 text-[13.5px] text-black/60">
+                    Não precisa. Se a folha em branco se confundir com a mesa, dá para{" "}
+                    <a href="/marcador" target="_blank" className="font-semibold underline">imprimir um marcador</a>: o Visatto encontra ele sozinho.
+                  </p>
                   <p className="label">Tamanho da impressão</p>
                   {!markerEdited ? (
                     <p className="text-[13.5px] text-black/60">
@@ -504,7 +506,7 @@ export default function ScanApp({ token }: { token: string }) {
                   </label>
                 </div>
                 <div>
-                  <p className="label">Sem impressora? Modo manual com 2 fotos</p>
+                  <p className="label">Modo manual com 2 fotos</p>
                   <p className="text-black/60">Use um cartão de banco como referência (ou o marcador) e marque o contorno e a altura com o dedo.</p>
                   <div className="mt-3 space-y-2">
                     <Choice active={ref === "cartao"} onClick={() => setRef("cartao")} title="Cartão de banco" text="Você marca os 4 cantos dele nas fotos." />
@@ -609,7 +611,7 @@ export default function ScanApp({ token }: { token: string }) {
             {recon && (
               <p className="text-center text-[12.5px] text-black/45" data-escala={recon.scaleSource}>
                 {recon.used} ângulos usados no 3D
-                {recon.scaleSource === "folha" ? ` · tamanho conferido pela folha A4${Math.abs(recon.markerCm - MARKER_CM) > 0.05 ? ` (impressão em ${Math.round((recon.markerCm / MARKER_CM) * 100)}%)` : ""}` : recon.scaleSource === "manual" ? ` · quadrado de ${fmt(recon.markerCm)} cm informado por você` : ""}
+                {recon.scaleSource === "folha" ? ` · tamanho conferido pela folha A4${Math.abs(recon.markerCm - MARKER_CM) > 0.05 ? ` (impressão em ${Math.round((recon.markerCm / MARKER_CM) * 100)}%)` : ""}` : recon.scaleSource === "manual" ? ` · quadrado de ${fmt(recon.markerCm)} cm informado por você` : recon.scaleSource === "folha-branca" ? " · tamanho medido pela folha A4" : ""}
               </p>
             )}
             <div className="space-y-2">
@@ -847,12 +849,11 @@ function Dim({ label, v }: { label: string; v: number }) {
 function CaptureIllustration() {
   // a folha ao lado do prato e o caminho do celular dando a volta
   return (
-    <svg viewBox="0 0 340 176" className="w-full rounded-2xl bg-cream" role="img" aria-label="A folha do marcador ao lado do prato, e o celular dando uma volta em torno dos dois">
+    <svg viewBox="0 0 340 176" className="w-full rounded-2xl bg-cream" role="img" aria-label="Uma folha A4 em branco ao lado do prato, e o celular dando uma volta em torno dos dois">
       {/* mesa */}
       <ellipse cx="170" cy="104" rx="150" ry="56" fill="#e9e3d8" />
-      {/* folha com o quadrado preto */}
-      <polygon points="74,104 132,98 138,126 74,134" fill="#fff" stroke="#cfc9bd" strokeWidth="1.2" />
-      <polygon points="87,107 121,103.5 124,119.5 88,124" fill="#1d1a16" />
+      {/* folha A4 em branco */}
+      <polygon points="70,103 134,96 141,128 71,137" fill="#fff" stroke="#bdb6a8" strokeWidth="1.4" />
       {/* prato */}
       <ellipse cx="204" cy="108" rx="56" ry="19" fill="#fff" stroke="#cfc9bd" strokeWidth="1.2" />
       <ellipse cx="204" cy="106" rx="40" ry="12.5" fill="#f1ede5" />

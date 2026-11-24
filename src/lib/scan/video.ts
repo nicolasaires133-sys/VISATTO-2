@@ -6,6 +6,7 @@
 // 4. Monta a malha 3D completa (volume.ts: pega até partes suspensas) e pinta com os quadros → GLB em tamanho real.
 import { calibrate, focalFromHomography, homography, type Vec2 } from "./geometry";
 import { detectMarker, MARKER_CM, SHEET } from "./marker";
+import { A4, detectSheet, SheetTracker } from "./sheet";
 import { applyFlatTopPrior, applyRoundPrior, estimateCenter, reconstructHeightfield, segmentDish, selectViews, sharpness, type View } from "./recon";
 import { checkDims, reconParams, type ProductProfile } from "./profile";
 import { heightMeshToGlb, type HeightMesh } from "./heightmesh";
@@ -17,7 +18,11 @@ import { berryFromRegion, clearRegion, dishCrops, dishRectOnImage, foodRegions, 
 import { buildStrawberry } from "./garnish";
 import { partById } from "./pratos";
 
-export type Frame = { data: ImageData; f35?: number | null };
+/**
+ * Um quadro do vídeo. Quando vem da captura ao vivo, já traz os cantos da referência na ordem certa
+ * (a captura acompanhou a folha quadro a quadro), e a montagem não precisa procurar de novo.
+ */
+export type Frame = { data: ImageData; f35?: number | null; corners?: Vec2[]; ref?: "folha" | "marcador" };
 export type Progress = (msg: string, p: number) => void;
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -119,7 +124,7 @@ export type ReconResult = {
   warnings: string[];
   /** tamanho do quadrado usado na conta e de onde veio: medido pela folha A4, informado à mão ou o padrão de 15 cm */
   markerCm: number;
-  scaleSource: "folha" | "manual" | "padrao";
+  scaleSource: "folha" | "manual" | "padrao" | "folha-branca";
   /** o que a IA entendeu do prato (ficha final, reconhecimento e partes vistas) */
   profile: ProductProfile | null;
   rec: RecognizeOut["rec"] | null;
@@ -156,31 +161,69 @@ export async function reconstructFromFrames(
 ): Promise<ReconResult> {
   const prm = profile ? reconParams(profile) : { zMax: 30, half: 26, round: false, flatTop: false };
   mark("início");
-  // 1. marcador em cada quadro
-  const hits: { data: ImageData; corners: Vec2[]; f35?: number | null }[] = [];
-  for (let i = 0; i < frames.length; i++) {
-    const c = detectMarker(frames[i].data);
-    if (c) hits.push({ data: frames[i].data, corners: c, f35: frames[i].f35 });
-    onProgress?.("Procurando a folha em cada quadro", (i + 1) / frames.length);
-    if (i % 2 === 0) await tick();
+  // 1. referência em cada quadro: folha A4 em branco (padrão) ou a folha com o marcador impresso (opcional)
+  type Hit = { data: ImageData; corners: Vec2[]; f35?: number | null };
+  let hits: Hit[] = [];
+  let mode: "folha" | "marcador" = "folha";
+  if (frames.length && frames.every((f) => f.corners && f.ref)) {
+    // vieram da captura ao vivo, já com os cantos certos
+    mode = frames[0].ref!;
+    hits = frames.filter((f) => f.ref === mode).map((f) => ({ data: f.data, corners: f.corners!, f35: f.f35 }));
+    onProgress?.("Procurando a folha em cada quadro", 1);
+  } else {
+    // quadros soltos (vídeo ou fotos): primeiro vê se é a folha com marcador; senão, segue a folha em branco
+    const marks: Hit[] = [];
+    for (let i = 0; i < frames.length; i++) {
+      const c = detectMarker(frames[i].data);
+      if (c) marks.push({ data: frames[i].data, corners: c, f35: frames[i].f35 });
+      onProgress?.("Procurando a folha em cada quadro", ((i + 1) / frames.length) * (marks.length >= 6 ? 1 : 0.5));
+      if (i % 2 === 0) await tick();
+    }
+    if (marks.length >= Math.max(6, frames.length * 0.25)) {
+      mode = "marcador";
+      hits = marks;
+    } else {
+      const tr = new SheetTracker();
+      for (let i = 0; i < frames.length; i++) {
+        const c = detectSheet(frames[i].data);
+        // quadros seguidos: segue a folha pela posição; se ela sumiu, reconhece pela mesa em volta
+        const o = c ? tr.orient(c, frames[i].data, i, 1.5) : null;
+        if (o) hits.push({ data: frames[i].data, corners: o, f35: frames[i].f35 });
+        onProgress?.("Procurando a folha em cada quadro", 0.5 + ((i + 1) / frames.length) * 0.5);
+        if (i % 2 === 0) await tick();
+      }
+    }
   }
   if (hits.length < 6)
     throw new Error(
-      `A folha com o marcador apareceu inteira em só ${hits.length} de ${frames.length} quadros. Escaneie de novo devagar, sempre mostrando a folha inteira e o prato.`,
+      mode === "marcador"
+        ? `A folha com o marcador apareceu inteira em só ${hits.length} de ${frames.length} quadros. Escaneie de novo devagar, sempre mostrando a folha inteira e o prato.`
+        : `A folha apareceu inteira em só ${hits.length} de ${frames.length} quadros. Deixe a folha branca inteira na tela o tempo todo, a um palmo do prato. Em mesa clara, coloque um pano ou jogo americano escuro embaixo da folha.`,
     );
 
-  // escala: o dono informou o tamanho do quadrado, ou confere sozinho pela largura/altura da folha A4
-  const auto = manualCm ? null : checkPrintScale(hits);
-  const markerCm = manualCm ?? auto!.markerCm;
-  const scaleSource: ReconResult["scaleSource"] = manualCm ? "manual" : auto!.source;
-  const k = markerCm / MARKER_CM; // folha impressa em outra escala: o desenho escala junto
+  // escala e tamanho da referência no mundo (cm)
+  let refW: number, refH: number, markerCm: number, scaleSource: ReconResult["scaleSource"], k: number;
+  if (mode === "marcador") {
+    // o dono informou o tamanho do quadrado, ou confere sozinho pela largura/altura da folha A4
+    const auto = manualCm ? null : checkPrintScale(hits);
+    markerCm = manualCm ?? auto!.markerCm;
+    scaleSource = manualCm ? "manual" : auto!.source;
+    k = markerCm / MARKER_CM; // folha impressa em outra escala: o desenho escala junto
+    refW = refH = markerCm;
+  } else {
+    // folha em branco: 21 × 29,7 cm sempre (o "manual" aqui não se aplica)
+    markerCm = A4.w;
+    scaleSource = "folha-branca";
+    k = 1;
+    refW = A4.w;
+    refH = A4.h;
+  }
 
   // 2. foco da câmera: o mesmo para o vídeo todo (mediana das estimativas)
   const ests: number[] = [];
   for (const h of hits) {
     if (h.f35) continue;
-    const m = markerCm / 2;
-    const H = homography([[-m, m], [m, m], [m, -m], [-m, -m]], h.corners);
+    const H = homography([[-refW / 2, refH / 2], [refW / 2, refH / 2], [refW / 2, -refH / 2], [-refW / 2, -refH / 2]], h.corners);
     const f = focalFromHomography(H, h.data.width / 2, h.data.height / 2);
     if (f) ests.push(f / Math.max(h.data.width, h.data.height)); // normalizado: vale para quadros de tamanhos diferentes
   }
@@ -189,7 +232,7 @@ export async function reconstructFromFrames(
   const all = hits.map((h) => {
     const img = { data: h.data.data, width: h.data.width, height: h.data.height };
     const cam = calibrate({
-      corners: h.corners, refW: markerCm, refH: markerCm, width: img.width, height: img.height,
+      corners: h.corners, refW, refH, width: img.width, height: img.height,
       f35: h.f35 ?? null, fKnown: h.f35 ? null : fNorm ? fNorm * Math.max(img.width, img.height) : null,
     }).cam;
     return { img, cam, sharp: sharpness(img) };
@@ -201,7 +244,9 @@ export async function reconstructFromFrames(
   if (views.length < 6) throw new Error("Faltaram ângulos diferentes. Dê a volta inteira em torno do prato.");
   const hf = await reconstructHeightfield(
     views,
-    { center, half: prm.half, zMax: prm.zMax, markerHalf: markerCm / 2 + 1, exclude: { x0: SHEET.left, x1: SHEET.right, y0: SHEET.bottom * k, y1: SHEET.top * k } },
+    mode === "marcador"
+      ? { center, half: prm.half, zMax: prm.zMax, markerHalf: markerCm / 2 + 1, exclude: { x0: SHEET.left, x1: SHEET.right, y0: SHEET.bottom * k, y1: SHEET.top * k } }
+      : { center, half: prm.half, zMax: prm.zMax, markerHalf: A4.w / 2 - 0.5, exclude: { x0: -A4.w / 2 - 0.6, x1: A4.w / 2 + 0.6, y0: -A4.h / 2 - 0.6, y1: A4.h / 2 + 0.6 } },
     (p) => onProgress?.("Calculando a forma e a altura", p),
   );
   let dish = segmentDish(hf);

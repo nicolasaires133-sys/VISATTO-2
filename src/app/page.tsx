@@ -11,7 +11,7 @@ const steps = [
 ];
 
 const scan = [
-  { icon: "printer", t: "Imprima o marcador", d: "Uma folha A4 com um quadrado preto. É ela que dá a medida certa do prato." },
+  { icon: "ruler", t: "Pegue uma folha A4 em branco", d: "Folha de sulfite comum, sem imprimir nada. É ela que dá a medida certa do prato." },
   { icon: "camera", t: "Dê uma volta no prato", d: "Coloque a folha ao lado e ande em volta. O celular guia e tira as fotos sozinho." },
   { icon: "cube", t: "O 3D sai na hora", d: "O celular mede largura, profundidade e altura, reconhece o prato e pinta com as cores de verdade." },
 ];
@@ -33,7 +33,7 @@ const plans = [
 
 const faq = [
   { q: "O cliente precisa baixar algum aplicativo?", a: "Não. Ele aponta a câmera para o QR da mesa e o cardápio abre no navegador. O prato em 3D na mesa também funciona direto no navegador, no iPhone e no Android." },
-  { q: "Preciso de equipamento especial para escanear os pratos?", a: "Só um celular e uma folha A4 impressa (o marcador). Você aponta a câmera, dá uma volta no prato seguindo as dicas da tela, e o 3D é montado no próprio aparelho, de graça." },
+  { q: "Preciso de equipamento especial para escanear os pratos?", a: "Só um celular e uma folha A4 em branco, de sulfite comum. Você aponta a câmera, dá uma volta no prato seguindo as dicas da tela, e o 3D é montado no próprio aparelho, de graça." },
   { q: "Funciona com sobremesa, bebida e porção?", a: "O escâner foi feito para o que fica apoiado na mesa: pratos, lanches, pizzas, sobremesas, porções. Vidro e líquidos transparentes são o ponto fraco: nesses casos você confere e corrige a altura com uma régua antes de publicar." },
   { q: "E se eu não quiser receber pedidos pelo celular?", a: "Você pode usar só como cardápio com os pratos em 3D. Os pedidos ligam e desligam com um botão, a qualquer hora." },
 ];
@@ -230,7 +230,7 @@ export default function Home() {
   );
 }
 
-/** Celular desenhado no meio do escaneamento: folha-marcador ao lado do prato e a moldura da câmera. */
+/** Celular desenhado no meio do escaneamento: folha A4 em branco ao lado do prato e a moldura da câmera. */
 function ScanPhone() {
   return (
     <div className="relative mx-auto w-full max-w-[330px]">
@@ -239,11 +239,8 @@ function ScanPhone() {
         <div className="relative aspect-[9/18] overflow-hidden rounded-[36px] bg-[#efe7dc]">
           {/* mesa */}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,#efe7dc_0%,#efe7dc_45%,#d8ccbb_100%)]" />
-          {/* folha com o marcador, deitada na mesa */}
-          <div className="absolute left-[8%] top-[52%] h-[20%] w-[34%] -skew-x-12 rounded-sm bg-white shadow-md">
-            <div className="absolute left-1/2 top-1/2 h-[46%] w-[46%] -translate-x-1/2 -translate-y-1/2 bg-ink" />
-            <div className="absolute left-1/2 top-1/2 h-[18%] w-[18%] -translate-x-1/2 -translate-y-1/2 bg-white" />
-          </div>
+          {/* folha A4 em branco, deitada na mesa */}
+          <div className="absolute left-[6%] top-[52%] h-[22%] w-[34%] -skew-x-12 rounded-sm bg-white shadow-md ring-1 ring-black/5" />
           {/* o prato */}
           <img src="/demo/pizza.jpg" alt="" className="absolute left-[30%] top-[30%] w-[66%] mix-blend-multiply" />
           {/* moldura de captura */}
