@@ -1,6 +1,8 @@
 "use client";
 // Cardápio do cliente: abre pelo QR da mesa ou pelo link do delivery.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { searchMenu } from "@/lib/search";
+import Stamps from "./Stamps";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/client";
@@ -84,6 +86,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const [diet, setDiet] = useState("");
   const [favs, setFavs] = useState<string[]>([]);
   const [hist, setHist] = useState<Record<string, number>>({});
+  const [card, setCard] = useState<{ stamps: number; goal: number; ready: boolean } | null>(null);
+  const loyalty = data.restaurant.loyalty?.on ? data.restaurant.loyalty : null;
   const loaded = useRef(false);
   const tabsRef = useRef<HTMLDivElement>(null);
   const clickedTab = useRef(0);
@@ -109,6 +113,9 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     setRoundOff(store<string>(`gia:${slug}:round`, "") === lo?.id);
     setFavs(store<string[]>(`gia:${slug}:fav`, []));
     setHist(store<Record<string, number>>(`gia:${slug}:hist`, {}));
+    const tel = store<{ phone?: string }>("gia:customer", {}).phone ?? "";
+    if (r.loyalty?.on && tel.replace(/\D/g, "").length >= 10)
+      api<{ stamps: number; goal: number; ready: boolean }>(`/api/r/${slug}/fidelidade?tel=${encodeURIComponent(tel)}`).then(setCard).catch(() => {});
     loaded.current = true;
     const tick = setInterval(() => setNow(Date.now()), 60_000);
     fetch(`/api/r/${slug}/events`, {
@@ -206,9 +213,11 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     return list.length ? { kind: want, list } : null;
   }, [lastOrder, roundOff, paused, now, items, byId]); // eslint-disable-line react-hooks/exhaustive-deps
   const results = useMemo(() => {
-    const q = norm(query.trim());
-    if (q.length < 2) return null;
-    return items.filter((i) => norm(`${i.name} ${i.description} ${tr(i, lang).name} ${tr(i, lang).description} ${i.tags.join(" ")} ${catName.get(i.category_id ?? "") ?? ""}`).includes(q));
+    if (norm(query.trim()).length < 2) return null;
+    return searchMenu(items, query, (i) => ({
+      name: `${i.name} ${tr(i, lang).name}`,
+      rest: `${i.description} ${tr(i, lang).description} ${i.tags.join(" ")} ${catName.get(i.category_id ?? "") ?? ""}`,
+    }));
   }, [query, items, catName, lang]);
 
   // a aba ativa acompanha a rolagem
@@ -333,6 +342,20 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
             </span>
             <Icon name="right" size={18} className="text-white/50" />
           </a>
+        )}
+
+        {loyalty && (
+          <div className="relative mt-4 rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10">
+            <p className="flex items-center gap-2 text-[14.5px] font-bold"><Icon name="gift" size={18} /> {card?.ready ? t("loyaltyReady") : t("loyaltyTitle")}</p>
+            <p className="mt-0.5 text-[13.5px] text-white/70">
+              {card?.ready
+                ? t("loyaltyReadySub", { r: loyalty.reward })
+                : card
+                  ? t("loyaltyProgress", { n: card.stamps, g: card.goal, r: loyalty.reward })
+                  : t("loyaltyHow", { g: loyalty.goal, r: loyalty.reward })}
+            </p>
+            {card && <div className="[&_span]:h-6 [&_span]:w-6 [&>div]:mt-2"><Stamps n={card.stamps} goal={card.goal} color={color} /></div>}
+          </div>
         )}
 
         {data.waiter && (
@@ -882,7 +905,11 @@ function CallSheet({ slug, t, table, setTable, onClose, onDone }: { slug: string
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white"><Icon name="bell" size={22} /></span>
             <span><b className="block text-[15.5px]">{busy === "atendente" ? t("calling") : t("callServer")}</b><span className="text-[13.5px] text-black/60">{t("callServerSub")}</span></span>
           </button>
-          <button onClick={() => call("conta")} disabled={!!busy} className="flex items-center gap-3 rounded-2xl bg-[#efefeb] p-4 text-left transition-colors hover:bg-[#e6e6e1] disabled:opacity-50">
+          <button
+            onClick={() => (table.trim() ? window.location.assign(`/r/${slug}/conta?mesa=${encodeURIComponent(table.trim())}`) : setErr(t("typeTable")))}
+            disabled={!!busy}
+            className="flex items-center gap-3 rounded-2xl bg-[#efefeb] p-4 text-left transition-colors hover:bg-[#e6e6e1] disabled:opacity-50"
+          >
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white"><Icon name="receipt" size={22} /></span>
             <span><b className="block text-[15.5px]">{busy === "conta" ? t("asking") : t("askBill")}</b><span className="text-[13.5px] text-black/60">{t("askBillSub")}</span></span>
           </button>
@@ -936,7 +963,7 @@ function CartSheet(props: {
     if (channel === "delivery" && !payment) return setErr(t("choosePay"));
     setBusy(true);
     try {
-      if (channel === "delivery") save("gia:customer", f);
+      if (channel === "delivery" || f.phone.trim()) save("gia:customer", f);
       const res = await api<{ id: string; number: number }>(`/api/r/${slug}/orders`, {
         body: {
           channel,
@@ -1000,9 +1027,18 @@ function CartSheet(props: {
           )}
 
           {channel === "mesa" ? (
-            <div>
-              <label className="label" htmlFor="mesa">{t("tableNumber")}</label>
-              <input id="mesa" className="input h-12 max-w-32 text-lg font-bold" required inputMode="numeric" maxLength={20} value={table} onChange={(e) => props.setTable(e.target.value)} />
+            <div className="space-y-3">
+              <div>
+                <label className="label" htmlFor="mesa">{t("tableNumber")}</label>
+                <input id="mesa" className="input h-12 max-w-32 text-lg font-bold" required inputMode="numeric" maxLength={20} value={table} onChange={(e) => props.setTable(e.target.value)} />
+              </div>
+              {r.loyalty?.on && (
+                <div className="rounded-2xl p-3.5" style={{ background: `${color}10` }}>
+                  <label className="label flex items-center gap-1.5" htmlFor="fone-fid"><Icon name="gift" size={16} /> {t("loyaltyPhone")}</label>
+                  <input id="fone-fid" className="input" inputMode="tel" autoComplete="tel" maxLength={20} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="(11) 99999-9999" />
+                  <p className="mt-1.5 text-[13px] text-black/55">{t("loyaltyPhoneHint", { g: r.loyalty.goal, r: r.loyalty.reward })}</p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

@@ -26,6 +26,11 @@ export default function Config() {
     google_review_url: r.google_review_url || "",
     delivery_fee: (r.delivery_fee_cents / 100).toFixed(2).replace(".", ","),
     min_order: (r.min_order_cents / 100).toFixed(2).replace(".", ","),
+    service_pct: String(r.service_pct ?? 10),
+    l_on: Boolean(r.loyalty?.on),
+    l_goal: String(r.loyalty?.goal ?? 10),
+    l_min: ((r.loyalty?.min_cents ?? 0) / 100).toFixed(2).replace(".", ","),
+    l_reward: r.loyalty?.reward ?? "",
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,7 +49,13 @@ export default function Config() {
     try {
       await api("/api/painel/restaurant", {
         method: "PUT",
-        body: { ...f, delivery_fee_cents: f.delivery_fee, min_order_cents: f.min_order },
+        body: {
+          ...f,
+          delivery_fee_cents: f.delivery_fee,
+          min_order_cents: f.min_order,
+          service_pct: f.service_pct,
+          loyalty: { on: f.l_on, goal: f.l_goal, min_cents: f.l_min, reward: f.l_reward },
+        },
       });
       await reload();
       setDirty(false);
@@ -105,18 +116,52 @@ export default function Config() {
                 <input id="c-min" className="input" inputMode="decimal" value={f.min_order} onChange={(e) => set({ min_order: e.target.value })} />
               </div>
             </div>
+          </div>
+        )}
+      </section>
+
+      <section className="card space-y-4 p-5">
+        <h2 className="text-[18px] font-extrabold">Pagamento e conta da mesa</h2>
+        <p className="text-[14px] text-black/60">Na mesa, o cliente abre a conta pelo celular, confere tudo o que pediu, divide com os amigos e avisa como vai pagar. Você recebe o aviso aqui em Pedidos.</p>
+        <div>
+          <label className="label" htmlFor="c-pix">Chave Pix (opcional)</label>
+          <input id="c-pix" className="input" maxLength={120} value={f.pix_key} onChange={(e) => set({ pix_key: e.target.value })} placeholder="CNPJ, celular, e-mail ou chave aleatória" />
+          <p className="mt-1.5 text-[13px] text-black/55">Com a chave, o cliente paga a conta (ou a parte dele) com um Pix já com o valor certo, e na entrega vê a chave para copiar. O dinheiro cai direto na sua conta, sem taxa do Visatto. Confira no seu banco antes de fechar a mesa.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="c-serv">Taxa de serviço sugerida na conta da mesa (%)</label>
+          <input id="c-serv" className="input max-w-28" inputMode="numeric" value={f.service_pct} onChange={(e) => set({ service_pct: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
+          <p className="mt-1.5 text-[13px] text-black/50">Aparece como opcional, e o cliente pode tirar. Coloque 0 se o restaurante não cobra.</p>
+        </div>
+      </section>
+
+      <section className="card space-y-4 p-5">
+        <h2 className="text-[18px] font-extrabold">Cartão fidelidade</h2>
+        <SwitchRow on={f.l_on} onChange={(v) => set({ l_on: v })} title="Dar selos a cada pedido" text="O cliente informa o WhatsApp no pedido e junta um selo por pedido entregue. Ao completar o cartão, o pedido chega aqui com o aviso do prêmio." />
+        {f.l_on && (
+          <div className="space-y-4 rounded-2xl bg-cream p-4">
             <div>
-              <label className="label" htmlFor="c-pix">Chave Pix (opcional)</label>
-              <input id="c-pix" className="input" maxLength={120} value={f.pix_key} onChange={(e) => set({ pix_key: e.target.value })} placeholder="CNPJ, celular, e-mail ou chave aleatória" />
-              <p className="mt-1.5 text-[13px] text-black/55">Quem escolher Pix na entrega vê esta chave com um botão de copiar. O Visatto não processa o pagamento: você confere o comprovante.</p>
+              <label className="label" htmlFor="c-premio">Prêmio</label>
+              <input id="c-premio" className="input" maxLength={80} value={f.l_reward} onChange={(e) => set({ l_reward: e.target.value })} placeholder="Ex.: uma sobremesa da casa" />
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="c-meta">Selos para ganhar</label>
+                <input id="c-meta" className="input" inputMode="numeric" value={f.l_goal} onChange={(e) => set({ l_goal: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
+              </div>
+              <div>
+                <label className="label" htmlFor="c-lmin">Valor mínimo do pedido (R$)</label>
+                <input id="c-lmin" className="input" inputMode="decimal" value={f.l_min} onChange={(e) => set({ l_min: e.target.value })} />
+              </div>
+            </div>
+            <p className="text-[13px] text-black/55">Restaurantes com cartão fidelidade costumam ver os clientes voltarem mais. Só pedidos marcados como entregues contam selo.</p>
           </div>
         )}
       </section>
 
       <section className="card space-y-4 p-5">
         <h2 className="text-[18px] font-extrabold">Avaliações no Google</h2>
-        <p className="text-[14px] text-black/60">Depois do pedido, o cliente dá uma nota. Quem der 4 ou 5 estrelas é levado para avaliar no Google; quem der nota baixa escreve só para você, em Resultados.</p>
+        <p className="text-[14px] text-black/60">Depois do pedido, o cliente dá uma nota e todos recebem o convite para avaliar no Google. Quem der nota baixa também pode escrever só para você, em Resultados.</p>
         <div>
           <label className="label" htmlFor="c-google">Link de avaliação do Google</label>
           <input id="c-google" className="input" inputMode="url" value={f.google_review_url} onChange={(e) => set({ google_review_url: e.target.value })} placeholder="https://g.page/r/..." />

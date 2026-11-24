@@ -204,6 +204,26 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE INDEX IF NOT EXISTS feedback_rest ON feedback(restaurant_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS feedback_order ON feedback(order_id);
 
+-- v7: conta da mesa, fidelidade, previsão de preparo
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ready_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS done_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS orders_rest_table ON orders(restaurant_id, table_label, created_at DESC);
+CREATE INDEX IF NOT EXISTS orders_rest_phone ON orders(restaurant_id, customer_phone);
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS service_pct INTEGER DEFAULT 10;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS loyalty JSONB DEFAULT '{}'::jsonb;
+CREATE TABLE IF NOT EXISTS loyalty_redemptions (
+  id TEXT PRIMARY KEY,
+  restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  phone TEXT NOT NULL,
+  order_id TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS loyalty_rest_phone ON loyalty_redemptions(restaurant_id, phone, created_at DESC);
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS amount_cents INTEGER DEFAULT 0;
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS method TEXT DEFAULT '';
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;

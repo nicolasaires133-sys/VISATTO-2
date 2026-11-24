@@ -83,6 +83,8 @@ export type PublicRestaurant = {
   pix_key?: string;
   google_review_url?: string;
   languages?: string[];
+  service_pct?: number;
+  loyalty?: import("./loyalty").Loyalty;
 };
 
 export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };

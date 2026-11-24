@@ -19,9 +19,12 @@ export type Order = {
   updated_at?: string;
   payment?: string;
   change_for_cents?: number;
+  closed_at?: string | null;
+  /** prêmio do cartão fidelidade liberado para este cliente */
+  reward?: string;
   items: { name: string; qty: number; notes: string; price_cents: number; via_ai?: boolean }[];
 };
-export type Call = { id: string; table_label: string; type: "atendente" | "conta"; reason?: string; created_at: string };
+export type Call = { id: string; table_label: string; type: "atendente" | "conta"; reason?: string; amount_cents?: number; method?: string; created_at: string };
 
 export type PainelState = {
   restaurant: any;

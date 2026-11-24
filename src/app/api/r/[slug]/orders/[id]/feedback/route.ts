@@ -1,4 +1,4 @@
-// Nota do cliente depois do pedido. Uma por pedido; nota alta devolve o link de avaliação do Google.
+// Nota do cliente depois do pedido. Uma por pedido; devolve o link de avaliação do Google (para qualquer nota).
 import { getDB, newId } from "@/lib/db";
 import { ok, fail } from "@/lib/http";
 import { restaurantBySlug } from "@/lib/menu";
@@ -21,5 +21,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string; 
      ON CONFLICT (order_id) DO UPDATE SET stars = EXCLUDED.stars, comment = CASE WHEN EXCLUDED.comment <> '' THEN EXCLUDED.comment ELSE feedback.comment END`,
     [newId(), r.id, id, stars, comment]
   );
-  return ok({ ok: true, review: stars >= 4 && r.google_review_url ? r.google_review_url : "" });
+  // o convite para o Google vai para todo mundo, com qualquer nota (filtrar só as boas é proibido pelo Google)
+  return ok({ ok: true, review: r.google_review_url || "" });
 }

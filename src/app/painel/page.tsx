@@ -64,6 +64,15 @@ export default function Pedidos() {
     setCalls((cs) => cs.filter((x) => x.id !== c.id));
     await api(`/api/painel/calls/${c.id}`, { method: "PUT" }).catch(refreshOrders);
   }
+  async function closeTable(c: Call) {
+    setCalls((cs) => cs.filter((x) => !(x.type === "conta" && x.table_label.toLowerCase() === c.table_label.toLowerCase())));
+    await api("/api/painel/mesas", { body: { table: c.table_label } }).catch(refreshOrders);
+    refreshOrders();
+  }
+  async function giveReward(o: Order) {
+    setOrders((os) => os && os.map((x) => (x.customer_phone === o.customer_phone ? { ...x, reward: "" } : x)));
+    await api("/api/painel/fidelidade", { body: { phone: o.customer_phone, orderId: o.id } }).catch(refreshOrders);
+  }
   async function togglePause() {
     await api("/api/painel/restaurant", { method: "PUT", body: { accepting_orders: r.accepting_orders === false } }).catch(() => {});
     await reload();
@@ -123,25 +132,32 @@ export default function Pedidos() {
         <section className="mt-5" aria-label="Chamados das mesas">
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {calls.map((c) => (
-              <div key={c.id} className="animate-pop flex items-center gap-3 rounded-2xl bg-ink p-3.5 text-white">
+              <div key={c.id} className="animate-pop flex flex-wrap items-center gap-3 rounded-2xl bg-ink p-3.5 text-white">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15">
                   <Icon name={c.type === "conta" ? "receipt" : "bell"} size={21} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <b className="block font-display text-[17px] leading-tight">Mesa {c.table_label}</b>
-                  <span className="text-[13.5px] text-white/75">{c.type === "conta" ? "Pediu a conta" : c.reason ? `Garçom de IA: ${c.reason}` : "Chamou um atendente"} · {ago(c.created_at)}</span>
+                  <span className="text-[13.5px] text-white/75">{c.type === "conta" ? c.reason || "Pediu a conta" : c.reason ? `Garçom de IA: ${c.reason}` : "Chamou um atendente"} · {ago(c.created_at)}</span>
                 </span>
-                <button onClick={() => attend(c)} className="btn h-10 shrink-0 bg-white px-3.5 text-ink hover:bg-white/90">
-                  <Icon name="check" size={16} stroke={2.4} />
-                  Atendido
-                </button>
+                <span className={`flex shrink-0 gap-1.5 ${c.type === "conta" ? "w-full [&>button]:flex-1" : "flex-col"}`}>
+                  <button onClick={() => attend(c)} className="btn h-10 bg-white px-3.5 text-ink hover:bg-white/90">
+                    <Icon name="check" size={16} stroke={2.4} />
+                    Atendido
+                  </button>
+                  {c.type === "conta" && (
+                    <button onClick={() => closeTable(c)} title="A conta foi paga: limpa a conta desta mesa para os próximos clientes" className="btn h-10 bg-white/15 px-3 text-[14px] text-white hover:bg-white/25">
+                      Fechar mesa
+                    </button>
+                  )}
+                </span>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {firstRun && <FirstSteps counts={counts!} slug={r.slug} />}
+      {firstRun ? <FirstSteps counts={counts!} slug={r.slug} /> : <Tips />}
 
       {/* Celular: uma coluna por vez */}
       <div className="mt-5 flex rounded-2xl bg-black/[0.05] p-1 text-[14px] font-semibold lg:hidden" role="tablist">
@@ -166,7 +182,7 @@ export default function Pedidos() {
             <div className="space-y-3">
               {c.list.length === 0 && <p className="rounded-2xl border border-dashed border-black/15 px-3 py-8 text-center text-[14px] text-black/45">{c.empty}</p>}
               {c.list.map((o) => (
-                <OrderCard key={o.id} o={o} onMove={move} onPrint={() => setTicket(o)} onRefuse={() => setRefuse(o)} />
+                <OrderCard key={o.id} o={o} onMove={move} onPrint={() => setTicket(o)} onRefuse={() => setRefuse(o)} onReward={() => giveReward(o)} />
               ))}
             </div>
           </section>
@@ -211,7 +227,7 @@ export default function Pedidos() {
   );
 }
 
-function OrderCard({ o, onMove, onPrint, onRefuse }: { o: Order; onMove: (o: Order, s: string) => void; onPrint: () => void; onRefuse: () => void }) {
+function OrderCard({ o, onMove, onPrint, onRefuse, onReward }: { o: Order; onMove: (o: Order, s: string) => void; onPrint: () => void; onRefuse: () => void; onReward: () => void }) {
   const next = NEXT[o.status];
   const waited = mins(o.status === "novo" ? o.created_at : o.updated_at || o.created_at);
   const late = (o.status === "novo" && waited >= 4) || (o.status === "preparo" && waited >= 30);
@@ -247,6 +263,13 @@ function OrderCard({ o, onMove, onPrint, onRefuse }: { o: Order; onMove: (o: Ord
         ))}
       </ul>
       {o.notes && <p className="mt-2.5 rounded-xl bg-amber-50 px-3 py-2 text-[13.5px] text-amber-950"><b>Obs.:</b> {o.notes}</p>}
+      {o.reward && (
+        <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-[13.5px] text-emerald-950 ring-1 ring-emerald-200">
+          <Icon name="gift" size={17} className="shrink-0" />
+          <span className="min-w-0 flex-1"><b>Prêmio de fidelidade:</b> {o.reward}</span>
+          <button onClick={onReward} className="btn h-8 shrink-0 bg-emerald-700 px-2.5 text-[12.5px] text-white hover:bg-emerald-800">Entreguei</button>
+        </div>
+      )}
 
       {o.channel === "delivery" && (
         <div className="mt-2.5 space-y-0.5 rounded-xl bg-cream px-3 py-2.5 text-[13.5px]">
@@ -286,6 +309,39 @@ function OrderCard({ o, onMove, onPrint, onRefuse }: { o: Order; onMove: (o: Ord
         )}
       </div>
     </article>
+  );
+}
+
+/** Próximos passos para vender mais (do próprio restaurante); cada um some quando a pessoa dispensa. */
+function Tips() {
+  const [tips, setTips] = useState<{ id: string; title: string; text: string; href: string; action: string }[]>([]);
+  useEffect(() => {
+    let hidden: string[] = [];
+    try { hidden = JSON.parse(localStorage.getItem("gia:dicas-ok") || "[]"); } catch {}
+    api<{ tips: typeof tips }>("/api/painel/dicas").then((r) => setTips(r.tips.filter((t) => !hidden.includes(t.id)))).catch(() => {});
+  }, []);
+  function dismiss(id: string) {
+    setTips((t) => t.filter((x) => x.id !== id));
+    try {
+      const h = JSON.parse(localStorage.getItem("gia:dicas-ok") || "[]");
+      localStorage.setItem("gia:dicas-ok", JSON.stringify([...h, id].slice(-30)));
+    } catch {}
+  }
+  if (!tips.length) return null;
+  return (
+    <section className="mt-5" aria-label="Para vender mais">
+      <h2 className="mb-2.5 flex items-center gap-2 text-[16px] font-bold"><Icon name="sparkle" size={17} /> Para vender mais</h2>
+      <div className="grid gap-2.5 md:grid-cols-3">
+        {tips.map((t) => (
+          <article key={t.id} className="animate-fade relative flex flex-col rounded-2xl bg-white p-4 ring-1 ring-black/[0.07]">
+            <button onClick={() => dismiss(t.id)} aria-label={`Dispensar: ${t.title}`} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full text-black/40 hover:bg-black/5"><Icon name="close" size={15} /></button>
+            <h3 className="pr-7 text-[15px] font-bold leading-snug">{t.title}</h3>
+            <p className="mt-1 flex-1 text-[13.5px] leading-relaxed text-black/60">{t.text}</p>
+            <Link href={t.href} className="btn-dark mt-3 h-10 self-start px-3.5 text-[13.5px]">{t.action}</Link>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDB } from "@/lib/db";
 import { owner, ok, fail, toCents } from "@/lib/http";
 import { aiEnabled, waiterEnabled } from "@/lib/ai";
+import { readLoyalty } from "@/lib/loyalty";
 
 export async function GET() {
   const r = await owner();
@@ -14,7 +15,7 @@ export async function GET() {
             (SELECT COUNT(*)::int FROM orders WHERE restaurant_id=$1) AS orders`,
     [r.id]
   );
-  return ok({ restaurant: r, aiEnabled: aiEnabled(), waiter: waiterEnabled(), counts: c });
+  return ok({ restaurant: { ...r, loyalty: readLoyalty(r.loyalty) }, aiEnabled: aiEnabled(), waiter: waiterEnabled(), counts: c });
 }
 
 export async function PUT(req: Request) {
@@ -26,9 +27,16 @@ export async function PUT(req: Request) {
   const color = /^#[0-9a-fA-F]{6}$/.test(b.primary_color) ? b.primary_color : r.primary_color;
   const review = String(b.google_review_url ?? "").trim();
   if (review && !reviewUrl(review)) return fail("O link de avaliação precisa ser do Google (começa com https://g.page, https://maps.app.goo.gl ou https://www.google.com).");
+  const prevL = readLoyalty(r.loyalty);
+  const bl = b.loyalty && typeof b.loyalty === "object" ? b.loyalty : null;
+  if (bl?.on && !String(bl.reward || "").trim()) return fail("Escreva qual é o prêmio do cartão fidelidade.");
+  const loyalty = bl
+    ? readLoyalty({ on: Boolean(bl.on), goal: bl.goal, min_cents: bl.min_cents != null ? toCents(bl.min_cents) : prevL.min_cents, reward: bl.reward })
+    : prevL;
+  const service = b.service_pct != null ? Math.min(20, Math.max(0, Math.round(Number(b.service_pct) || 0))) : (r.service_pct ?? 10);
   const db = await getDB();
   await db.query(
-    `UPDATE restaurants SET name=$2, whatsapp=$3, address=$4, primary_color=$5, delivery_enabled=$6,
+    `UPDATE restaurants SET service_pct=$16, loyalty=$17::jsonb, name=$2, whatsapp=$3, address=$4, primary_color=$5, delivery_enabled=$6,
        dine_in_enabled=$7, delivery_fee_cents=$8, min_order_cents=$9, ai_name=$10, ai_tone=$11, ai_instructions=$12,
        accepting_orders=$13, pix_key=$14, google_review_url=$15
      WHERE id=$1`,
@@ -48,6 +56,8 @@ export async function PUT(req: Request) {
       Boolean(b.accepting_orders ?? r.accepting_orders ?? true),
       String(b.pix_key ?? r.pix_key ?? "").trim().slice(0, 120),
       reviewUrl(b.google_review_url ?? r.google_review_url),
+      service,
+      JSON.stringify(loyalty),
     ]
   );
   return ok({ ok: true });

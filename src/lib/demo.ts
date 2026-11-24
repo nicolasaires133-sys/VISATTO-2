@@ -59,6 +59,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
     // demonstração criada antes da inteligência de venda: completa uma vez
     const [k] = await db.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM items WHERE restaurant_id=$1 AND allergens_known`, [exists[0].id]);
     if (!k?.n) await applySell(db, exists[0].id);
+    await applyLoyalty(db, exists[0].id);
     return { created: false, password: null };
   }
 
@@ -106,10 +107,19 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
     );
   }
   await applySell(db, rid);
+  await applyLoyalty(db, rid);
   return { created: true, password };
 }
 
 /** Combinações, alergênicos, horários e custo dos pratos da demonstração. */
+/** Cartão fidelidade ligado no exemplo, para quem visita ver como fica (só se o dono ainda não mexeu). */
+async function applyLoyalty(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
+  await db.query(
+    `UPDATE restaurants SET loyalty=$2::jsonb WHERE id=$1 AND (loyalty IS NULL OR loyalty='{}'::jsonb)`,
+    [rid, JSON.stringify({ on: true, goal: 8, min_cents: 3000, reward: "uma sobremesa da casa" })]
+  );
+}
+
 async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
   const ids = new Map((await db.query<{ id: string; name: string }>(`SELECT id, name FROM items WHERE restaurant_id=$1`, [rid])).map((r) => [r.name, r.id]));
   const id = (n: string) => ids.get(n) ?? "";

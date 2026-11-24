@@ -5,6 +5,8 @@ import Link from "next/link";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { brl, PAYMENT_LABEL } from "@/lib/format";
+import Rate from "../../Rate";
+import Stamps from "../../Stamps";
 
 const STEPS = {
   mesa: [
@@ -91,7 +93,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
       </main>
     );
 
-  const { order: o, restaurant: r } = d;
+  const { order: o, restaurant: r, eta, loyalty } = d;
   const ch: "mesa" | "delivery" = o.channel === "delivery" ? "delivery" : "mesa";
   const steps = STEPS[ch];
   const current = steps.findIndex((s) => s.key === o.status);
@@ -128,6 +130,15 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
         </span>
         <h2 className="mt-4 text-[28px] font-extrabold leading-[1.1]">{h[ch]}</h2>
         {h.sub[ch] && <p className="mt-2 text-[15.5px] leading-relaxed text-black/65">{h.sub[ch]}</p>}
+        {eta && !cancelled && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#efefeb] px-3.5 py-2 text-[14.5px]">
+            <Icon name="clock" size={16} />
+            <span>
+              {ch === "delivery" ? "Chega" : "Fica pronto"} por volta das <b className="tnum">{hhmm(new Date(new Date(o.created_at).getTime() + eta.minutes * 60000).toISOString())}</b>
+              <span className="text-black/50"> · previsão</span>
+            </span>
+          </p>
+        )}
       </section>
 
       {!cancelled && (
@@ -197,9 +208,19 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
               {o.payment === "dinheiro" && o.change_for_cents > 0 ? ` (troco para ${brl(o.change_for_cents)})` : ""}
             </p>
           )}
-          {ch === "mesa" && <p className="text-[14px] text-black/60">O pagamento é feito no restaurante, ao fechar a conta.</p>}
+          {ch === "mesa" && <p className="text-[14px] text-black/60">Você paga ao fechar a conta, pelo celular ou com a equipe.</p>}
         </div>
       </section>
+
+      {loyalty && (
+        <section className="mt-7 rounded-2xl p-4 ring-1 ring-black/10" aria-label="Cartão fidelidade">
+          <h3 className="text-[16px] font-bold">{loyalty.ready ? "Cartão completo! Seu prêmio está liberado" : "Cartão fidelidade"}</h3>
+          <p className="mt-1 text-[14px] text-black/60">
+            {loyalty.ready ? `Peça à equipe: ${loyalty.reward}.` : `Este pedido vira selo quando for entregue. Com ${loyalty.goal} selos você ganha ${loyalty.reward}.`}
+          </p>
+          <Stamps n={loyalty.stamps} goal={loyalty.goal} color={color} />
+        </section>
+      )}
 
       {(o.status === "pronto" || o.status === "saiu" || done) && <Rate slug={slug} id={id} initial={o.stars} color={color} name={r.name} />}
 
@@ -207,6 +228,11 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
         <Link href={back} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: color }}>
           {done || cancelled ? "Fazer outro pedido" : "Pedir mais alguma coisa"}
         </Link>
+        {ch === "mesa" && o.table_label && !cancelled && (
+          <Link href={`/r/${slug}/conta?mesa=${encodeURIComponent(o.table_label)}`} className="btn-ghost h-12">
+            <Icon name="receipt" size={18} /> Ver a conta e pagar
+          </Link>
+        )}
         {r.whatsapp && (
           <a className="btn-ghost h-12" href={`https://wa.me/55${r.whatsapp.replace(/^55/, "")}?text=${encodeURIComponent(`Olá! Sobre meu pedido #${o.number}`)}`}>
             Falar com o restaurante no WhatsApp
@@ -218,60 +244,3 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
   );
 }
 
-/** Nota depois do pedido: quem gostou vai para o Google; quem não gostou fala só com o restaurante. */
-function Rate({ slug, id, initial, color, name }: { slug: string; id: string; initial: number; color: string; name: string }) {
-  const [stars, setStars] = useState(initial);
-  const [sent, setSent] = useState(initial > 0);
-  const [comment, setComment] = useState("");
-  const [review, setReview] = useState("");
-  const [done, setDone] = useState(initial > 0 && initial <= 3);
-  const [busy, setBusy] = useState(false);
-  async function send(n: number, text = "") {
-    setBusy(true);
-    try {
-      const res = await api<{ review: string }>(`/api/r/${slug}/orders/${id}/feedback`, { body: { stars: n, comment: text } });
-      setReview(res.review);
-      setSent(true);
-      if (text) setDone(true);
-    } catch {}
-    setBusy(false);
-  }
-  return (
-    <section className="animate-enter mt-7 rounded-2xl p-4 ring-1 ring-black/10" aria-label="Avaliar o pedido">
-      <h3 className="text-[16px] font-bold">{sent && stars >= 4 ? "Obrigado!" : "Como está a sua experiência?"}</h3>
-      <div className="mt-2 flex gap-1.5" role="radiogroup" aria-label="Nota de 1 a 5">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            role="radio"
-            aria-checked={stars === n}
-            aria-label={`${n} ${n === 1 ? "estrela" : "estrelas"}`}
-            disabled={busy}
-            onClick={() => {
-              setStars(n);
-              setDone(false);
-              send(n);
-            }}
-            className="grid h-11 w-11 place-items-center rounded-xl text-[24px] transition-transform active:scale-90"
-            style={{ background: n <= stars ? color : "#efefeb", color: n <= stars ? "#fff" : "#00000040" }}
-          >
-            ★
-          </button>
-        ))}
-      </div>
-      {sent && stars >= 4 && review && (
-        <a href={review} target="_blank" rel="noopener" className="btn-dark mt-3 h-11 w-full">
-          Avaliar o {name} no Google
-        </a>
-      )}
-      {sent && stars > 0 && stars <= 3 && !done && (
-        <div className="mt-3">
-          <label className="label" htmlFor="fb">O que podemos melhorar? Só o restaurante vê.</label>
-          <textarea id="fb" className="input" rows={2} maxLength={600} value={comment} onChange={(e) => setComment(e.target.value)} />
-          <button disabled={busy || !comment.trim()} onClick={() => send(stars, comment.trim())} className="btn-dark mt-2 h-10 px-4">Enviar comentário</button>
-        </div>
-      )}
-      {done && <p className="mt-3 text-[14px] text-black/65">{comment ? "Recebemos o seu comentário. Obrigado por contar." : "Obrigado pela nota."}</p>}
-    </section>
-  );
-}

@@ -47,7 +47,7 @@ export async function restaurantBySlug(slug: string) {
   const rows = await db.query(
     `SELECT id, slug, name, primary_color, whatsapp, address, delivery_enabled, dine_in_enabled,
             delivery_fee_cents, min_order_cents, ai_name, ai_tone, ai_instructions, accepting_orders, pix_key,
-            google_review_url, languages, ai_preset
+            google_review_url, languages, ai_preset, service_pct, loyalty
        FROM restaurants WHERE slug = $1`,
     [slug]
   );
@@ -126,6 +126,8 @@ export async function publicMenu(slug: string) {
   }
   const { id: _id, ai_tone: _t, ai_instructions: _i, ai_preset: _p, ...pub } = r;
   pub.languages = Array.isArray(pub.languages) ? pub.languages : JSON.parse(pub.languages || "[]");
+  const { readLoyalty } = await import("./loyalty");
+  pub.loyalty = readLoyalty(pub.loyalty);
   const { waiterEnabled } = await import("./ai");
   const bought = await boughtTogether(r.id);
   return { restaurant: pub, categories, items: publicItems(items, bought), waiter: waiterEnabled() };
