@@ -1,6 +1,6 @@
 "use client";
 // Cardápio do cliente: abre pelo QR da mesa ou pelo link do delivery.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/client";
@@ -23,6 +23,38 @@ const LANGS: { id: Lang; label: string }[] = [
 ];
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// etiquetas de dieta que viram filtro (sem acento, minúsculas)
+const DIETS = ["vegetariano", "vegano", "sem gluten", "sem lactose", "zero acucar", "fit"];
+// topo da barra de categorias, para o filtro levar a pessoa até a lista
+const tabsTop = () => {
+  const nav = document.querySelector<HTMLElement>("nav[aria-label='Categorias']");
+  return nav ? nav.getBoundingClientRect().top + window.scrollY : 0;
+};
+
+/** Bolinha que voa do botão "+" até a barra do pedido (e um toque leve no celular). */
+function flyToBag(from: Element | null, color: string) {
+  try { navigator.vibrate?.(12); } catch {}
+  if (!from || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const a = from.getBoundingClientRect();
+  const bag = document.querySelector("[data-bag]")?.getBoundingClientRect();
+  const tx = bag ? bag.left + 34 : window.innerWidth - 60, ty = bag ? bag.top + bag.height / 2 : window.innerHeight - 44;
+  const x0 = a.left + a.width / 2, y0 = a.top + a.height / 2;
+  const dot = document.createElement("div");
+  dot.setAttribute("aria-hidden", "true");
+  Object.assign(dot.style, { position: "fixed", left: `${x0 - 9}px`, top: `${y0 - 9}px`, width: "18px", height: "18px", borderRadius: "999px", background: color, zIndex: "60", pointerEvents: "none", boxShadow: "0 4px 12px rgba(0,0,0,.25)" });
+  document.body.appendChild(dot);
+  const dx = tx - x0, dy = ty - y0, lift = Math.min(-60, dy * 0.2 - 80);
+  const anim = dot.animate(
+    [
+      { transform: "translate(0,0) scale(1)" },
+      { transform: `translate(${dx * 0.45}px, ${lift}px) scale(1.15)`, offset: 0.4 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.5)`, opacity: 0.6 },
+    ],
+    { duration: 620, easing: "cubic-bezier(.45,.05,.4,1)" }
+  );
+  anim.onfinish = () => dot.remove();
+  setTimeout(() => dot.remove(), 900);
+}
 
 export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: { slug: string; mesa: string; modo: string; prato?: string; initial: MenuData }) {
   const router = useRouter();
@@ -49,6 +81,9 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const [lang, setLangState] = useState<Lang>("pt");
   const [roundOff, setRoundOff] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [diet, setDiet] = useState("");
+  const [favs, setFavs] = useState<string[]>([]);
+  const [hist, setHist] = useState<Record<string, number>>({});
   const loaded = useRef(false);
   const tabsRef = useRef<HTMLDivElement>(null);
   const clickedTab = useRef(0);
@@ -72,6 +107,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     const pick = [saved, device].find((l) => l === "pt" || ((l === "en" || l === "es") && langs.includes(l)));
     if (pick) setLangState(pick as Lang);
     setRoundOff(store<string>(`gia:${slug}:round`, "") === lo?.id);
+    setFavs(store<string[]>(`gia:${slug}:fav`, []));
+    setHist(store<Record<string, number>>(`gia:${slug}:hist`, {}));
     loaded.current = true;
     const tick = setInterval(() => setNow(Date.now()), 60_000);
     fetch(`/api/r/${slug}/events`, {
@@ -123,17 +160,41 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const subtotal = lines.reduce((s, l) => s + byId.get(l.itemId)!.price_cents * l.qty, 0);
   const qtyOf = (id: string) => lines.reduce((s, l) => s + (l.itemId === id ? l.qty : 0), 0);
 
+  // filtros de dieta: só aparecem os que existem nas etiquetas do cardápio
+  const dietOpts = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const i of items) for (const tag of i.tags) { const k = norm(tag); if (DIETS.includes(k) && !seen.has(k)) seen.set(k, tag); }
+    return DIETS.filter((d) => seen.has(d)).map((d) => ({ id: d, label: seen.get(d)! }));
+  }, [items]);
+  const dietLabel = dietOpts.find((d) => d.id === diet)?.label ?? "";
+  const fits = useCallback(
+    (i: MenuItem) => !diet || i.tags.some((tag) => norm(tag) === diet || (diet === "vegetariano" && norm(tag) === "vegano")),
+    [diet]
+  );
   const groups = useMemo(
     () =>
       [
-        ...categories.map((c) => ({ id: c.id, name: catName.get(c.id) ?? c.name, items: items.filter((i) => i.category_id === c.id) })),
-        { id: "outros", name: t("others"), items: items.filter((i) => !i.category_id || !catName.has(i.category_id)) },
+        ...categories.map((c) => ({ id: c.id, name: catName.get(c.id) ?? c.name, items: items.filter((i) => i.category_id === c.id && fits(i)) })),
+        { id: "outros", name: t("others"), items: items.filter((i) => (!i.category_id || !catName.has(i.category_id)) && fits(i)) },
       ].filter((g) => g.items.length),
-    [categories, items, catName, t]
+    [categories, items, catName, t, fits]
   );
-  const featured = useMemo(() => items.filter((i) => i.featured && i.available).slice(0, 8), [items]);
+  const featured = useMemo(() => items.filter((i) => i.featured && i.available && fits(i)).slice(0, 8), [items, fits]);
+  // favoritos e o que a pessoa já pediu neste restaurante (fica guardado só no celular dela)
+  const usuals = useMemo(() => {
+    const score = (id: string) => (favs.includes(id) ? 1000 : 0) + (hist[id] ?? 0);
+    return items.filter((i) => i.available && score(i.id) > 0 && fits(i)).sort((a, b) => score(b.id) - score(a.id)).slice(0, 8);
+  }, [items, favs, hist, fits]);
+  function toggleFav(id: string) {
+    setFavs((f) => {
+      const next = f.includes(id) ? f.filter((x) => x !== id) : [id, ...f].slice(0, 40);
+      save(`gia:${slug}:fav`, next);
+      if (!f.includes(id)) flash(t("favSaved"));
+      return next;
+    });
+  }
   // pratos marcados para esta hora do dia (almoço, noite...)
-  const forNow = useMemo(() => items.filter((i) => i.available && i.dayparts?.includes(daypart)).slice(0, 8), [items, daypart]);
+  const forNow = useMemo(() => items.filter((i) => i.available && i.dayparts?.includes(daypart) && fits(i)).slice(0, 8), [items, daypart, fits]);
   // segunda rodada: uns 25 minutos depois do pedido na mesa, sugere sobremesa (ou bebida)
   const round = useMemo(() => {
     if (!lastOrder || lastOrder.channel !== "mesa" || roundOff || paused) return null;
@@ -165,7 +226,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     );
     sections.forEach((s) => io.observe(s));
     return () => io.disconnect();
-  }, [groups, featured.length, forNow.length, results]);
+  }, [groups, featured.length, forNow.length, usuals.length, results]);
   useEffect(() => {
     const el = tabsRef.current?.querySelector<HTMLElement>(`[data-tab="${activeCat}"]`);
     el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -187,9 +248,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     toastTimer.current = setTimeout(() => setToast(""), 2000);
   }
 
-  function addToCart(itemId: string, qty = 1, notes = "", viaAi = false, viaSuggest = false) {
+  function addToCart(itemId: string, qty = 1, notes = "", viaAi = false, viaSuggest = false, from?: Element | null) {
     const item = byId.get(itemId);
     if (!item || !item.available) return;
+    flyToBag(from ?? null, color);
     setCart((c) => {
       const i = c.findIndex((l) => l.itemId === itemId && l.notes === notes);
       if (i >= 0) {
@@ -207,10 +269,11 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   function goTo(id: string) {
     clickedTab.current = Date.now();
     setActiveCat(id);
-    document.getElementById(id === "destaques" || id === "agora" ? id : `cat-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(id === "destaques" || id === "agora" || id === "sempre" ? id : `cat-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const tabs = [
+    ...(usuals.length ? [{ id: "sempre", name: t("againTab") }] : []),
     ...(forNow.length ? [{ id: "agora", name: t("nowTab") }] : []),
     ...(featured.length ? [{ id: "destaques", name: t("featuredTab") }] : []),
     ...groups.map((g) => ({ id: g.id, name: g.name })),
@@ -301,6 +364,11 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
               <Icon name="search" size={21} />
             </button>
             <div ref={tabsRef} className="no-scrollbar flex flex-1 gap-1.5 overflow-x-auto py-3 pl-1 pr-5">
+              {diet && (
+                <button onClick={() => setDiet("")} aria-label={t("clearFilter", { f: dietLabel })} className="flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-[14px] font-semibold text-white" style={{ background: color }}>
+                  {dietLabel} <Icon name="close" size={14} stroke={2.4} />
+                </button>
+              )}
               {tabs.map((t) => (
                 <button key={t.id} data-tab={t.id} onClick={() => goTo(t.id)} className={`shrink-0 rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors duration-200 ${activeCat === t.id ? "bg-ink text-white" : "bg-[#efefeb] text-black/70 hover:bg-[#e6e6e1]"}`}>
                   {t.name}
@@ -313,6 +381,24 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
 
       {items.length === 0 && <p className="px-5 py-16 text-center text-black/55">{t("empty")}</p>}
 
+      {dietOpts.length > 0 && !results && (
+        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-5 pt-4" role="group" aria-label={t("onlyShow")}>
+          <span className="shrink-0 text-[13px] font-semibold text-black/50">{t("onlyShow")}</span>
+          {dietOpts.map((d) => (
+            <button
+              key={d.id}
+              aria-pressed={diet === d.id}
+              onClick={() => { setDiet(diet === d.id ? "" : d.id); window.scrollTo({ top: Math.min(window.scrollY, tabsTop()), behavior: "smooth" }); }}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[13.5px] font-semibold ring-1 transition-colors duration-200 ${diet === d.id ? "text-white ring-transparent" : "bg-white text-black/70 ring-black/10"}`}
+              style={diet === d.id ? { background: color } : undefined}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {diet && !results && groups.length === 0 && <p className="px-5 py-12 text-center text-black/55">{t("noneDiet", { f: dietLabel.toLowerCase() })}</p>}
+
       {round && !results && (
         <section className="animate-enter mx-5 mt-5 rounded-3xl p-4 ring-1 ring-black/[0.07]" style={{ background: `${color}12` }} aria-label={round.kind === "sobremesa" ? t("secondRound") : t("secondRoundDrink")}>
           <div className="flex items-center justify-between gap-3">
@@ -321,7 +407,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           </div>
           <div className="mt-3 space-y-2">
             {round.list.map((i) => (
-              <SuggestRow key={i.id} item={i} name={name(i)} color={color} t={t} onOpen={() => setDetail(i)} onAdd={() => addToCart(i.id, 1, "", false, true)} />
+              <SuggestRow key={i.id} item={i} name={name(i)} color={color} t={t} onOpen={() => setDetail(i)} onAdd={(el) => addToCart(i.id, 1, "", false, true, el)} />
             ))}
           </div>
         </section>
@@ -334,12 +420,47 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           </p>
           <div className="divide-y divide-line">
             {results.map((i) => (
-              <Row key={i.id} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={() => addToCart(i.id)} />
+              <Row key={i.id} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={(el) => addToCart(i.id, 1, "", false, false, el)} />
             ))}
           </div>
         </section>
       ) : (
         <>
+          {usuals.length > 0 && (
+            <section id="sempre" data-cat="sempre" className="scroll-mt-20 pt-6">
+              <h2 className="px-5 text-[21px] font-extrabold">{t("again")}</h2>
+              <p className="px-5 text-[13.5px] text-black/55">{t("againSub")}</p>
+              <div className="no-scrollbar mt-3 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
+                {usuals.map((i) => (
+                  <div key={i.id} className="w-[38%] max-w-[170px] shrink-0 snap-start">
+                    <div className="relative">
+                      <button onClick={() => setDetail(i)} aria-label={name(i)} className="group block w-full overflow-hidden rounded-[20px] transition active:scale-[0.98]">
+                        <Thumb item={i} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
+                      </button>
+                      {favs.includes(i.id) && <Icon name="heart" size={18} filled className="pointer-events-none absolute left-2.5 top-2.5 text-white drop-shadow" />}
+                      {!paused && (
+                        <button
+                          key={qtyOf(i.id)}
+                          onClick={(e) => addToCart(i.id, 1, "", false, false, e.currentTarget)}
+                          aria-label={t("addAria", { name: name(i) })}
+                          className={`absolute bottom-[-6px] right-[-6px] grid h-9 min-w-9 place-items-center rounded-full px-2 text-white shadow-md ring-2 ring-white transition-transform active:scale-90 ${qtyOf(i.id) ? "animate-bump" : ""}`}
+                          style={{ background: qtyOf(i.id) ? "#1d1a16" : color }}
+                        >
+                          {qtyOf(i.id) ? <span className="tnum text-[13.5px] font-bold">{qtyOf(i.id)}</span> : <Icon name="plus" size={17} stroke={2.4} />}
+                        </button>
+                      )}
+                    </div>
+                    <button onClick={() => setDetail(i)} className="block w-full text-left">
+                      <span className="mt-2 line-clamp-2 block pr-1 text-[14.5px] font-bold leading-tight">{name(i)}</span>
+                      <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(i.price_cents)}</span>
+                      {hist[i.id] > 0 && <span className="block text-[12.5px] text-black/45">{t("orderedTimes", { n: hist[i.id] })}</span>}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {forNow.length > 0 && (
             <section id="agora" data-cat="agora" className="scroll-mt-20 pt-6">
               <h2 className="px-5 text-[21px] font-extrabold">{t(`now_${daypart}` as "now_almoco")}</h2>
@@ -381,7 +502,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
               <h2 className="text-[21px] font-extrabold">{g.name}</h2>
               <div className="mt-1 divide-y divide-line">
                 {g.items.map((i) => (
-                  <Row key={i.id} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={() => addToCart(i.id)} />
+                  <Row key={i.id} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={(el) => addToCart(i.id, 1, "", false, false, el)} />
                 ))}
               </div>
             </section>
@@ -409,6 +530,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           {!paused && count > 0 && (
             <button
               key={count}
+              data-bag
               onClick={() => setCartOpen(true)}
               className="animate-bump flex h-14 flex-1 items-center justify-between rounded-2xl px-5 text-[15.5px] font-bold text-white shadow-lg shadow-black/10 transition active:scale-[0.99]"
               style={{ background: color }}
@@ -441,6 +563,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           sub={byId.get((byId.get(detail.id) ?? detail).substitute_id ?? "")}
           goesWith={suggestFor([detail.id], 3, cart.map((l) => l.itemId))}
           onTrack={(type) => track(type, detail.id)}
+          fav={favs.includes(detail.id)}
+          onFav={() => toggleFav(detail.id)}
           onClose={() => setDetail(null)}
           onOpen={(x) => setDetail(x)}
           onAddPair={(id) => addToCart(id, 1, "", false, true)}
@@ -513,6 +637,9 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
             setCart([]);
             save(`gia:${slug}:cart`, []);
             save(`gia:${slug}:last`, { id, number, at: Date.now(), channel, itemIds: lines.map((l) => l.itemId) });
+            const h = { ...hist };
+            for (const l of lines) h[l.itemId] = (h[l.itemId] ?? 0) + 1;
+            save(`gia:${slug}:hist`, h);
             router.push(`/r/${slug}/pedido/${id}`);
           }}
         />
@@ -521,7 +648,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   );
 }
 
-function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onAdd }: { item: MenuItem; lang: Lang; t: T; sub?: MenuItem; color: string; qty: number; paused: boolean; onOpen: () => void; onOpenSub: (x: MenuItem) => void; onAdd: () => void }) {
+function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onAdd }: { item: MenuItem; lang: Lang; t: T; sub?: MenuItem; color: string; qty: number; paused: boolean; onOpen: () => void; onOpenSub: (x: MenuItem) => void; onAdd: (el: Element) => void }) {
   const { name, description } = tr(i, lang);
   return (
     <div className="relative py-4">
@@ -538,12 +665,12 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
               {i.tags.slice(0, i.model ? 1 : 2).map((tag) => <Pill key={tag}>{tag}</Pill>)}
             </span>
           </span>
-          <Thumb item={i} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />
+          <Thumb item={i} art={0.8} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />
         </button>
         {i.available && !paused && (
           <button
             key={qty}
-            onClick={onAdd}
+            onClick={(e) => onAdd(e.currentTarget)}
             aria-label={t("addAria", { name })}
             className={`absolute bottom-[-6px] right-[-6px] grid h-10 min-w-10 place-items-center rounded-full px-2 text-white shadow-md ring-2 ring-white transition-transform active:scale-90 ${qty ? "animate-bump" : ""}`}
             style={{ background: qty ? "#1d1a16" : color }}
@@ -562,7 +689,7 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
 }
 
 /** Linha compacta de sugestão: foto pequena, nome, preço e botão de adicionar. */
-function SuggestRow({ item, name, color, t, onOpen, onAdd }: { item: MenuItem; name: string; color: string; t: T; onOpen: () => void; onAdd: () => void }) {
+function SuggestRow({ item, name, color, t, onOpen, onAdd }: { item: MenuItem; name: string; color: string; t: T; onOpen: () => void; onAdd: (el: Element) => void }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-white p-2 pr-2.5 ring-1 ring-black/[0.06]">
       <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -572,7 +699,7 @@ function SuggestRow({ item, name, color, t, onOpen, onAdd }: { item: MenuItem; n
           <span className="tnum text-[13.5px] text-black/60">{brl(item.price_cents)}</span>
         </span>
       </button>
-      <button type="button" onClick={onAdd} aria-label={t("addAria", { name })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition-transform active:scale-90" style={{ background: color }}>
+      <button type="button" onClick={(e) => onAdd(e.currentTarget)} aria-label={t("addAria", { name })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition-transform active:scale-90" style={{ background: color }}>
         <Icon name="plus" size={17} stroke={2.4} />
       </button>
     </div>
@@ -592,6 +719,8 @@ function ItemSheet({
   onAdd,
   onAddPair,
   onTrack,
+  fav,
+  onFav,
 }: {
   item: MenuItem;
   lang: Lang;
@@ -605,6 +734,8 @@ function ItemSheet({
   onAdd: (qty: number, notes: string) => void;
   onAddPair: (id: string) => void;
   onTrack: (type: "view3d" | "ar") => void;
+  fav: boolean;
+  onFav: () => void;
 }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
@@ -623,9 +754,19 @@ function ItemSheet({
               <DishViewer model={item.model} poster={item.image || undefined} alt={name} color={color} height={300} onEvent={onTrack} hideDims />
             </div>
           ) : (
-            <Thumb item={item} className="h-72 w-full" />
+            <Thumb item={item} art={0.62} className="h-72 w-full" />
           )}
           <CloseButton onClick={onClose} className="absolute right-5 top-5 z-10 shadow-sm" />
+          <button
+            key={String(fav)}
+            onClick={onFav}
+            aria-pressed={fav}
+            aria-label={fav ? t("unfav") : t("fav")}
+            className={`absolute right-[4.75rem] top-5 z-10 grid h-11 w-11 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/10 transition-transform active:scale-90 ${fav ? "animate-bump" : ""}`}
+            style={fav ? { color } : undefined}
+          >
+            <Icon name="heart" size={20} filled={fav} />
+          </button>
           {item.model && item.image && (
             <div className="absolute left-5 top-5 z-10 flex rounded-full bg-white p-0.5 text-[13px] font-semibold ring-1 ring-black/10">
               <button onClick={() => setView("3d")} className={`rounded-full px-3 py-1.5 transition-colors ${view === "3d" ? "bg-ink text-white" : ""}`}>3D</button>

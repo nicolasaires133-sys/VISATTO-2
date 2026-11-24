@@ -201,7 +201,7 @@ export default function Cardapio() {
               {list.map((i) => (
                 <article key={i.id} className="card flex gap-3.5 p-3.5">
                   <button type="button" onClick={() => edit(i)} aria-label={`Editar ${i.name}`} className={`shrink-0 ${i.available ? "" : "opacity-50"}`}>
-                    <Thumb src={i.image} className="h-[72px] w-[72px] rounded-xl sm:h-[88px] sm:w-[88px]" />
+                    <Thumb src={i.image} name={i.name} className="h-[72px] w-[72px] rounded-xl sm:h-[88px] sm:w-[88px]" />
                   </button>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-1">
@@ -409,7 +409,7 @@ function ItemForm({
             {tab === "venda" && <SellFields f={f} setF={setF} others={others} />}
             <div className={tab === "venda" ? "hidden" : "space-y-4"}>
             <label className="flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-dashed border-black/20 p-3 hover:border-ink">
-              <Thumb src={f.image} className="h-20 w-20 shrink-0 rounded-xl" />
+              <Thumb src={f.image} name={f.name} className="h-20 w-20 shrink-0 rounded-xl" />
               <div className="text-[14px]">
                 <p className="flex items-center gap-1.5 font-semibold"><Icon name="image" size={17} /> {f.image ? "Trocar a foto" : "Adicionar foto do prato"}</p>
                 <p className="mt-0.5 text-black/55">{uploading ? "Enviando..." : "Pode tirar com o celular. Prato com foto vende mais."}</p>

@@ -1,5 +1,6 @@
 "use client";
 // Peças compartilhadas do cardápio do cliente.
+import { DishArt } from "@/components/DishArt";
 import { useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
 import type { PublicItem as MenuItem } from "@/lib/format";
@@ -95,17 +96,10 @@ export function ArBadge({ className = "" }: { className?: string }) {
   );
 }
 
-/** Foto do prato; sem foto, um prato desenhado (neutro, igual em todo celular). */
-export function Thumb({ item, className = "" }: { item: Pick<MenuItem, "image" | "name">; className?: string }) {
+/** Foto do prato; sem foto, um desenho do tipo de prato (pizza, massa, bebida...), igual em todo celular. */
+export function Thumb({ item, className = "", art = 0.72 }: { item: Pick<MenuItem, "image" | "name"> & { description?: string }; className?: string; art?: number }) {
   if (item.image) return <img src={item.image} alt="" loading="lazy" decoding="async" className={`bg-[#ececE7] object-cover ${className}`} />;
-  return (
-    <div className={`grid place-items-center bg-[#ececE7] ${className}`} aria-hidden="true">
-      <svg viewBox="0 0 64 64" className="h-[46%] max-h-16 w-[46%] max-w-16 text-black/20" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <circle cx="32" cy="32" r="24" />
-        <circle cx="32" cy="32" r="15" />
-      </svg>
-    </div>
-  );
+  return <DishArt name={item.name} description={item.description} className={className} size={art} />;
 }
 
 export function Stepper({ qty, onChange, min = 0, size = "md" }: { qty: number; onChange: (q: number) => void; min?: number; size?: "md" | "lg" }) {

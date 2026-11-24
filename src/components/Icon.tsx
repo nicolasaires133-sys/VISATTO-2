@@ -3,6 +3,7 @@ const P: Record<string, string> = {
   search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM20 20l-4-4",
   bag: "M6 8h12l1 12H5L6 8ZM9 8V6a3 3 0 0 1 6 0v2",
   plus: "M12 5v14M5 12h14",
+  heart: "M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z",
   minus: "M5 12h14",
   close: "M6 6l12 12M18 6 6 18",
   right: "m9 5 7 7-7 7",
@@ -53,13 +54,13 @@ const P: Record<string, string> = {
 
 export type IconName = keyof typeof P;
 
-export default function Icon({ name, size = 20, className = "", stroke = 1.8 }: { name: string; size?: number; className?: string; stroke?: number }) {
+export default function Icon({ name, size = 20, className = "", stroke = 1.8, filled = false }: { name: string; size?: number; className?: string; stroke?: number; filled?: boolean }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={stroke}
       strokeLinecap="round"

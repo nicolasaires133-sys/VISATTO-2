@@ -94,6 +94,16 @@ const D = {
   serverComing: { pt: "Atendente a caminho da mesa {t}", en: "A server is on the way to table {t}", es: "Un mesero va a la mesa {t}" },
   privacy: { pt: "Privacidade", en: "Privacy", es: "Privacidad" },
   language: { pt: "Idioma", en: "Language", es: "Idioma" },
+  onlyShow: { pt: "Só mostrar", en: "Only show", es: "Solo mostrar" },
+  clearFilter: { pt: "Tirar filtro {f}", en: "Remove filter {f}", es: "Quitar filtro {f}" },
+  noneDiet: { pt: "Nenhum prato {f} nesta parte do cardápio.", en: "No {f} dishes in this section.", es: "Ningún plato {f} en esta parte del menú." },
+  again: { pt: "Seus de sempre", en: "Your usuals", es: "Tus de siempre" },
+  againTab: { pt: "Seus pedidos", en: "Your usuals", es: "Tus pedidos" },
+  againSub: { pt: "Favoritos e o que você já pediu aqui. Um toque e vai para o pedido.", en: "Favorites and what you ordered here before. One tap adds it.", es: "Favoritos y lo que ya pediste aquí. Un toque y va al pedido." },
+  fav: { pt: "Guardar nos favoritos", en: "Save to favorites", es: "Guardar en favoritos" },
+  unfav: { pt: "Tirar dos favoritos", en: "Remove from favorites", es: "Quitar de favoritos" },
+  favSaved: { pt: "Guardado nos seus favoritos", en: "Saved to your favorites", es: "Guardado en tus favoritos" },
+  orderedTimes: { pt: "você pediu {n}x", en: "you ordered {n}x", es: "pediste {n}x" },
   viaWhatsapp: { pt: "Prefiro pedir pelo WhatsApp", en: "I'd rather order on WhatsApp", es: "Prefiero pedir por WhatsApp" },
 } as const;
 
