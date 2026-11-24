@@ -36,6 +36,14 @@ const MENU: [string, [string, string, number, number, string[], boolean][]][] = 
 export const DEMO_SLUG = "cantina-da-nonna";
 export const DEMO_EMAIL = "demo@cantinadanonna.com.br";
 
+let checkedOnce = false;
+/** Uma vez por servidor: cria a demonstração se faltar, ou completa a de versões antigas. */
+export async function ensureDemoOnce() {
+  if (checkedOnce) return;
+  checkedOnce = true;
+  await ensureDemo(true).catch(() => (checkedOnce = false));
+}
+
 let running: Promise<{ created: boolean; password: string | null }> | null = null;
 
 /** Cria a demonstração se ainda não existir. Devolve a senha só quando acabou de criar. */
@@ -47,7 +55,12 @@ export function ensureDemo(randomPassword = false) {
 async function create(randomPassword: boolean): Promise<{ created: boolean; password: string | null }> {
   const db = await getDB();
   const exists = await db.query(`SELECT id FROM restaurants WHERE slug = 'cantina-da-nonna'`);
-  if (exists.length) return { created: false, password: null };
+  if (exists.length) {
+    // demonstração criada antes da inteligência de venda: completa uma vez
+    const [k] = await db.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM items WHERE restaurant_id=$1 AND allergens_known`, [exists[0].id]);
+    if (!k?.n) await applySell(db, exists[0].id);
+    return { created: false, password: null };
+  }
 
   const rid = newId();
   const email = DEMO_EMAIL;
@@ -92,7 +105,12 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
       [rid, name, `/demo/${file}.glb`, `/demo/${file}.usdz`, width, JSON.stringify(dims), `/demo/${file}.jpg`]
     );
   }
-  // Inteligência de venda da demonstração: combinações, alergênicos, horários, custo e traduções
+  await applySell(db, rid);
+  return { created: true, password };
+}
+
+/** Combinações, alergênicos, horários e custo dos pratos da demonstração. */
+async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
   const ids = new Map((await db.query<{ id: string; name: string }>(`SELECT id, name FROM items WHERE restaurant_id=$1`, [rid])).map((r) => [r.name, r.id]));
   const id = (n: string) => ids.get(n) ?? "";
   const sell: [string, { allergens: string[]; pairs?: string[]; promote?: boolean; dayparts?: string[]; cost: number; sub?: string }][] = [
@@ -120,5 +138,4 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
       [id(n), JSON.stringify(v.allergens), JSON.stringify((v.pairs ?? []).map(id).filter(Boolean)), Boolean(v.promote), JSON.stringify(v.dayparts ?? []), Math.round(v.cost * 100), v.sub ? id(v.sub) : ""]
     );
   }
-  return { created: true, password };
 }
