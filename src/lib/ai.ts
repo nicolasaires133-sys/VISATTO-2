@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { MenuItem, Category, CartLine, WaiterAction } from "./format";
 import { brl } from "./format";
 import { KINDS, profileFromName, sanitizeProfile, type ProductProfile } from "./scan/profile";
+import { allergenLabel, DAYPARTS } from "./sell";
 
 const CHAT_MODEL = process.env.AI_MODEL || "claude-haiku-5-5";
 const VISION_MODEL = process.env.AI_VISION_MODEL || "claude-sonnet-5-5";
@@ -29,6 +30,7 @@ export type ChatMsg = { role: "user" | "assistant"; content: string };
 
 function menuText(categories: Category[], items: MenuItem[]) {
   const catName = new Map(categories.map((c) => [c.id, c.name]));
+  const nameOf = new Map(items.map((i) => [i.id, i.name]));
   return items
     .map((i) =>
       [
@@ -41,7 +43,14 @@ function menuText(categories: Category[], items: MenuItem[]) {
         i.featured ? "destaque da casa" : "",
         i.model_published && i.model_glb_url ? "TEM 3D: cliente pode ver na mesa em tamanho real" : "",
         i.available ? "" : "ESGOTADO HOJE",
+        !i.available && i.substitute_id && nameOf.get(i.substitute_id) ? `se acabar, oferecer=${nameOf.get(i.substitute_id)}` : "",
         i.description ? `descrição=${i.description}` : "",
+        i.allergens_known
+          ? `alergênicos=${i.allergens?.length ? `contém ${i.allergens.map((a) => allergenLabel(a)).join(", ")}` : "nenhum dos principais"} (ficha conferida)`
+          : "alergênicos=FICHA NÃO CONFERIDA",
+        i.promote ? "VENDER MAIS (o dono quer que este prato seja oferecido)" : "",
+        i.pairs?.length ? `combina com=${i.pairs.map((id) => nameOf.get(id)).filter(Boolean).join(", ")}` : "",
+        i.dayparts?.length ? `bom para=${i.dayparts.map((d) => DAYPARTS.find((p) => p.id === d)?.label).filter(Boolean).join(", ")}` : "",
       ]
         .filter(Boolean)
         .join(" | ")
@@ -86,6 +95,16 @@ const WAITER_TOOLS: any[] = [
     },
   },
   {
+    name: "chamar_atendente",
+    description:
+      "Chama uma pessoa da equipe até a mesa (aparece na hora no painel do restaurante). Use quando: o cliente pedir; a pergunta for sobre alergia e a ficha do prato não estiver conferida; houver reclamação; ou você não souber responder algo importante.",
+    input_schema: {
+      type: "object",
+      properties: { motivo: { type: "string", description: "frase curta para a equipe, ex.: 'Dúvida sobre glúten na lasanha'" } },
+      required: ["motivo"],
+    },
+  },
+  {
     name: "mostrar_pratos",
     description:
       "Mostra cartões com foto e preço de 1 a 3 pratos dentro da conversa. Use sempre que recomendar ou citar pratos específicos.",
@@ -104,6 +123,9 @@ export async function waiterReply(opts: {
   messages: ChatMsg[];
   cart: CartLine[];
   channel: "mesa" | "delivery";
+  /** o que esta mesa já pediu hoje (para não oferecer de novo e saber a hora da sobremesa) */
+  ordered?: { name: string; qty: number; minutesAgo: number }[];
+  daypart?: string;
 }): Promise<{ text: string; actions: WaiterAction[] }> {
   const { restaurant: r, categories, items, messages, cart, channel } = opts;
   if (!aiEnabled()) return mockWaiter(items, messages);
@@ -116,14 +138,19 @@ export async function waiterReply(opts: {
 Você conversa com clientes pelo cardápio digital e seu objetivo é ajudar a escolher bem e vender mais, sem ser chato.
 
 Regras:
-- Responda em português do Brasil, curto (1 a 3 frases). Nada de listas longas.
-- Só fale de pratos que estão no cardápio abaixo. Nunca invente pratos, preços, ingredientes ou promoções.
+- Responda no idioma da última mensagem do cliente (português, inglês, espanhol...). Curto: 1 a 3 frases. Nada de listas longas.
+- Só fale de pratos que estão no cardápio abaixo. Nunca invente pratos, preços, ingredientes, promoções, certificações (halal, kosher, orgânico) ou horários.
 - Ao recomendar ou citar pratos, chame a ferramenta mostrar_pratos com eles.
-- Para dúvidas de quantidade, use o campo "serve" (ex.: serve 2 pessoas). Se o prato TEM 3D, convide o cliente a tocar no prato e em "Ver na minha mesa" para ver o tamanho real pela câmera. Para restrições, use as tags e a descrição; se a informação não estiver lá, diga que vai confirmar com a equipe e sugira escrever na observação.
-- Itens ESGOTADO HOJE não podem ser pedidos; ofereça uma alternativa parecida.
-- Só adicione ao carrinho quando o cliente confirmar. Depois de adicionar, sugira UMA vez, de forma natural, um complemento que combine (bebida, entrada, sobremesa ou porção maior para o grupo).
-- Se o cliente quiser finalizar, diga para tocar em "Ver carrinho" e enviar o pedido.
+- Quantidade: se perguntarem quanto pedir, pergunte quantas pessoas são e use o campo "serve" (ex.: serve 2 pessoas). Se o prato TEM 3D, convide o cliente a tocar no prato e em "Ver na minha mesa" para ver o tamanho real pela câmera.
+- ALERGIA E RESTRIÇÃO: use só o campo "alergênicos" do prato. Se estiver "FICHA NÃO CONFERIDA", diga que não tem essa informação confirmada${channel === "mesa" ? ", chame a equipe com chamar_atendente" : " e sugira falar com o restaurante pelo WhatsApp"} e não afirme nada. Mesmo com ficha conferida, lembre que pode haver contato cruzado na cozinha quando a alergia for grave.
+- Itens ESGOTADO HOJE não podem ser pedidos; ofereça o prato de "se acabar, oferecer" ou outro parecido.
+- Só adicione ao carrinho quando o cliente confirmar.
+- VENDA: depois de adicionar, ofereça UMA vez um complemento. Prefira, nesta ordem: o "combina com" do prato, um prato marcado VENDER MAIS, e o que falta no pedido (bebida, entrada, sobremesa). Se o cliente recusar, não ofereça de novo o mesmo item. Nunca mais de uma oferta por resposta.
+- Se o cliente quiser finalizar, diga para tocar em "Ver pedido" e enviar.
 - Não fale sobre assuntos fora do restaurante.
+- Reclamação, pedido de falar com alguém ou dúvida que você não consegue resolver: ${channel === "mesa" ? "chame a equipe com chamar_atendente e avise o cliente que alguém já vem" : "sugira falar com o restaurante pelo WhatsApp"}.
+${opts.daypart ? `- Agora é hora de: ${DAYPARTS.find((p) => p.id === opts.daypart)?.label ?? opts.daypart}. Pratos "bom para" esse horário têm preferência.` : ""}
+${opts.ordered?.length ? `- Esta mesa já pediu: ${opts.ordered.map((o) => `${o.qty}x ${o.name} (há ${o.minutesAgo} min)`).join("; ")}. Não ofereça de novo o que já foi pedido; se o prato principal já saiu há uns 25 minutos, é um bom momento para sugerir sobremesa ou café.` : ""}
 ${channel === "delivery" ? `- O cliente está pedindo para entrega. Taxa de entrega: ${brl(r.delivery_fee_cents)}.${r.min_order_cents ? ` Pedido mínimo: ${brl(r.min_order_cents)}.` : ""}` : "- O cliente está sentado à mesa no restaurante."}
 ${r.ai_instructions ? `\nInstruções do dono do restaurante:\n${r.ai_instructions}` : ""}
 
@@ -181,6 +208,11 @@ ${menuText(categories, items)}`,
       } else if (t.name === "remover_do_carrinho") {
         actions.push({ type: "remove", itemId: input.item_id });
         result = "Removido.";
+      } else if (t.name === "chamar_atendente") {
+        if (channel === "mesa") {
+          actions.push({ type: "call", reason: String(input.motivo || "").slice(0, 140) });
+          result = "Equipe chamada. Avise o cliente que alguém já vem até a mesa.";
+        } else result = "Não há mesa: sugira falar com o restaurante pelo WhatsApp.";
       } else if (t.name === "mostrar_pratos") {
         const ids = (input.item_ids || []).filter((id: string) => validIds.has(id)).slice(0, 3);
         if (ids.length) actions.push({ type: "show", itemIds: ids });
@@ -321,6 +353,86 @@ export async function importMenuFromImages(images: { data: string; mediaType: st
       })),
     })),
   };
+}
+
+// ---------- Tradução do cardápio ----------
+export type ToTranslate = { id: string; name: string; description: string };
+/** Traduz nomes e descrições para inglês e espanhol. Nomes próprios de pratos brasileiros ficam como são, com explicação na descrição. */
+export async function translateMenu(entries: ToTranslate[], langs: ("en" | "es")[]): Promise<Record<string, Partial<Record<"en" | "es", { name: string; description: string }>>>> {
+  if (!aiEnabled()) throw new Error("A tradução automática usa a IA. Configure a ANTHROPIC_API_KEY para traduzir o cardápio.");
+  const out: Record<string, Partial<Record<"en" | "es", { name: string; description: string }>>> = {};
+  for (let i = 0; i < entries.length; i += 40) {
+    const batch = entries.slice(i, i + 40);
+    const res: any = await client().messages.create({
+      model: CHAT_MODEL,
+      max_tokens: 8000,
+      tools: [
+        {
+          name: "salvar_traducoes",
+          description: "Salva as traduções de cada item.",
+          input_schema: {
+            type: "object",
+            properties: {
+              itens: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    ...Object.fromEntries(langs.map((l) => [l, { type: "object", properties: { name: { type: "string" }, description: { type: "string" } }, required: ["name", "description"] }])),
+                  },
+                  required: ["id", ...langs],
+                },
+              },
+            },
+            required: ["itens"],
+          },
+        },
+      ] as any,
+      tool_choice: { type: "tool", name: "salvar_traducoes" } as any,
+      messages: [
+        {
+          role: "user",
+          content: `Traduza estes itens de um cardápio brasileiro para ${langs.map((l) => (l === "en" ? "inglês" : "espanhol")).join(" e ")}.
+Regras: tradução natural de cardápio, curta; não invente ingredientes; nomes típicos sem tradução (ex.: feijoada, coxinha, pão de queijo, caipirinha) ficam como estão no nome e ganham uma explicação curta na descrição; preços e números não mudam; descrição vazia continua vazia, a não ser que o nome precise de explicação.
+
+${JSON.stringify(batch)}`,
+        },
+      ],
+    });
+    const tool = (res.content || []).find((b: any) => b.type === "tool_use");
+    for (const it of tool?.input?.itens ?? []) {
+      if (!batch.some((b) => b.id === it.id)) continue;
+      out[it.id] = {};
+      for (const l of langs) {
+        const v = it[l];
+        if (v?.name) out[it.id][l] = { name: String(v.name).slice(0, 120), description: String(v.description || "").slice(0, 600) };
+      }
+    }
+  }
+  return out;
+}
+
+// ---------- Descrição que dá vontade ----------
+export async function improveDescription(opts: { name: string; description: string; category: string; restaurant: string }): Promise<string> {
+  if (!aiEnabled()) throw new Error("A sugestão de descrição usa a IA. Configure a ANTHROPIC_API_KEY.");
+  const res: any = await client().messages.create({
+    model: CHAT_MODEL,
+    max_tokens: 300,
+    messages: [
+      {
+        role: "user",
+        content: `Escreva a descrição de um prato para o cardápio digital do restaurante "${opts.restaurant}".
+Prato: ${opts.name}
+Categoria: ${opts.category || "não informada"}
+Descrição atual: ${opts.description || "(vazia)"}
+
+Regras: português do Brasil, no máximo 2 frases e 180 caracteres; dê vontade de pedir; use SÓ ingredientes que estão no nome ou na descrição atual (não invente nada); diga para quantos serve só se já estiver escrito. Responda apenas com a descrição, sem aspas.`,
+      },
+    ],
+  });
+  const text = (res.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join(" ").trim();
+  return text.replace(/^["“]|["”]$/g, "").slice(0, 300);
 }
 
 // ---------- Resumo das perguntas dos clientes ----------

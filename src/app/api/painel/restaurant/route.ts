@@ -24,11 +24,13 @@ export async function PUT(req: Request) {
   const name = String(b.name ?? r.name).trim();
   if (name.length < 2) return fail("Nome inválido.");
   const color = /^#[0-9a-fA-F]{6}$/.test(b.primary_color) ? b.primary_color : r.primary_color;
+  const review = String(b.google_review_url ?? "").trim();
+  if (review && !reviewUrl(review)) return fail("O link de avaliação precisa ser do Google (começa com https://g.page, https://maps.app.goo.gl ou https://www.google.com).");
   const db = await getDB();
   await db.query(
     `UPDATE restaurants SET name=$2, whatsapp=$3, address=$4, primary_color=$5, delivery_enabled=$6,
        dine_in_enabled=$7, delivery_fee_cents=$8, min_order_cents=$9, ai_name=$10, ai_tone=$11, ai_instructions=$12,
-       accepting_orders=$13, pix_key=$14
+       accepting_orders=$13, pix_key=$14, google_review_url=$15
      WHERE id=$1`,
     [
       r.id,
@@ -45,7 +47,19 @@ export async function PUT(req: Request) {
       String(b.ai_instructions ?? r.ai_instructions).slice(0, 2000),
       Boolean(b.accepting_orders ?? r.accepting_orders ?? true),
       String(b.pix_key ?? r.pix_key ?? "").trim().slice(0, 120),
+      reviewUrl(b.google_review_url ?? r.google_review_url),
     ]
   );
   return ok({ ok: true });
+}
+
+/** Só aceita links do Google (perfil ou "pedir avaliações"), para o cliente não ser mandado a outro lugar. */
+function reviewUrl(v: unknown) {
+  const s = String(v ?? "").trim().slice(0, 300);
+  if (!s) return "";
+  try {
+    const u = new URL(s);
+    if (u.protocol === "https:" && /(^|\.)(google\.[a-z.]+|g\.page|goo\.gl|maps\.app\.goo\.gl)$/i.test(u.hostname)) return u.toString();
+  } catch {}
+  return "";
 }

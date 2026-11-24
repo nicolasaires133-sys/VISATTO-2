@@ -92,5 +92,33 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
       [rid, name, `/demo/${file}.glb`, `/demo/${file}.usdz`, width, JSON.stringify(dims), `/demo/${file}.jpg`]
     );
   }
+  // Inteligência de venda da demonstração: combinações, alergênicos, horários, custo e traduções
+  const ids = new Map((await db.query<{ id: string; name: string }>(`SELECT id, name FROM items WHERE restaurant_id=$1`, [rid])).map((r) => [r.name, r.id]));
+  const id = (n: string) => ids.get(n) ?? "";
+  const sell: [string, { allergens: string[]; pairs?: string[]; promote?: boolean; dayparts?: string[]; cost: number; sub?: string }][] = [
+    ["Pizza Margherita Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L", "Tiramisù da Casa"], dayparts: ["noite"], cost: 22 }],
+    ["Pizza Calabresa Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L", "Tiramisù da Casa"], dayparts: ["noite"], cost: 21 }],
+    ["Pizza Quatro Queijos Grande", { allergens: ["gluten", "leite"], pairs: ["Vinho Tinto da Casa (taça)"], cost: 27, sub: "Pizza Margherita Grande" }],
+    ["Pizza Broto Margherita", { allergens: ["gluten", "leite"], pairs: ["Suco de Laranja Natural 500ml"], cost: 12 }],
+    ["Lasanha à Bolonhesa", { allergens: ["gluten", "leite", "ovo"], pairs: ["Vinho Tinto da Casa (taça)", "Panna Cotta com Frutas Vermelhas"], dayparts: ["almoco"], cost: 17, promote: true }],
+    ["Espaguete ao Pomodoro", { allergens: ["gluten", "leite"], dayparts: ["almoco"], cost: 9 }],
+    ["Nhoque da Nonna (para 2)", { allergens: ["gluten", "leite", "ovo"], pairs: ["Burrata com Tomates"], cost: 20 }],
+    ["Penne Sem Glúten ao Pesto", { allergens: ["castanhas"], dayparts: ["almoco"], cost: 15 }],
+    ["Bruschetta Tradicional (4 un.)", { allergens: ["gluten"], cost: 7 }],
+    ["Burrata com Tomates", { allergens: ["leite", "castanhas", "gluten"], pairs: ["Vinho Tinto da Casa (taça)"], cost: 24, promote: true }],
+    ["Tiramisù da Casa", { allergens: ["gluten", "leite", "ovo"], cost: 7, promote: true }],
+    ["Panna Cotta com Frutas Vermelhas", { allergens: ["leite"], cost: 6 }],
+    ["Coca-Cola 2L", { allergens: [], cost: 7 }],
+    ["Suco de Laranja Natural 500ml", { allergens: [], dayparts: ["almoco"], cost: 3 }],
+    ["Vinho Tinto da Casa (taça)", { allergens: [], dayparts: ["noite"], cost: 8 }],
+    ["Água com gás", { allergens: [], cost: 1.5 }],
+  ];
+  for (const [n, v] of sell) {
+    if (!id(n)) continue;
+    await db.query(
+      `UPDATE items SET allergens=$2::jsonb, allergens_known=TRUE, pairs=$3::jsonb, promote=$4, dayparts=$5::jsonb, cost_cents=$6, substitute_id=$7 WHERE id=$1`,
+      [id(n), JSON.stringify(v.allergens), JSON.stringify((v.pairs ?? []).map(id).filter(Boolean)), Boolean(v.promote), JSON.stringify(v.dayparts ?? []), Math.round(v.cost * 100), v.sub ? id(v.sub) : ""]
+    );
+  }
   return { created: true, password };
 }

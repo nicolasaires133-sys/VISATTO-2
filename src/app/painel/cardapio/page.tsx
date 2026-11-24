@@ -7,8 +7,9 @@ import ModelStudio from "./ModelStudio";
 import { usePainel } from "../ctx";
 import { Confirm, Dialog, IconButton, Notice, PageHead, Switch, SwitchRow, Thumb } from "../ui";
 import { brl, TAG_OPTIONS, type Category, type MenuItem } from "@/lib/format";
+import { ALLERGENS, DAYPARTS } from "@/lib/sell";
 
-type Draft = Partial<MenuItem> & { price?: string; tab?: "info" | "3d" };
+type Draft = Partial<MenuItem> & { price?: string; cost?: string; tab?: "info" | "venda" | "3d" };
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export default function Cardapio() {
@@ -58,7 +59,8 @@ export default function Cardapio() {
   const with3d = items.filter((i) => i.model_status === "pronto" && i.model_published).length;
   const filtering = !!q || only3d;
   const blank = (category_id: string | null = categories[0]?.id ?? null): Draft => ({ category_id, serves: 1, tags: [], available: true });
-  const edit = (i: MenuItem, tab: "info" | "3d" = "info") => setEditing({ ...i, price: (i.price_cents / 100).toFixed(2).replace(".", ","), tab });
+  const edit = (i: MenuItem, tab: "info" | "venda" | "3d" = "info") =>
+    setEditing({ ...i, price: (i.price_cents / 100).toFixed(2).replace(".", ","), cost: i.cost_cents ? (i.cost_cents / 100).toFixed(2).replace(".", ",") : "", tab });
 
   async function addCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -257,6 +259,7 @@ export default function Cardapio() {
           key={`${editing.id ?? "novo"}-${editing.tab ?? "info"}`}
           draft={editing}
           categories={categories}
+          items={items}
           onClose={() => setEditing(null)}
           onSaved={async (createdId) => {
             const m = await api<{ categories: Category[]; items: MenuItem[] }>("/api/painel/items");
@@ -296,12 +299,14 @@ function ModelBadge({ item, onClick }: { item: MenuItem; onClick: () => void }) 
 function ItemForm({
   draft,
   categories,
+  items,
   onClose,
   onSaved,
   onChangedModel,
 }: {
   draft: Draft;
   categories: Category[];
+  items: MenuItem[];
   onClose: () => void;
   onSaved: (createdId?: string) => void;
   onChangedModel?: () => void;
@@ -313,7 +318,22 @@ function ItemForm({
   const isNew = !draft.id;
 
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState<"info" | "3d">(draft.tab ?? "info");
+  const [tab, setTab] = useState<"info" | "venda" | "3d">(draft.tab ?? "info");
+  const others = items.filter((i) => i.id !== draft.id);
+  const { aiEnabled } = usePainel();
+  const [describing, setDescribing] = useState(false);
+  async function describe() {
+    setDescribing(true);
+    setErr("");
+    try {
+      const cat = categories.find((c) => c.id === f.category_id)?.name ?? "";
+      const { description } = await api<{ description: string }>(`/api/painel/items/${draft.id ?? "novo"}/describe`, { body: { name: f.name, description: f.description, category: cat } });
+      setF((x) => ({ ...x, description }));
+    } catch (e: any) {
+      setErr(e.message);
+    }
+    setDescribing(false);
+  }
 
   async function pickImage(file?: File) {
     if (!file) return;
@@ -332,10 +352,15 @@ function ItemForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!f.name?.trim() || !String(f.price ?? "").trim()) {
+      setTab("info");
+      setErr(!f.name?.trim() ? "Informe o nome do prato." : "Informe o preço do prato.");
+      return;
+    }
     setBusy(true);
     setErr("");
     try {
-      const body = { ...f, price: f.price };
+      const body = { ...f, price: f.price, cost: f.cost ?? "" };
       if (isNew) {
         const { id } = await api<{ id: string }>("/api/painel/items", { body });
         onSaved(id);
@@ -361,23 +386,28 @@ function ItemForm({
         <h2 className="min-w-0 truncate text-[21px] font-extrabold">{isNew ? "Novo prato" : draft.name}</h2>
         <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white ring-1 ring-black/10"><Icon name="close" size={18} /></button>
       </div>
-      {!isNew && (
-        <div className="px-5 pt-4">
-          <div className="flex rounded-xl bg-black/[0.05] p-1 text-[14px] font-semibold" role="tablist">
-            <button type="button" role="tab" aria-selected={tab === "info"} onClick={() => setTab("info")} className={`flex-1 rounded-lg py-2.5 ${tab === "info" ? "bg-white shadow-sm" : "text-black/55"}`}>Informações</button>
-            <button type="button" role="tab" aria-selected={tab === "3d"} onClick={() => setTab("3d")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 ${tab === "3d" ? "bg-white shadow-sm" : "text-black/55"}`}>
-              <Icon name="scan" size={16} /> Ver na mesa (3D)
+      <div className="px-5 pt-4">
+        <div className="flex rounded-xl bg-black/[0.05] p-1 text-[14px] font-semibold" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === "info"} onClick={() => setTab("info")} className={`flex-1 rounded-lg py-2.5 transition-colors ${tab === "info" ? "bg-white shadow-sm" : "text-black/55"}`}>Informações</button>
+          <button type="button" role="tab" aria-selected={tab === "venda"} onClick={() => setTab("venda")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 transition-colors ${tab === "venda" ? "bg-white shadow-sm" : "text-black/55"}`}>
+            <Icon name="sparkle" size={16} /> Vender mais
+          </button>
+          {!isNew && (
+            <button type="button" role="tab" aria-selected={tab === "3d"} onClick={() => setTab("3d")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 transition-colors ${tab === "3d" ? "bg-white shadow-sm" : "text-black/55"}`}>
+              <Icon name="scan" size={16} /> 3D
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
       {tab === "3d" && draft.id ? (
         <div className="overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <ModelStudio itemId={draft.id} itemName={draft.name || "prato"} image={f.image || undefined} onChanged={onChangedModel} />
         </div>
       ) : (
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+        <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="space-y-4 overflow-y-auto p-5">
+            {tab === "venda" && <SellFields f={f} setF={setF} others={others} />}
+            <div className={tab === "venda" ? "hidden" : "space-y-4"}>
             <label className="flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-dashed border-black/20 p-3 hover:border-ink">
               <Thumb src={f.image} className="h-20 w-20 shrink-0 rounded-xl" />
               <div className="text-[14px]">
@@ -395,7 +425,14 @@ function ItemForm({
               <input id="it-nome" className="input" required maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="it-desc">Descrição</label>
+              <div className="flex items-end justify-between gap-2">
+                <label className="label" htmlFor="it-desc">Descrição</label>
+                {aiEnabled && (
+                  <button type="button" onClick={describe} disabled={describing || !f.name?.trim()} className="mb-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-brand disabled:opacity-40">
+                    <Icon name="sparkle" size={14} /> {describing ? "Escrevendo..." : "Sugerir com IA"}
+                  </button>
+                )}
+              </div>
               <textarea id="it-desc" className="input" rows={3} maxLength={500} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Ingredientes, preparo, tamanho. Quanto mais detalhe, menos dúvida na mesa." />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -437,6 +474,7 @@ function ItemForm({
               <SwitchRow on={f.available !== false} onChange={(v) => setF({ ...f, available: v })} title="Disponível hoje" text="Desligue quando acabar. O prato aparece como esgotado." />
               <SwitchRow on={!!f.featured} onChange={(v) => setF({ ...f, featured: v })} title="Destaque da casa" text="Aparece no topo do cardápio, com foto grande." />
             </div>
+            </div>
             {err && <Notice tone="error">{err}</Notice>}
             {isNew && <p className="text-[13px] text-black/50">Depois de salvar, você já pode escanear o prato em 3D.</p>}
           </div>
@@ -461,5 +499,84 @@ function ItemForm({
         />
       )}
     </Dialog>
+  );
+}
+
+
+/** Aba "Vender mais": o que o cardápio e o garçom de IA usam para sugerir, avisar sobre alergias e mostrar o lucro. */
+function SellFields({ f, setF, others }: { f: Draft; setF: React.Dispatch<React.SetStateAction<Draft>>; others: MenuItem[] }) {
+  const allergens = f.allergens ?? [];
+  const pairs = f.pairs ?? [];
+  const dayparts = f.dayparts ?? [];
+  const nameOf = (id: string) => others.find((o) => o.id === id)?.name ?? "";
+  const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-[13.5px] font-semibold transition-colors ${on ? "bg-ink text-white" : "bg-black/[0.06] text-black/70 hover:bg-black/10"}`;
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-[16px] font-bold">Combina com</h3>
+        <p className="mt-0.5 text-[13.5px] text-black/55">Quando o cliente escolher este prato, o cardápio sugere estes. Os pratos que os clientes pedem juntos entram sozinhos, com o tempo.</p>
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {pairs.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1 rounded-full bg-ink py-1.5 pl-3 pr-1.5 text-[13.5px] font-semibold text-white">
+              {nameOf(id)}
+              <button type="button" aria-label={`Tirar ${nameOf(id)}`} onClick={() => setF({ ...f, pairs: pairs.filter((x) => x !== id) })} className="grid h-5 w-5 place-items-center rounded-full bg-white/20"><Icon name="close" size={12} /></button>
+            </span>
+          ))}
+          {pairs.length < 4 && (
+            <select aria-label="Adicionar combinação" className="input h-9 w-auto max-w-full py-1 text-[13.5px]" value="" onChange={(e) => e.target.value && setF({ ...f, pairs: [...pairs, e.target.value] })}>
+              <option value="">+ Escolher prato</option>
+              {others.filter((o) => !pairs.includes(o.id)).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          )}
+        </div>
+      </section>
+
+      <div className="space-y-3 rounded-2xl bg-cream p-4">
+        <SwitchRow on={!!f.promote} onChange={(v) => setF({ ...f, promote: v })} title="Quero vender mais este prato" text="Ele ganha prioridade nas sugestões e o garçom de IA oferece quando fizer sentido." />
+      </div>
+
+      <section>
+        <h3 className="text-[16px] font-bold">Alergênicos</h3>
+        <p className="mt-0.5 text-[13.5px] text-black/55">Marque o que o prato contém. O cliente vê na tela do prato, e o garçom de IA só responde sobre alergia quando a ficha estiver conferida.</p>
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {ALLERGENS.map((a) => (
+            <button key={a.id} type="button" aria-pressed={allergens.includes(a.id)} onClick={() => setF({ ...f, allergens: allergens.includes(a.id) ? allergens.filter((x) => x !== a.id) : [...allergens, a.id], allergens_known: true })} className={chip(allergens.includes(a.id))}>
+              {a.pt}
+            </button>
+          ))}
+        </div>
+        <label className="mt-3 flex items-start gap-2.5 text-[14px]">
+          <input type="checkbox" className="mt-0.5 h-5 w-5 accent-[#1d1a16]" checked={!!f.allergens_known} onChange={(e) => setF({ ...f, allergens_known: e.target.checked })} />
+          <span><b>Conferi a ficha deste prato.</b> {allergens.length ? "" : "Se nada estiver marcado, o cliente vê “não contém os alergênicos principais”."}</span>
+        </label>
+      </section>
+
+      <section>
+        <h3 className="text-[16px] font-bold">Destacar em qual hora do dia</h3>
+        <p className="mt-0.5 text-[13.5px] text-black/55">Nesses horários o prato aparece no topo do cardápio e ganha força nas sugestões.</p>
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {DAYPARTS.map((d) => (
+            <button key={d.id} type="button" aria-pressed={dayparts.includes(d.id)} onClick={() => setF({ ...f, dayparts: dayparts.includes(d.id) ? dayparts.filter((x) => x !== d.id) : [...dayparts, d.id] })} className={chip(dayparts.includes(d.id))}>
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="it-sub">Se acabar, oferecer no lugar</label>
+          <select id="it-sub" className="input" value={f.substitute_id ?? ""} onChange={(e) => setF({ ...f, substitute_id: e.target.value })}>
+            <option value="">Nenhum</option>
+            {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="it-custo">Custo para fazer (R$)</label>
+          <input id="it-custo" className="input" inputMode="decimal" value={f.cost ?? ""} onChange={(e) => setF({ ...f, cost: e.target.value })} placeholder="Ex.: 14,50" />
+          <p className="mt-1 text-[12.5px] text-black/50">Só você vê. Mostra o lucro de cada prato em Resultados.</p>
+        </div>
+      </div>
+    </div>
   );
 }

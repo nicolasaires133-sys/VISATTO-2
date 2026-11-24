@@ -15,8 +15,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string; 
   );
   if (!order) return fail("Pedido não encontrado.", 404);
   const items = await db.query(`SELECT name, qty, notes, price_cents FROM order_items WHERE order_id=$1`, [id]);
+  const [fb] = await db.query<{ stars: number }>(`SELECT stars FROM feedback WHERE order_id=$1`, [id]);
   return ok({
-    order: { ...order, items },
+    order: { ...order, items, stars: fb?.stars ?? 0 },
     restaurant: { name: r.name, whatsapp: r.whatsapp, primary_color: r.primary_color, pix_key: order.payment === "pix" ? r.pix_key || "" : "" },
   });
 }

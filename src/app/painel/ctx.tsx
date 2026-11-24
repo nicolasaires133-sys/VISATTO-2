@@ -21,7 +21,7 @@ export type Order = {
   change_for_cents?: number;
   items: { name: string; qty: number; notes: string; price_cents: number; via_ai?: boolean }[];
 };
-export type Call = { id: string; table_label: string; type: "atendente" | "conta"; created_at: string };
+export type Call = { id: string; table_label: string; type: "atendente" | "conta"; reason?: string; created_at: string };
 
 export type PainelState = {
   restaurant: any;

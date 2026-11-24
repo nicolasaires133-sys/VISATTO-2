@@ -4,22 +4,41 @@ import type { Category, MenuItem } from "./format";
 export async function loadMenu(restaurantId: string, opts: { withImages?: boolean } = {}) {
   const db = await getDB();
   const categories = await db.query<Category>(
-    `SELECT id, name, position FROM categories WHERE restaurant_id = $1 ORDER BY position, name`,
+    `SELECT id, name, position, translations FROM categories WHERE restaurant_id = $1 ORDER BY position, name`,
     [restaurantId]
   );
   const items = await db.query<MenuItem>(
     `SELECT id, category_id, name, description, price_cents, ${opts.withImages === false ? "''" : "image"} AS image,
             serves, tags, available, featured, position,
             model_status, model_glb_url, model_usdz_url, model_width_cm, model_dims, model_progress,
-            model_published, model_error
+            model_published, model_error, allergens, allergens_known, pairs, promote, substitute_id, dayparts,
+            cost_cents, translations
        FROM items WHERE restaurant_id = $1 ORDER BY position, name`,
     [restaurantId]
   );
+  const json = (v: any, fallback: any) => {
+    if (typeof v === "string") {
+      try {
+        return JSON.parse(v);
+      } catch {
+        return fallback;
+      }
+    }
+    return v ?? fallback;
+  };
+  const ids = new Set(items.map((i) => i.id));
   for (const i of items) {
-    if (typeof i.tags === "string") i.tags = JSON.parse(i.tags as any);
+    i.tags = json(i.tags, []);
     if (!Array.isArray(i.tags)) i.tags = [];
-    if (typeof (i as any).model_dims === "string") (i as any).model_dims = JSON.parse((i as any).model_dims);
+    (i as any).model_dims = json((i as any).model_dims, null);
+    i.allergens = (json(i.allergens, []) as string[]).filter((a) => typeof a === "string");
+    i.pairs = (json(i.pairs, []) as string[]).filter((id) => ids.has(id) && id !== i.id);
+    i.dayparts = json(i.dayparts, []);
+    i.translations = json(i.translations, {});
+    i.cost_cents = Number(i.cost_cents) || 0;
+    if (i.substitute_id && !ids.has(i.substitute_id)) i.substitute_id = "";
   }
+  for (const c of categories) c.translations = json(c.translations, {});
   return { categories, items };
 }
 
@@ -27,15 +46,47 @@ export async function restaurantBySlug(slug: string) {
   const db = await getDB();
   const rows = await db.query(
     `SELECT id, slug, name, primary_color, whatsapp, address, delivery_enabled, dine_in_enabled,
-            delivery_fee_cents, min_order_cents, ai_name, ai_tone, ai_instructions, accepting_orders, pix_key
+            delivery_fee_cents, min_order_cents, ai_name, ai_tone, ai_instructions, accepting_orders, pix_key,
+            google_review_url, languages, ai_preset
        FROM restaurants WHERE slug = $1`,
     [slug]
   );
   return rows[0] ?? null;
 }
 
+/** Pratos que saem juntos nos pedidos dos últimos 120 dias (guardado por 10 minutos). */
+const boughtCache = new Map<string, { at: number; map: Map<string, string[]> }>();
+export async function boughtTogether(restaurantId: string): Promise<Map<string, string[]>> {
+  const hit = boughtCache.get(restaurantId);
+  if (hit && Date.now() - hit.at < 600_000) return hit.map;
+  const db = await getDB();
+  const rows = await db
+    .query<{ x: string; y: string; n: number }>(
+      `SELECT a.item_id AS x, b.item_id AS y, COUNT(DISTINCT a.order_id)::int AS n
+         FROM order_items a
+         JOIN order_items b ON b.order_id = a.order_id AND b.item_id <> a.item_id
+         JOIN orders o ON o.id = a.order_id
+        WHERE o.restaurant_id = $1 AND o.status <> 'cancelado' AND o.created_at > NOW() - INTERVAL '120 days'
+          AND a.item_id IS NOT NULL AND b.item_id IS NOT NULL
+        GROUP BY a.item_id, b.item_id
+       HAVING COUNT(DISTINCT a.order_id) >= 2
+        ORDER BY n DESC
+        LIMIT 3000`,
+      [restaurantId]
+    )
+    .catch(() => []);
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = map.get(r.x) ?? [];
+    if (list.length < 5) list.push(r.y);
+    map.set(r.x, list);
+  }
+  boughtCache.set(restaurantId, { at: Date.now(), map });
+  return map;
+}
+
 /** Versão pública do cardápio: só expõe o 3D de pratos com modelo publicado. */
-export function publicItems(items: MenuItem[]) {
+export function publicItems(items: MenuItem[], bought?: Map<string, string[]>) {
   return items.map((i) => {
     const has3d = i.model_published && i.model_status === "pronto" && !!i.model_glb_url;
     return {
@@ -50,6 +101,14 @@ export function publicItems(items: MenuItem[]) {
       available: i.available,
       featured: i.featured,
       position: i.position,
+      allergens: i.allergens ?? [],
+      allergens_known: Boolean(i.allergens_known),
+      pairs: i.pairs ?? [],
+      promote: Boolean(i.promote),
+      substitute_id: i.substitute_id || "",
+      dayparts: i.dayparts ?? [],
+      translations: i.translations ?? {},
+      bought: bought?.get(i.id) ?? [],
       model: has3d ? { glb: i.model_glb_url, usdz: i.model_usdz_url || "", dims: i.model_dims || null } : null,
     };
   });
@@ -65,7 +124,9 @@ export async function publicMenu(slug: string) {
     await migrateInlineImages(r.id);
     ({ categories, items } = await loadMenu(r.id));
   }
-  const { id: _id, ai_tone: _t, ai_instructions: _i, ...pub } = r;
+  const { id: _id, ai_tone: _t, ai_instructions: _i, ai_preset: _p, ...pub } = r;
+  pub.languages = Array.isArray(pub.languages) ? pub.languages : JSON.parse(pub.languages || "[]");
   const { waiterEnabled } = await import("./ai");
-  return { restaurant: pub, categories, items: publicItems(items), waiter: waiterEnabled() };
+  const bought = await boughtTogether(r.id);
+  return { restaurant: pub, categories, items: publicItems(items, bought), waiter: waiterEnabled() };
 }

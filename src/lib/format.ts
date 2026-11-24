@@ -46,17 +46,27 @@ export type MenuItem = {
   model_progress?: number;
   model_published?: boolean;
   model_error?: string;
+  allergens?: string[];
+  allergens_known?: boolean;
+  pairs?: string[];
+  promote?: boolean;
+  substitute_id?: string;
+  dayparts?: string[];
+  cost_cents?: number;
+  translations?: import("./sell").Translations;
 };
 
 /** nenhum → gerando (IA) → processando → revisar (dono confere) → pronto | erro */
 export type ModelStatus = "nenhum" | "gerando" | "processando" | "revisar" | "pronto" | "erro";
 
 /** Item como o cliente recebe (sem dados internos). */
-export type PublicItem = Omit<MenuItem, `model_${string}`> & {
+export type PublicItem = Omit<MenuItem, `model_${string}` | "cost_cents"> & {
   model: { glb: string; usdz: string; dims: { w: number; d: number; h: number } | null } | null;
+  /** pratos que os clientes mais pedem junto com este (calculado dos pedidos) */
+  bought?: string[];
 };
 
-export type Category = { id: string; name: string; position: number };
+export type Category = { id: string; name: string; position: number; translations?: import("./sell").Translations };
 
 export type PublicRestaurant = {
   slug: string;
@@ -71,13 +81,16 @@ export type PublicRestaurant = {
   ai_name: string;
   accepting_orders?: boolean;
   pix_key?: string;
+  google_review_url?: string;
+  languages?: string[];
 };
 
 export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };
 
-export type CartLine = { itemId: string; qty: number; notes: string; viaAi: boolean };
+export type CartLine = { itemId: string; qty: number; notes: string; viaAi: boolean; viaSuggest?: boolean };
 
 export type WaiterAction =
   | { type: "add"; itemId: string; qty: number; notes?: string }
   | { type: "remove"; itemId: string }
-  | { type: "show"; itemIds: string[] };
+  | { type: "show"; itemIds: string[] }
+  | { type: "call"; reason: string };

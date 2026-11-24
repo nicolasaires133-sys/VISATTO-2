@@ -32,9 +32,11 @@ export async function POST(req: Request) {
   );
   const id = newId();
   await db.query(
-    `INSERT INTO items (id, restaurant_id, category_id, name, description, price_cents, image, serves, tags, available, featured, position)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12)`,
-    [id, r.id, f.category_id, f.name, f.description, f.price_cents, f.image, f.serves, JSON.stringify(f.tags), f.available, f.featured, Number(max) + 1]
+    `INSERT INTO items (id, restaurant_id, category_id, name, description, price_cents, image, serves, tags, available, featured, position,
+                        allergens, allergens_known, pairs, promote, substitute_id, dayparts, cost_cents)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13::jsonb,$14,$15::jsonb,$16,$17,$18::jsonb,$19)`,
+    [id, r.id, f.category_id, f.name, f.description, f.price_cents, f.image, f.serves, JSON.stringify(f.tags), f.available, f.featured, Number(max) + 1,
+     JSON.stringify(f.allergens), f.allergens_known, JSON.stringify(f.pairs), f.promote, f.substitute_id, JSON.stringify(f.dayparts), f.cost_cents]
   );
   return ok({ id });
 }

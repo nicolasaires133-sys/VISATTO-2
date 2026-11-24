@@ -58,15 +58,27 @@ export default function Insights() {
       </PageHead>
 
       <div className={`mt-6 grid gap-4 sm:grid-cols-2 ${waiter ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-        {waiter && <Stat label="Vendido pela IA" value={brl(t.ai_revenue)} hint={`${aiShare}% do faturamento`} accent />}
-        <Stat label="Faturamento" value={brl(t.revenue)} hint={`${t.orders} ${t.orders === 1 ? "pedido" : "pedidos"} · ${t.dine_in} na mesa, ${t.delivery} entrega`} accent={!waiter} />
+        <Stat label="Faturamento" value={brl(t.revenue)} hint={`${t.orders} ${t.orders === 1 ? "pedido" : "pedidos"} · ${t.dine_in} na mesa, ${t.delivery} entrega`} accent />
         <Stat label="Ticket médio" value={brl(t.avg_ticket)} hint={waiter && d.ticketAi.orders_with_ai && d.ticketAi.without_ai ? `${lift >= 0 ? "+" : ""}${lift}% quando a IA ajuda` : "valor médio por pedido"} />
-        {waiter ? (
-          <Stat label="Conversas com a IA" value={String(d.chats.conversations)} hint={`${d.chats.questions} perguntas respondidas`} />
-        ) : (
-          <Stat label="Pedidos" value={String(t.orders)} hint={`${t.dine_in} na mesa · ${t.delivery} entrega`} />
-        )}
+        <Stat label="Vendido por sugestões" value={brl(t.suggest_revenue)} hint={t.orders_with_suggest ? `${t.orders_with_suggest} ${t.orders_with_suggest === 1 ? "pedido aceitou" : "pedidos aceitaram"} um “combina com”` : "o que o cliente adicionou pelo “combina com”"} />
+        {waiter && <Stat label="Vendido pela IA" value={brl(t.ai_revenue)} hint={`${aiShare}% do faturamento · ${d.chats.conversations} conversas`} />}
       </div>
+
+      {d.week?.length > 0 && (
+        <div className="card mt-6 p-5">
+          <h2 className="flex items-center gap-2 text-[17px] font-bold"><Icon name="sparkle" size={18} className="text-brand" /> Resumo da semana</h2>
+          <ul className="mt-3 space-y-2.5">
+            {d.week.map((l: any, i: number) => (
+              <li key={i} className="flex gap-3 text-[14.5px] leading-snug">
+                <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${l.tone === "good" ? "bg-leaf" : l.tone === "bad" ? "bg-brand" : "bg-black/30"}`} />
+                {l.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <Engineering e={d.engineering} />
 
       <ArCard a={d.arStats} items={d.arItems} />
 
@@ -114,6 +126,8 @@ export default function Insights() {
           </ul>
         </div>
       </div>
+
+      <Feedback f={d.feedback} optins={t.optins} />
 
       {waiter && <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="card p-5">
@@ -208,6 +222,102 @@ function ArCard({ a, items }: { a: any; items: { name: string; ar_opens: number 
               <li key={x.name} className="flex justify-between gap-2">
                 <span className="truncate">{x.name}</span>
                 <span className="text-black/55">{x.ar_opens}×</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const ENG: Record<string, { title: string; text: string; cls: string; dot: string }> = {
+  estrela: { title: "Estrelas", text: "vendem muito e dão lucro", cls: "bg-emerald-50 ring-emerald-200", dot: "bg-leaf" },
+  burro: { title: "Burros de carga", text: "vendem muito, mas sobra pouco", cls: "bg-amber-50 ring-amber-200", dot: "bg-amber-500" },
+  quebra: { title: "Quebra-cabeças", text: "dão lucro, mas vendem pouco", cls: "bg-sky-50 ring-sky-200", dot: "bg-sky-500" },
+  abacaxi: { title: "Abacaxis", text: "vendem pouco e sobra pouco", cls: "bg-red-50 ring-red-200", dot: "bg-red-500" },
+};
+
+/** Engenharia de cardápio: o quadro 2x2 com a ação de cada prato. */
+function Engineering({ e }: { e: any }) {
+  if (!e) return null;
+  return (
+    <div className="card mt-6 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-[17px] font-bold">Lucro de cada prato</h2>
+          <p className="mt-0.5 text-[13.5px] text-black/55">Cruza quanto cada prato vende com quanto sobra depois do custo, e diz o que fazer com ele. Pratos são comparados com pratos, bebidas com bebidas e sobremesas com sobremesas.</p>
+        </div>
+        {e.ready && <p className="text-[13px] text-black/55">Lucro médio por prato: <b className="text-ink">{brl(e.avgMargin)}</b></p>}
+      </div>
+      {!e.ready ? (
+        <div className="mt-4 rounded-2xl bg-cream p-4 text-[14px] text-black/70">
+          {e.missingCost > 0 ? (
+            <>Falta o custo de <b>{e.missingCost} {e.missingCost === 1 ? "prato" : "pratos"}</b>. Abra cada prato em Cardápio, aba <b>Vender mais</b>, e preencha <b>Custo para fazer</b>. Com pelo menos 3 pratos com custo e 10 vendas, o quadro aparece aqui.</>
+          ) : (
+            <>O quadro aparece quando houver pelo menos 10 pratos vendidos no período.</>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {(["estrela", "quebra", "burro", "abacaxi"] as const).map((k) => {
+              const list = e.items.filter((x: any) => x.cls === k);
+              const m = ENG[k];
+              return (
+                <section key={k} className={`rounded-2xl p-4 ring-1 ${m.cls}`}>
+                  <h3 className="flex items-center gap-2 text-[15px] font-bold"><span className={`h-2.5 w-2.5 rounded-full ${m.dot}`} />{m.title} <span className="font-normal text-black/55">· {m.text}</span></h3>
+                  {list.length === 0 ? (
+                    <p className="mt-2 text-[13.5px] text-black/45">Nenhum prato aqui.</p>
+                  ) : (
+                    <ul className="mt-2 space-y-2.5">
+                      {list.map((x: any) => (
+                        <li key={x.id} className="text-[13.5px]">
+                          <p className="flex justify-between gap-2 font-semibold"><span className="truncate">{x.name}</span><span className="tnum shrink-0 text-black/60">{x.qty} vendidos · sobra {brl(x.margin_cents)}</span></p>
+                          <p className="mt-0.5 text-black/65">{x.action}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+          {e.missingCost > 0 && <p className="mt-3 text-[13px] text-black/50">{e.missingCost} {e.missingCost === 1 ? "prato ficou" : "pratos ficaram"} de fora por não ter custo cadastrado.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Feedback({ f, optins }: { f: any; optins: number }) {
+  if (!f) return null;
+  return (
+    <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+      <div className="card p-5">
+        <h2 className="text-[17px] font-bold">Avaliações</h2>
+        {f.n === 0 ? (
+          <p className="mt-2 text-[14px] text-black/55">Depois de cada pedido, o cliente dá uma nota. Quem gostou é levado para avaliar no Google (cadastre o link em Configurações); quem não gostou fala só com você.</p>
+        ) : (
+          <>
+            <p className="tnum mt-2 font-display text-[34px] font-extrabold leading-none">{Number(f.avg).toFixed(1).replace(".", ",")}<span className="text-[16px] font-semibold text-black/45"> de 5</span></p>
+            <p className="mt-1 text-[13.5px] text-black/55">{f.n} {f.n === 1 ? "avaliação" : "avaliações"} no período · {f.low} com nota 3 ou menos</p>
+          </>
+        )}
+        <p className="mt-4 border-t border-line pt-3 text-[13.5px] text-black/60">
+          <b className="text-ink">{optins}</b> {optins === 1 ? "cliente aceitou" : "clientes aceitaram"} receber novidades pelo WhatsApp.{" "}
+          {optins > 0 && <a className="font-semibold underline" href="/api/painel/clientes">Baixar lista</a>}
+        </p>
+      </div>
+      <div className="card p-5">
+        <h2 className="text-[17px] font-bold">O que os clientes disseram</h2>
+        {f.comments.length === 0 ? (
+          <p className="py-6 text-center text-[14px] text-black/45">Os comentários das avaliações aparecem aqui. Só você vê.</p>
+        ) : (
+          <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto text-[14px]">
+            {f.comments.map((c: any, i: number) => (
+              <li key={i} className="rounded-xl bg-black/[0.03] px-3 py-2">
+                <span className={`mr-2 font-bold ${c.stars <= 3 ? "text-red-700" : "text-leaf"}`}>{c.stars}★</span>“{c.comment}”
               </li>
             ))}
           </ul>

@@ -129,7 +129,7 @@ export default function Pedidos() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <b className="block font-display text-[17px] leading-tight">Mesa {c.table_label}</b>
-                  <span className="text-[13.5px] text-white/75">{c.type === "conta" ? "Pediu a conta" : "Chamou um atendente"} · {ago(c.created_at)}</span>
+                  <span className="text-[13.5px] text-white/75">{c.type === "conta" ? "Pediu a conta" : c.reason ? `Garçom de IA: ${c.reason}` : "Chamou um atendente"} · {ago(c.created_at)}</span>
                 </span>
                 <button onClick={() => attend(c)} className="btn h-10 shrink-0 bg-white px-3.5 text-ink hover:bg-white/90">
                   <Icon name="check" size={16} stroke={2.4} />

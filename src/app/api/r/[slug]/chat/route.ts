@@ -3,6 +3,7 @@ import { ok, fail } from "@/lib/http";
 import { loadMenu, restaurantBySlug } from "@/lib/menu";
 import { waiterEnabled, waiterReply, type ChatMsg } from "@/lib/ai";
 import type { CartLine } from "@/lib/format";
+import { daypartAt, hourIn } from "@/lib/sell";
 
 export const maxDuration = 60;
 
@@ -41,17 +42,48 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
     viaAi: Boolean(l.viaAi),
   }));
   const channel = b.channel === "delivery" ? "delivery" : "mesa";
+  const table = String(b.table || "").trim().slice(0, 20);
+  const db = await getDB();
+
+  // teto mensal de mensagens por restaurante (protege a conta de IA contra abuso)
+  const cap = Number(process.env.AI_MAX_MENSAGENS_MES) || 6000;
+  const [{ n: used }] = await db.query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM chat_events WHERE restaurant_id=$1 AND created_at > date_trunc('month', NOW())`,
+    [r.id]
+  );
+  if (used >= cap) return fail("O garçom de IA atingiu o limite do mês. Chame um atendente, por favor.", 429);
+
+  // o que esta mesa (este celular) já pediu nas últimas 4 horas
+  const ordered =
+    sessionId !== "anon"
+      ? await db.query<{ name: string; qty: number; minutesAgo: number }>(
+          `SELECT oi.name, SUM(oi.qty)::int AS qty, MIN(EXTRACT(EPOCH FROM (NOW() - o.created_at)) / 60)::int AS "minutesAgo"
+             FROM order_items oi JOIN orders o ON o.id = oi.order_id
+            WHERE o.restaurant_id=$1 AND o.session_id=$2 AND o.status <> 'cancelado' AND o.created_at > NOW() - INTERVAL '4 hours'
+            GROUP BY oi.name ORDER BY 3`,
+          [r.id, sessionId]
+        )
+      : [];
 
   const { categories, items } = await loadMenu(r.id, { withImages: false });
   let reply;
   try {
-    reply = await waiterReply({ restaurant: r as any, categories, items, messages, cart, channel });
+    reply = await waiterReply({ restaurant: r as any, categories, items, messages, cart, channel, ordered, daypart: daypartAt(hourIn(process.env.APP_TIMEZONE || undefined)) });
   } catch (e: any) {
     console.error("chat error", e?.message);
     return fail("O garçom está ocupado agora. Tente de novo em instantes.", 502);
   }
 
-  const db = await getDB();
+  // a IA chamou alguém da equipe: vira um chamado no painel, com o motivo
+  const call = reply.actions.find((a) => a.type === "call");
+  if (call && call.type === "call" && channel === "mesa" && table && r.dine_in_enabled) {
+    const [open] = await db.query(
+      `SELECT id FROM calls WHERE restaurant_id=$1 AND table_label=$2 AND type='atendente' AND status='aberto' AND created_at > NOW() - INTERVAL '20 minutes'`,
+      [r.id, table]
+    );
+    if (open) await db.query(`UPDATE calls SET reason=$2 WHERE id=$1`, [open.id, call.reason]);
+    else await db.query(`INSERT INTO calls (id, restaurant_id, table_label, type, reason) VALUES ($1,$2,$3,'atendente',$4)`, [newId(), r.id, table, call.reason]);
+  }
   await db
     .query(
       `INSERT INTO chat_events (id, restaurant_id, session_id, channel, question, answer, added_items) VALUES ($1,$2,$3,$4,$5,$6,$7)`,

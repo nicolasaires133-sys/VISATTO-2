@@ -163,6 +163,35 @@ CREATE TABLE IF NOT EXISTS app_settings (
   value TEXT NOT NULL
 );
 
+-- v5: inteligência de venda (sugestões, alergênicos, horários, custo, idiomas, avaliações)
+ALTER TABLE items ADD COLUMN IF NOT EXISTS allergens JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS allergens_known BOOLEAN DEFAULT FALSE;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS pairs JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS promote BOOLEAN DEFAULT FALSE;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS substitute_id TEXT DEFAULT '';
+ALTER TABLE items ADD COLUMN IF NOT EXISTS dayparts JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS cost_cents INTEGER DEFAULT 0;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS translations JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS translations JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS via_suggestion BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS suggest_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS marketing_optin BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS lang TEXT DEFAULT 'pt';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS google_review_url TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS languages JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS ai_preset TEXT DEFAULT '';
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS reason TEXT DEFAULT '';
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY,
+  restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  order_id TEXT,
+  stars INTEGER NOT NULL,
+  comment TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS feedback_rest ON feedback(restaurant_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS feedback_order ON feedback(order_id);
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;

@@ -201,6 +201,8 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
         </div>
       </section>
 
+      {(o.status === "pronto" || o.status === "saiu" || done) && <Rate slug={slug} id={id} initial={o.stars} color={color} name={r.name} />}
+
       <div className="mt-8 flex flex-col gap-2.5">
         <Link href={back} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: color }}>
           {done || cancelled ? "Fazer outro pedido" : "Pedir mais alguma coisa"}
@@ -213,5 +215,63 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
       </div>
       {!done && !cancelled && <p className="mt-5 text-center text-[12.5px] text-black/45">Esta tela se atualiza sozinha. Pode deixar aberta.</p>}
     </main>
+  );
+}
+
+/** Nota depois do pedido: quem gostou vai para o Google; quem não gostou fala só com o restaurante. */
+function Rate({ slug, id, initial, color, name }: { slug: string; id: string; initial: number; color: string; name: string }) {
+  const [stars, setStars] = useState(initial);
+  const [sent, setSent] = useState(initial > 0);
+  const [comment, setComment] = useState("");
+  const [review, setReview] = useState("");
+  const [done, setDone] = useState(initial > 0 && initial <= 3);
+  const [busy, setBusy] = useState(false);
+  async function send(n: number, text = "") {
+    setBusy(true);
+    try {
+      const res = await api<{ review: string }>(`/api/r/${slug}/orders/${id}/feedback`, { body: { stars: n, comment: text } });
+      setReview(res.review);
+      setSent(true);
+      if (text) setDone(true);
+    } catch {}
+    setBusy(false);
+  }
+  return (
+    <section className="animate-enter mt-7 rounded-2xl p-4 ring-1 ring-black/10" aria-label="Avaliar o pedido">
+      <h3 className="text-[16px] font-bold">{sent && stars >= 4 ? "Obrigado!" : "Como está a sua experiência?"}</h3>
+      <div className="mt-2 flex gap-1.5" role="radiogroup" aria-label="Nota de 1 a 5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            role="radio"
+            aria-checked={stars === n}
+            aria-label={`${n} ${n === 1 ? "estrela" : "estrelas"}`}
+            disabled={busy}
+            onClick={() => {
+              setStars(n);
+              setDone(false);
+              send(n);
+            }}
+            className="grid h-11 w-11 place-items-center rounded-xl text-[24px] transition-transform active:scale-90"
+            style={{ background: n <= stars ? color : "#efefeb", color: n <= stars ? "#fff" : "#00000040" }}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      {sent && stars >= 4 && review && (
+        <a href={review} target="_blank" rel="noopener" className="btn-dark mt-3 h-11 w-full">
+          Avaliar o {name} no Google
+        </a>
+      )}
+      {sent && stars > 0 && stars <= 3 && !done && (
+        <div className="mt-3">
+          <label className="label" htmlFor="fb">O que podemos melhorar? Só o restaurante vê.</label>
+          <textarea id="fb" className="input" rows={2} maxLength={600} value={comment} onChange={(e) => setComment(e.target.value)} />
+          <button disabled={busy || !comment.trim()} onClick={() => send(stars, comment.trim())} className="btn-dark mt-2 h-10 px-4">Enviar comentário</button>
+        </div>
+      )}
+      {done && <p className="mt-3 text-[14px] text-black/65">{comment ? "Recebemos o seu comentário. Obrigado por contar." : "Obrigado pela nota."}</p>}
+    </section>
   );
 }

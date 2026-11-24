@@ -6,15 +6,23 @@ import Icon from "@/components/Icon";
 import { usePainel } from "../ctx";
 import { PageHead, SwitchRow } from "../ui";
 
-const TONES = ["simpático e direto", "descontraído e brincalhão", "elegante e sofisticado", "acolhedor, como em casa de vó"];
+const TONES = [
+  "simpático e direto",
+  "descontraído e brincalhão",
+  "animado, de boteco, sem formalidade",
+  "elegante e sofisticado",
+  "acolhedor, como em casa de vó",
+  "rápido e objetivo, de lanchonete",
+];
 
 export default function Config() {
-  const { restaurant: r, reload, waiter } = usePainel();
+  const { restaurant: r, reload, waiter, aiEnabled } = usePainel();
   const router = useRouter();
   const [f, setF] = useState({
     ...r,
     accepting_orders: r.accepting_orders !== false,
     pix_key: r.pix_key || "",
+    google_review_url: r.google_review_url || "",
     delivery_fee: (r.delivery_fee_cents / 100).toFixed(2).replace(".", ","),
     min_order: (r.min_order_cents / 100).toFixed(2).replace(".", ","),
   });
@@ -104,6 +112,18 @@ export default function Config() {
         )}
       </section>
 
+      <section className="card space-y-4 p-5">
+        <h2 className="text-[18px] font-extrabold">Avaliações no Google</h2>
+        <p className="text-[14px] text-black/60">Depois do pedido, o cliente dá uma nota. Quem der 4 ou 5 estrelas é levado para avaliar no Google; quem der nota baixa escreve só para você, em Resultados.</p>
+        <div>
+          <label className="label" htmlFor="c-google">Link de avaliação do Google</label>
+          <input id="c-google" className="input" inputMode="url" value={f.google_review_url} onChange={(e) => set({ google_review_url: e.target.value })} placeholder="https://g.page/r/..." />
+          <p className="mt-1.5 text-[13px] text-black/50">No Google, abra o perfil do restaurante, toque em <b>Pedir avaliações</b> e copie o link.</p>
+        </div>
+      </section>
+
+      <Languages initial={r.languages ?? []} aiEnabled={aiEnabled} />
+
       {waiter && <section className="card space-y-4 p-5">
         <h2 className="text-[18px] font-extrabold">Seu garçom de IA</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -151,7 +171,7 @@ export default function Config() {
       </section>
 
       {/* barra de salvar: fica sempre à vista */}
-      <div className="no-print fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-20 border-t border-line bg-white/95 px-4 py-3 backdrop-blur md:bottom-0 md:left-64">
+      <div className="no-print fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-20 border-t border-line bg-white/95 px-4 py-3 backdrop-blur md:bottom-0 md:left-[260px]">
         <div className="mx-auto flex max-w-6xl items-center gap-3 md:px-4">
           <button className="btn-primary h-12 px-6 text-[15px]" disabled={busy || !dirty}>{busy ? "Salvando..." : "Salvar alterações"}</button>
           {msg ? (
@@ -164,5 +184,51 @@ export default function Config() {
         </div>
       </div>
     </form>
+  );
+}
+
+/** Idiomas do cardápio: liga inglês e espanhol e traduz pratos e categorias com a IA. */
+function Languages({ initial, aiEnabled }: { initial: string[]; aiEnabled: boolean }) {
+  const [langs, setLangs] = useState<string[]>(Array.isArray(initial) ? initial : []);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const toggle = (l: string) => setLangs((x) => (x.includes(l) ? x.filter((y) => y !== l) : [...x, l]));
+  async function run() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      if (!langs.length) {
+        await api("/api/painel/translate", { method: "DELETE" });
+        setMsg({ ok: true, text: "O cardápio volta a aparecer só em português." });
+      } else {
+        const res = await api<{ translated: number }>("/api/painel/translate", { body: { langs } });
+        setMsg({ ok: true, text: res.translated ? `Pronto: ${res.translated} ${res.translated === 1 ? "item traduzido" : "itens traduzidos"}. O cliente escolhe o idioma no topo do cardápio.` : "Tudo já estava traduzido. O cliente escolhe o idioma no topo do cardápio." });
+      }
+    } catch (e: any) {
+      setMsg({ ok: false, text: e.message });
+    }
+    setBusy(false);
+  }
+  return (
+    <section className="card space-y-4 p-5">
+      <h2 className="text-[18px] font-extrabold">Idiomas do cardápio</h2>
+      <p className="text-[14px] text-black/60">Para turistas: o cardápio aparece em inglês ou espanhol, conforme o idioma do celular, e o garçom de IA responde na língua do cliente.</p>
+      <div className="flex flex-wrap gap-2">
+        {[["en", "Inglês"], ["es", "Espanhol"]].map(([id, label]) => (
+          <button key={id} type="button" aria-pressed={langs.includes(id)} onClick={() => toggle(id)} className={`rounded-full px-4 py-2 text-[14px] font-semibold transition-colors ${langs.includes(id) ? "bg-ink text-white" : "bg-black/[0.06] text-black/70"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {!aiEnabled && langs.length > 0 ? (
+        <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-[13.5px] text-amber-950">A tradução automática usa a IA paga, que ainda não está ligada neste site. Peça para ligar a chave da Anthropic.</p>
+      ) : (
+        <button type="button" className="btn-dark h-11" disabled={busy} onClick={run}>
+          {busy ? "Traduzindo o cardápio..." : langs.length ? "Traduzir o cardápio agora" : "Usar só português"}
+        </button>
+      )}
+      {msg && <p role={msg.ok ? "status" : "alert"} className={`text-[14px] font-semibold ${msg.ok ? "text-leaf" : "text-red-700"}`}>{msg.text}</p>}
+      <p className="text-[12.5px] text-black/45">Quando você muda o nome ou a descrição de um prato, toque aqui de novo para traduzir as mudanças.</p>
+    </section>
   );
 }

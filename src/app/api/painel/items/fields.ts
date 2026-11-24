@@ -1,5 +1,6 @@
 import { toCents } from "@/lib/http";
 import { isOwnFileUrl } from "@/lib/storage";
+import { ALLERGEN_IDS, DAYPART_IDS } from "@/lib/sell";
 
 function validImage(v: unknown) {
   if (typeof v !== "string" || !v) return "";
@@ -18,5 +19,12 @@ export function itemFields(b: any) {
     tags: Array.isArray(b.tags) ? b.tags.map((t: unknown) => String(t).slice(0, 30)).slice(0, 8) : [],
     available: b.available !== false,
     featured: Boolean(b.featured),
+    allergens: Array.isArray(b.allergens) ? [...new Set<string>(b.allergens.map(String))].filter((a) => ALLERGEN_IDS.includes(a)) : [],
+    allergens_known: Boolean(b.allergens_known),
+    pairs: Array.isArray(b.pairs) ? [...new Set<string>(b.pairs.map((x: unknown) => String(x).slice(0, 64)))].slice(0, 4) : [],
+    promote: Boolean(b.promote),
+    substitute_id: typeof b.substitute_id === "string" ? b.substitute_id.slice(0, 64) : "",
+    dayparts: Array.isArray(b.dayparts) ? [...new Set<string>(b.dayparts.map(String))].filter((d) => DAYPART_IDS.includes(d)) : [],
+    cost_cents: b.cost != null ? toCents(b.cost) : typeof b.cost_cents === "number" ? Math.max(0, Math.round(b.cost_cents)) : 0,
   };
 }

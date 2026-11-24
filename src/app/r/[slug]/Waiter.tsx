@@ -18,6 +18,7 @@ export default function Waiter(props: {
   setChat: React.Dispatch<React.SetStateAction<ChatEntry[]>>;
   cart: CartLine[];
   channel: "mesa" | "delivery";
+  table?: string;
   sessionId: string;
   byId: Map<string, MenuItem>;
   catName: Map<string, string>;
@@ -49,6 +50,7 @@ export default function Waiter(props: {
         body: {
           sessionId,
           channel,
+          table: props.table ?? "",
           cart,
           messages: next.map((m) => ({ role: m.role, content: m.content })),
         },

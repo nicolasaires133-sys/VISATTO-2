@@ -31,7 +31,7 @@ export async function GET() {
   }
   // chamados das mesas ("chamar atendente" / "pedir a conta") ainda abertos
   const calls = await db.query(
-    `SELECT id, table_label, type, created_at FROM calls
+    `SELECT id, table_label, type, reason, created_at FROM calls
       WHERE restaurant_id=$1 AND status='aberto' AND created_at > NOW() - INTERVAL '6 hours'
       ORDER BY created_at`,
     [r.id]

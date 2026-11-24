@@ -36,7 +36,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   const byId = new Map(items.map((i) => [i.id, i]));
   const lines = (Array.isArray(b.items) ? b.items : [])
     .slice(0, 50)
-    .map((l: any) => ({ item: byId.get(String(l.itemId)), qty: Math.min(50, Math.max(1, Number(l.qty) || 1)), notes: String(l.notes || "").slice(0, 200), viaAi: Boolean(l.viaAi) }))
+    .map((l: any) => ({ item: byId.get(String(l.itemId)), qty: Math.min(50, Math.max(1, Number(l.qty) || 1)), notes: String(l.notes || "").slice(0, 200), viaAi: Boolean(l.viaAi), viaSuggest: !l.viaAi && Boolean(l.viaSuggest) }))
     .filter((l: any) => l.item);
   if (!lines.length) return fail("Seu carrinho está vazio.");
   const unavailable = lines.filter((l: any) => !l.item.available);
@@ -44,6 +44,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
 
   const subtotal = lines.reduce((s: number, l: any) => s + l.item.price_cents * l.qty, 0);
   const aiCents = lines.filter((l: any) => l.viaAi).reduce((s: number, l: any) => s + l.item.price_cents * l.qty, 0);
+  const suggestCents = lines.filter((l: any) => l.viaSuggest).reduce((s: number, l: any) => s + l.item.price_cents * l.qty, 0);
+  const lang = ["en", "es"].includes(b.lang) ? String(b.lang) : "pt";
+  const optin = channel === "delivery" && Boolean(b.marketingOptin);
   if (changeFor && changeFor < subtotal) return fail("O valor do troco precisa ser maior que o total do pedido.");
   if (channel === "delivery" && r.min_order_cents && subtotal < r.min_order_cents)
     return fail(`Pedido mínimo para entrega: R$ ${(r.min_order_cents / 100).toFixed(2).replace(".", ",")}.`);
@@ -56,10 +59,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   for (let attempt = 0; attempt < 5; attempt++) {
     const [row] = await db.query<{ n: number }>(
       `INSERT INTO orders (id, restaurant_id, number, channel, table_label, customer_name, customer_phone, address, notes,
-                           subtotal_cents, delivery_fee_cents, total_cents, ai_cents, session_id, payment, change_for_cents)
-       SELECT $1,$2, COALESCE(MAX(number),0) + 1, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15 FROM orders WHERE restaurant_id=$2
+                           subtotal_cents, delivery_fee_cents, total_cents, ai_cents, session_id, payment, change_for_cents,
+                           suggest_cents, lang, marketing_optin)
+       SELECT $1,$2, COALESCE(MAX(number),0) + 1, $3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18 FROM orders WHERE restaurant_id=$2
        RETURNING number AS n`,
-      [id, r.id, channel, table, name, phone, address, notes, subtotal, fee, subtotal + fee, aiCents, sessionId, payment, changeFor]
+      [id, r.id, channel, table, name, phone, address, notes, subtotal, fee, subtotal + fee, aiCents, sessionId, payment, changeFor, suggestCents, lang, optin]
     ).catch((e: any) => {
       if (e?.code === "23505" || /duplicate key|unique/i.test(String(e?.message))) return [] as { n: number }[];
       throw e;
@@ -74,10 +78,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
 
   const values: unknown[] = [];
   const rows = lines.map((l: any, i: number) => {
-    values.push(newId(), id, l.item.id, l.item.name, l.item.price_cents, l.qty, l.notes, l.viaAi);
-    const b = i * 8;
-    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8})`;
+    values.push(newId(), id, l.item.id, l.item.name, l.item.price_cents, l.qty, l.notes, l.viaAi, l.viaSuggest);
+    const b = i * 9;
+    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9})`;
   });
-  await db.query(`INSERT INTO order_items (id, order_id, item_id, name, price_cents, qty, notes, via_ai) VALUES ${rows.join(",")}`, values);
+  await db.query(`INSERT INTO order_items (id, order_id, item_id, name, price_cents, qty, notes, via_ai, via_suggestion) VALUES ${rows.join(",")}`, values);
   return ok({ id, number: n });
 }
