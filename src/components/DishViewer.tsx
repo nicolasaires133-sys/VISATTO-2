@@ -43,15 +43,24 @@ export default function DishViewer({
   onEvent,
   showArButton = true,
   hideDims = false,
+  background,
+  dark = false,
+  orbit = "25deg 62deg 94%",
 }: {
   model: DishModel;
   poster?: string;
   alt: string;
   color?: string;
-  height?: number;
+  height?: number | string;
   onEvent?: (type: "view3d" | "ar") => void;
   showArButton?: boolean;
   hideDims?: boolean;
+  /** fundo do palco do 3D (padrão: porcelana clara) */
+  background?: string;
+  /** textos de carregamento claros, para fundo escuro */
+  dark?: boolean;
+  /** enquadramento inicial da câmera */
+  orbit?: string;
 }) {
   const ref = useRef<any>(null);
   const [ready, setReady] = useState(false);
@@ -131,7 +140,7 @@ export default function DishViewer({
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-2xl" style={{ height, background: "radial-gradient(115% 85% at 50% 36%, #ffffff 0%, #f4f2ed 42%, #e3dfd6 100%)" }}>
+      <div className="relative overflow-hidden rounded-2xl" style={{ height, background: background ?? "radial-gradient(115% 85% at 50% 36%, #ffffff 0%, #f2f2ef 42%, #dfdfd8 100%)" }}>
         {ready && !failed && (
           <model-viewer
             ref={ref}
@@ -150,7 +159,7 @@ export default function DishViewer({
             auto-rotate={true}
             auto-rotate-delay="1500"
             rotation-per-second="18deg"
-            camera-orbit="25deg 62deg 94%"
+            camera-orbit={orbit}
             min-camera-orbit="auto 0deg auto"
             max-camera-orbit="auto 88deg auto"
             shadow-intensity="1"
@@ -167,10 +176,10 @@ export default function DishViewer({
         )}
         {!loaded && !failed && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-40">
-            <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
+            <div className={`h-1.5 overflow-hidden rounded-full ${dark ? "bg-white/15" : "bg-black/10"}`}>
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(8, progress)}%`, background: color }} />
             </div>
-            <p className="mt-1 text-center text-[11px] text-black/50">Carregando 3D...</p>
+            <p className={`mt-1 text-center text-[11px] ${dark ? "text-white/55" : "text-black/50"}`}>Carregando 3D...</p>
           </div>
         )}
         {failed && (
@@ -178,7 +187,7 @@ export default function DishViewer({
             Não foi possível carregar o 3D deste prato.
           </div>
         )}
-        {loaded && !touched && (
+        {loaded && !touched && !dark && (
           <span className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-black/70">
             <Icon name="rotate" size={14} />
             Gire com o dedo

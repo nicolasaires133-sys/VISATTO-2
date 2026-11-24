@@ -158,17 +158,35 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 CREATE INDEX IF NOT EXISTS rate_limits_key ON rate_limits(key, at DESC);
 
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;
 
 const g = globalThis as unknown as { __gia_db?: Promise<DB> };
 
+/** Endereço do banco: aceita os nomes que a Vercel/Neon criam sozinhos. */
+export function databaseUrl(): string {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_POSTGRES_URL ||
+    process.env.STORAGE_URL ||
+    process.env.NEON_DATABASE_URL ||
+    ""
+  );
+}
+
 async function connect(): Promise<DB> {
   let db: DB;
-  if (process.env.DATABASE_URL) {
+  const url = databaseUrl();
+  if (url) {
     const { Pool } = await import("pg");
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
+    const pool = new Pool({ connectionString: url, max: 5 });
     db = {
       query: async (sql, params) => (await pool.query(sql, params as any[])).rows,
       exec: async (sql) => {
@@ -185,7 +203,7 @@ async function connect(): Promise<DB> {
     };
   } else {
     if (process.env.VERCEL) {
-      throw new Error("Banco de dados não configurado: adicione a variável DATABASE_URL (Neon) no projeto da Vercel.");
+      throw new Error("Banco de dados não configurado: ligue o Neon na aba Storage do projeto da Vercel e publique de novo.");
     }
     const { PGlite } = await import("@electric-sql/pglite");
     const fs = await import("node:fs");

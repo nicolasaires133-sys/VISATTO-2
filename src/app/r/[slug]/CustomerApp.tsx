@@ -172,24 +172,25 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
 
   return (
     <main className="mx-auto min-h-dvh max-w-2xl bg-white pb-32 sm:my-0" style={{ ["--color-brand" as any]: color }}>
-      <header className="px-5 pb-4 pt-7">
-        <h1 className="text-[30px] font-extrabold leading-[1.05]">{r.name}</h1>
+      <header className="relative overflow-hidden rounded-b-[30px] bg-ink px-5 pb-6 pt-8 text-white">
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60" style={{ background: `radial-gradient(70% 90% at 100% 0%, ${color}55, transparent 70%)` }} />
+        <h1 className="relative text-[32px] font-extrabold leading-[1.02]">{r.name}</h1>
         {r.address && (
-          <p className="mt-1.5 flex items-start gap-1.5 text-[14px] text-black/60">
+          <p className="relative mt-2 flex items-start gap-1.5 text-[14px] text-white/65">
             <Icon name="pin" size={16} className="mt-0.5" />
             {r.address}
           </p>
         )}
         {(r.dine_in_enabled || r.delivery_enabled) && (
-          <div className="mt-4 inline-flex rounded-full bg-[#f1efea] p-1 text-[13.5px] font-semibold" role="tablist" aria-label="Como você vai pedir">
+          <div className="relative mt-5 inline-flex rounded-full bg-white/10 p-1 text-[13.5px] font-semibold ring-1 ring-white/10" role="tablist" aria-label="Como você vai pedir">
             {r.dine_in_enabled && (
-              <button role="tab" aria-selected={channel === "mesa"} onClick={() => setChannel("mesa")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 ${channel === "mesa" ? "bg-ink text-white" : "text-black/60"}`}>
+              <button role="tab" aria-selected={channel === "mesa"} onClick={() => setChannel("mesa")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "mesa" ? "bg-white text-ink" : "text-white/65"}`}>
                 <Icon name="table" size={16} />
                 {table ? `Mesa ${table}` : "Na mesa"}
               </button>
             )}
             {r.delivery_enabled && (
-              <button role="tab" aria-selected={channel === "delivery"} onClick={() => setChannel("delivery")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 ${channel === "delivery" ? "bg-ink text-white" : "text-black/60"}`}>
+              <button role="tab" aria-selected={channel === "delivery"} onClick={() => setChannel("delivery")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "delivery" ? "bg-white text-ink" : "text-white/65"}`}>
                 <Icon name="bike" size={16} />
                 Entrega
               </button>
@@ -198,29 +199,29 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
         )}
 
         {paused && (
-          <p className="mt-4 flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-[14px] text-amber-950">
+          <p className="relative mt-4 flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-[14px] text-amber-950">
             <Icon name="pause" size={18} className="mt-0.5" />
             Os pedidos pelo celular estão pausados agora. Você pode ver o cardápio e pedir a um atendente.
           </p>
         )}
 
         {lastOrder && (
-          <a href={`/r/${slug}/pedido/${lastOrder.id}`} className="mt-4 flex items-center gap-3 rounded-2xl bg-[#f1efea] p-3.5">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-white"><Icon name="receipt" size={20} /></span>
+          <a href={`/r/${slug}/pedido/${lastOrder.id}`} className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10 transition-colors hover:bg-white/15">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-ink"><Icon name="receipt" size={20} /></span>
             <span className="flex-1 text-[14.5px]">
               <b className="block">Pedido #{lastOrder.number} enviado</b>
-              <span className="text-black/60">Toque para acompanhar o preparo</span>
+              <span className="text-white/65">Toque para acompanhar o preparo</span>
             </span>
-            <Icon name="right" size={18} className="text-black/40" />
+            <Icon name="right" size={18} className="text-white/50" />
           </a>
         )}
 
         {data.waiter && (
-          <button onClick={() => setChatOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-ink p-4 text-left text-white transition active:scale-[0.99]">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15"><Icon name="chat" size={22} /></span>
+          <button onClick={() => setChatOpen(true)} className="relative mt-4 flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left text-ink transition active:scale-[0.99]">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white" style={{ background: color }}><Icon name="chat" size={22} /></span>
             <span className="flex-1">
               <span className="block font-display text-[17px] font-bold">Na dúvida? Pergunte ao {r.ai_name}</span>
-              <span className="block text-[13.5px] text-white/75">Ele conhece cada prato e monta o pedido com você.</span>
+              <span className="block text-[13.5px] text-black/60">Ele conhece cada prato e monta o pedido com você.</span>
             </span>
             <Icon name="right" size={18} />
           </button>
@@ -231,7 +232,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
       <nav className="sticky top-0 z-10 border-b border-line bg-white/95 backdrop-blur" aria-label="Categorias">
         {searching ? (
           <div className="flex items-center gap-2 px-5 py-2.5">
-            <label className="flex h-11 flex-1 items-center gap-2 rounded-full bg-[#f1efea] px-4">
+            <label className="flex h-11 flex-1 items-center gap-2 rounded-full bg-[#efefeb] px-4">
               <Icon name="search" size={18} className="text-black/50" />
               <span className="sr-only">Buscar no cardápio</span>
               <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar prato, ingrediente..." className="h-full flex-1 bg-transparent text-base outline-none" enterKeyHint="search" />
@@ -245,7 +246,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
             </button>
             <div ref={tabsRef} className="no-scrollbar flex flex-1 gap-1.5 overflow-x-auto py-3 pl-1 pr-5">
               {tabs.map((t) => (
-                <button key={t.id} data-tab={t.id} onClick={() => goTo(t.id)} className={`shrink-0 rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors ${activeCat === t.id ? "bg-ink text-white" : "bg-[#f1efea] text-black/75"}`}>
+                <button key={t.id} data-tab={t.id} onClick={() => goTo(t.id)} className={`shrink-0 rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors duration-200 ${activeCat === t.id ? "bg-ink text-white" : "bg-[#efefeb] text-black/70 hover:bg-[#e6e6e1]"}`}>
                   {t.name}
                 </button>
               ))}
@@ -274,8 +275,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
               <h2 className="px-5 text-[21px] font-extrabold">Destaques da casa</h2>
               <div className="no-scrollbar mt-3 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
                 {featured.map((i) => (
-                  <button key={i.id} onClick={() => setDetail(i)} className="relative w-[46%] max-w-[210px] shrink-0 snap-start overflow-hidden rounded-[20px] text-left">
-                    <Thumb item={i} className="aspect-[4/5] w-full" />
+                  <button key={i.id} onClick={() => setDetail(i)} className="group relative w-[46%] max-w-[210px] shrink-0 snap-start overflow-hidden rounded-[22px] text-left shadow-[0_14px_30px_-20px_rgba(29,26,22,0.6)] transition active:scale-[0.98]">
+                    <Thumb item={i} className="aspect-[4/5] w-full transition-transform duration-500 group-hover:scale-[1.04]" />
                     {i.model && <ArBadge className="absolute left-2.5 top-2.5" />}
                     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent p-3 pt-10 text-white">
                       <span className="line-clamp-2 font-display text-[16px] font-bold leading-tight">{i.name}</span>
@@ -319,8 +320,9 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           )}
           {!paused && count > 0 && (
             <button
+              key={count}
               onClick={() => setCartOpen(true)}
-              className="animate-pop flex h-14 flex-1 items-center justify-between rounded-2xl px-5 text-[15.5px] font-bold text-white shadow-lg shadow-black/10 transition active:scale-[0.99]"
+              className="animate-bump flex h-14 flex-1 items-center justify-between rounded-2xl px-5 text-[15.5px] font-bold text-white shadow-lg shadow-black/10 transition active:scale-[0.99]"
               style={{ background: color }}
             >
               <span className="flex items-center gap-2.5">
@@ -538,11 +540,11 @@ function CallSheet({ slug, table, setTable, onClose, onDone }: { slug: string; t
           <input id="mesa-call" className="input h-12 max-w-32 text-lg font-bold" inputMode="numeric" value={table} maxLength={20} onChange={(e) => setTable(e.target.value)} />
         </div>
         <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-          <button onClick={() => call("atendente")} disabled={!!busy} className="flex items-center gap-3 rounded-2xl bg-[#f1efea] p-4 text-left disabled:opacity-50">
+          <button onClick={() => call("atendente")} disabled={!!busy} className="flex items-center gap-3 rounded-2xl bg-[#efefeb] p-4 text-left disabled:opacity-50">
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white"><Icon name="bell" size={22} /></span>
             <span><b className="block text-[15.5px]">{busy === "atendente" ? "Chamando..." : "Chamar atendente"}</b><span className="text-[13.5px] text-black/60">Alguém vem até a sua mesa</span></span>
           </button>
-          <button onClick={() => call("conta")} disabled={!!busy} className="flex items-center gap-3 rounded-2xl bg-[#f1efea] p-4 text-left disabled:opacity-50">
+          <button onClick={() => call("conta")} disabled={!!busy} className="flex items-center gap-3 rounded-2xl bg-[#efefeb] p-4 text-left disabled:opacity-50">
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white"><Icon name="receipt" size={22} /></span>
             <span><b className="block text-[15.5px]">{busy === "conta" ? "Pedindo..." : "Pedir a conta"}</b><span className="text-[13.5px] text-black/60">Levamos a conta até você</span></span>
           </button>
@@ -625,7 +627,7 @@ function CartSheet(props: {
           </div>
 
           {r.dine_in_enabled && r.delivery_enabled && (
-            <div className="flex rounded-xl bg-[#f1efea] p-1 text-[14px] font-semibold">
+            <div className="flex rounded-xl bg-[#efefeb] p-1 text-[14px] font-semibold">
               <button type="button" onClick={() => props.setChannel("mesa")} className={`flex-1 rounded-lg py-2.5 ${channel === "mesa" ? "bg-white shadow-sm" : "text-black/55"}`}>Estou na mesa</button>
               <button type="button" onClick={() => props.setChannel("delivery")} className={`flex-1 rounded-lg py-2.5 ${channel === "delivery" ? "bg-white shadow-sm" : "text-black/55"}`}>Entrega</button>
             </div>
@@ -674,7 +676,7 @@ function CartSheet(props: {
             <input id="obs-pedido" className="input" maxLength={300} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={channel === "delivery" ? "Ex.: interfone 42, portão azul" : "Ex.: trazer as bebidas antes"} />
           </div>
 
-          <div className="space-y-1.5 rounded-2xl bg-[#f5f4f1] p-4 text-[14.5px]">
+          <div className="space-y-1.5 rounded-2xl bg-[#efefeb] p-4 text-[14.5px]">
             <div className="flex justify-between"><span>Subtotal</span><span className="tnum">{brl(subtotal)}</span></div>
             {channel === "delivery" && <div className="flex justify-between"><span>Entrega</span><span className="tnum">{fee ? brl(fee) : "Grátis"}</span></div>}
             <div className="flex justify-between pt-1 font-display text-[18px] font-bold"><span>Total</span><span className="tnum">{brl(subtotal + fee)}</span></div>

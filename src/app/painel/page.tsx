@@ -144,9 +144,9 @@ export default function Pedidos() {
       {firstRun && <FirstSteps counts={counts!} slug={r.slug} />}
 
       {/* Celular: uma coluna por vez */}
-      <div className="mt-5 flex rounded-xl bg-black/[0.05] p-1 text-[14px] font-semibold lg:hidden" role="tablist">
+      <div className="mt-5 flex rounded-2xl bg-black/[0.05] p-1 text-[14px] font-semibold lg:hidden" role="tablist">
         {lists.map((c) => (
-          <button key={c.key} role="tab" aria-selected={tab === c.key} onClick={() => setTab(c.key)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 ${tab === c.key ? "bg-white shadow-sm" : "text-black/55"}`}>
+          <button key={c.key} role="tab" aria-selected={tab === c.key} onClick={() => setTab(c.key)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 transition-all duration-200 ${tab === c.key ? "bg-white shadow-sm" : "text-black/55"}`}>
             {c.title}
             <span className={`tnum grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11.5px] ${c.list.length ? (c.key === "novo" ? "bg-brand text-white" : "bg-ink text-white") : "bg-black/10 text-black/50"}`}>{c.list.length}</span>
           </button>
@@ -155,9 +155,12 @@ export default function Pedidos() {
 
       <div className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-3">
         {lists.map((c) => (
-          <section key={c.key} className={`rounded-2xl lg:bg-black/[0.035] lg:p-3 ${tab === c.key ? "" : "hidden lg:block"}`} aria-label={c.title}>
-            <h2 className="mb-3 hidden items-center justify-between px-1 text-[16px] font-bold lg:flex">
-              {c.title}
+          <section key={c.key} className={`rounded-3xl lg:bg-white/60 lg:p-3 lg:ring-1 lg:ring-black/[0.06] ${tab === c.key ? "" : "hidden lg:block"}`} aria-label={c.title}>
+            <h2 className="mb-3 hidden items-center justify-between px-1.5 pt-1 text-[16px] font-bold lg:flex">
+              <span className="flex items-center gap-2">
+                <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${c.key === "novo" ? "bg-brand" : c.key === "preparo" ? "bg-amber-500" : "bg-leaf"}`} />
+                {c.title}
+              </span>
               <span className={`tnum grid h-6 min-w-6 place-items-center rounded-full px-2 text-[12.5px] ${c.list.length && c.key === "novo" ? "bg-brand text-white" : "bg-white ring-1 ring-black/10"}`}>{c.list.length}</span>
             </h2>
             <div className="space-y-3">
@@ -213,7 +216,7 @@ function OrderCard({ o, onMove, onPrint, onRefuse }: { o: Order; onMove: (o: Ord
   const waited = mins(o.status === "novo" ? o.created_at : o.updated_at || o.created_at);
   const late = (o.status === "novo" && waited >= 4) || (o.status === "preparo" && waited >= 30);
   return (
-    <article className={`card p-4 ${o.status === "novo" ? "ring-2 ring-brand" : ""}`}>
+    <article className={`card p-4 ${o.status === "novo" ? "animate-arrive ring-2 ring-brand" : "animate-fade"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2">

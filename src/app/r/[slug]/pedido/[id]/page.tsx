@@ -158,7 +158,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
       )}
 
       {o.payment === "pix" && r.pix_key && !cancelled && (
-        <section className="mt-7 rounded-2xl bg-[#f5f4f1] p-4">
+        <section className="mt-7 rounded-2xl bg-[#efefeb] p-4">
           <h3 className="text-[16px] font-bold">Pague com Pix</h3>
           <p className="mt-1 text-[14px] text-black/65">
             Copie a chave, pague <b className="tnum text-ink">{brl(o.total_cents)}</b> no app do seu banco e mostre o comprovante na entrega.

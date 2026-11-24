@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import CustomerApp from "./CustomerApp";
 import { publicMenu } from "@/lib/menu";
+import { ensureDemo, DEMO_SLUG } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,12 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, maxi
 export default async function Page(props: Props) {
   const { slug } = await props.params;
   const sp = await props.searchParams;
-  const menu = await publicMenu(slug);
+  let menu = await publicMenu(slug);
+  if (!menu && slug === DEMO_SLUG) {
+    // o cardápio de exemplo do site se cria sozinho na primeira visita
+    await ensureDemo(true).catch(() => null);
+    menu = await publicMenu(slug);
+  }
   if (!menu)
     return (
       <main className="grid min-h-dvh place-items-center bg-white p-6 text-center">

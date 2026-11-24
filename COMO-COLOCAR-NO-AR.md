@@ -67,8 +67,8 @@ A parte 3 só precisa ser enviada de novo quando eu avisar que a IA mudou.
    |---|---|
    | `ANTHROPIC_API_KEY` | deixe sem no lançamento (só quando for ligar o garçom) |
    | `MESHY_API_KEY` | deixe sem (só se quiser a opção paga “IA por fotos”) |
-   | `AUTH_SECRET` | frase longa e aleatória com 40 caracteres ou mais (gere em 1password.com/password-generator) |
-   | `SETUP_KEY` | uma senha qualquer, só sua (serve para criar a demonstração) |
+   | `AUTH_SECRET` | opcional: se não criar, o site gera uma chave forte sozinho e guarda no banco |
+   | `SETUP_KEY` | opcional: só para criar a demonstração com a senha de teste (passo 5) |
 
 4. Clique em **Deploy**. O primeiro deploy vai dar erro de banco de dados. É normal: os próximos passos resolvem.
 
@@ -82,9 +82,11 @@ No projeto da Vercel, abra a aba **Storage**:
 
 O site está no ar no endereço que a Vercel mostrar (ex.: `visatto.vercel.app`). As tabelas do banco são criadas na primeira visita.
 
-## 5. Criar a demonstração (Cantina da Nonna)
+## 5. Demonstração (Cantina da Nonna)
 
-Abra no navegador, trocando pelo seu endereço e pela sua `SETUP_KEY`:
+O cardápio de exemplo se cria sozinho na primeira vez que alguém abre `/r/cantina-da-nonna` (o botão "Ver um cardápio de exemplo" da página inicial). Nesse caso o painel dele fica com uma senha aleatória, para ninguém mexer.
+
+Se você quiser entrar no painel da demonstração com a senha de teste, crie antes a variável `SETUP_KEY` e abra no navegador, trocando pelo seu endereço e pela sua `SETUP_KEY`:
 
 ```
 https://SEU-ENDERECO.vercel.app/api/setup-demo?chave=SUA_SETUP_KEY

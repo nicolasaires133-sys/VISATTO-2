@@ -4,12 +4,34 @@ import { getDB } from "./db";
 
 const COOKIE = "gia_session";
 
-function secret() {
-  if (!process.env.AUTH_SECRET && process.env.VERCEL) {
-    throw new Error("Configure a variável AUTH_SECRET no projeto da Vercel.");
+const g = globalThis as unknown as { __gia_secret?: Promise<Uint8Array> };
+
+/**
+ * Chave que assina os logins. Se AUTH_SECRET estiver na Vercel, usa ela.
+ * Senão, em produção, o próprio site gera uma chave aleatória forte na primeira vez
+ * e guarda no banco (assim ninguém precisa criar senha à mão).
+ */
+async function loadSecret(): Promise<Uint8Array> {
+  if (process.env.AUTH_SECRET) return new TextEncoder().encode(process.env.AUTH_SECRET);
+  if (!process.env.VERCEL && process.env.NODE_ENV !== "production") {
+    return new TextEncoder().encode("dev-secret-troque-em-producao-0123456789");
   }
-  const s = process.env.AUTH_SECRET || "dev-secret-troque-em-producao-0123456789";
-  return new TextEncoder().encode(s);
+  const db = await getDB();
+  const bytes = crypto.getRandomValues(new Uint8Array(48));
+  const fresh = Buffer.from(bytes).toString("base64url");
+  await db.query(`INSERT INTO app_settings (key, value) VALUES ('auth_secret', $1) ON CONFLICT (key) DO NOTHING`, [fresh]);
+  const rows = await db.query<{ value: string }>(`SELECT value FROM app_settings WHERE key = 'auth_secret'`);
+  return new TextEncoder().encode(rows[0].value);
+}
+
+function secret(): Promise<Uint8Array> {
+  if (!g.__gia_secret) {
+    g.__gia_secret = loadSecret().catch((e) => {
+      g.__gia_secret = undefined;
+      throw e;
+    });
+  }
+  return g.__gia_secret;
 }
 
 export async function createSession(restaurantId: string) {
@@ -17,7 +39,7 @@ export async function createSession(restaurantId: string) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
-    .sign(secret());
+    .sign(await secret());
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
@@ -38,7 +60,7 @@ export async function getRestaurantId(): Promise<string | null> {
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, await secret());
     return typeof payload.rid === "string" ? payload.rid : null;
   } catch {
     return null;

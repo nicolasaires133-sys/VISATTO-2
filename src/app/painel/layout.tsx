@@ -50,11 +50,14 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   const soundRef = useRef(false);
   const known = useRef<{ orders: Set<string>; calls: Set<string> } | null>(null);
 
+  const [loadErr, setLoadErr] = useState("");
   const reload = useCallback(async () => {
     try {
       setState(await api("/api/painel/restaurant"));
+      setLoadErr("");
     } catch (e: any) {
       if (e.status === 401) router.replace("/entrar");
+      else setLoadErr(e.message || "Não foi possível abrir o painel.");
     }
   }, [router]);
 
@@ -120,6 +123,17 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
     if (on) beep("pedido");
   }
 
+  if (!state && loadErr)
+    return (
+      <div className="grid min-h-dvh place-items-center px-6">
+        <div className="animate-enter max-w-sm text-center">
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-ink text-white"><Icon name="alert" size={26} /></span>
+          <h1 className="mt-4 text-[24px] font-extrabold">O painel não abriu</h1>
+          <p className="mt-2 text-[15px] text-black/60">{loadErr}</p>
+          <button className="btn-primary mt-5 h-12 px-6" onClick={() => { setLoadErr(""); reload(); }}>Tentar de novo</button>
+        </div>
+      </div>
+    );
   if (!state)
     return (
       <div className="grid min-h-dvh place-items-center" aria-busy="true">
@@ -143,13 +157,13 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
     <PainelCtx.Provider value={{ ...state, reload, orders, calls, offline, refreshOrders, setOrders, setCalls, sound, setSound }}>
       <div className="min-h-dvh md:flex">
         {/* Computador: menu lateral */}
-        <aside className="no-print sticky top-0 hidden h-dvh w-64 shrink-0 flex-col overflow-y-auto border-r border-line bg-white p-4 md:flex">
+        <aside className="no-print sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col overflow-y-auto bg-ink p-4 text-white md:flex">
           <Link href="/painel" className="px-2 pt-1">
             <Logo size={30} />
           </Link>
-          <div className="mt-5 rounded-2xl bg-cream p-3.5">
+          <div className="mt-6 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10">
             <p className="truncate font-display text-[16px] font-bold">{r.name}</p>
-            <a href={`/r/${r.slug}`} target="_blank" className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-semibold text-black/60 hover:text-ink">
+            <a href={`/r/${r.slug}`} target="_blank" className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-semibold text-white/60 transition-colors hover:text-ember">
               Ver meu cardápio <Icon name="external" size={13} />
             </a>
           </div>
@@ -159,9 +173,10 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
                 key={n.href}
                 href={n.href}
                 aria-current={isActive(n.href) ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] font-semibold transition-colors ${isActive(n.href) ? "bg-ink text-white" : "text-black/75 hover:bg-black/5"}`}
+                className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] font-semibold transition-colors duration-200 ${isActive(n.href) ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/[0.05] hover:text-white"}`}
               >
-                <Icon name={n.icon} size={19} />
+                <span aria-hidden className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-brand transition-all duration-300 ${isActive(n.href) ? "opacity-100" : "scale-y-0 opacity-0"}`} />
+                <Icon name={n.icon} size={19} className={isActive(n.href) ? "text-ember" : ""} />
                 <span className="flex-1">{n.label}</span>
                 {n.href === "/painel" && pending > 0 && (
                   <span className="tnum grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11.5px] font-bold text-white">{pending}</span>
@@ -172,11 +187,11 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           <div className="mt-auto space-y-3 pt-6">
             <InstallApp />
             {trialDays != null && r.plan === "trial" && (
-              <p className="rounded-xl bg-cream p-3 text-[13px] text-black/70">
-                <b className="text-ink">Teste grátis:</b> {trialDays > 0 ? `${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}` : "encerrado"}
+              <p className="rounded-xl bg-white/[0.06] p-3 text-[13px] text-white/70 ring-1 ring-white/10">
+                <b className="text-white">Teste grátis:</b> {trialDays > 0 ? `${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}` : "encerrado"}
               </p>
             )}
-            <button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14.5px] font-semibold text-black/55 hover:bg-black/5">
+            <button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14.5px] font-semibold text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white">
               <Icon name="logout" size={19} />
               Sair
             </button>
@@ -185,21 +200,21 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
 
         <div className="min-w-0 flex-1">
           {/* Celular: topo com o nome do restaurante */}
-          <header className="no-print sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-white/95 px-4 py-2.5 backdrop-blur md:hidden">
+          <header className="no-print sticky top-0 z-20 flex items-center gap-3 bg-ink px-4 py-2.5 text-white md:hidden">
             <Logo size={26} className="[&>span:last-child]:hidden" />
             <p className="min-w-0 flex-1 truncate font-display text-[16px] font-bold">{r.name}</p>
-            <a href={`/r/${r.slug}`} target="_blank" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-cream px-3 py-1.5 text-[13px] font-semibold">
+            <a href={`/r/${r.slug}`} target="_blank" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold ring-1 ring-white/15">
               Cardápio <Icon name="external" size={13} />
             </a>
           </header>
           <div className="no-print px-4 md:hidden">
             <InstallApp dismissible />
           </div>
-          <div className="mx-auto max-w-6xl px-4 pb-28 pt-5 md:p-8">{children}</div>
+          <div key={path} className="animate-enter mx-auto max-w-6xl px-4 pb-28 pt-5 md:p-10">{children}</div>
         </div>
 
         {/* Celular: barra inferior */}
-        <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Painel">
+        <nav className="no-print fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden" aria-label="Painel">
           {nav.filter((n) => !n.ai).map((n) => (
             <Link
               key={n.href}
@@ -207,7 +222,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
               aria-current={isActive(n.href) ? "page" : undefined}
               className={`relative flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-semibold ${isActive(n.href) ? "text-ink" : "text-black/45"}`}
             >
-              <span className={`grid h-7 w-12 place-items-center rounded-full ${isActive(n.href) ? "bg-ink text-white" : ""}`}>
+              <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors duration-200 ${isActive(n.href) ? "bg-ink text-white" : ""}`}>
                 <Icon name={n.icon} size={19} />
               </span>
               {n.short}

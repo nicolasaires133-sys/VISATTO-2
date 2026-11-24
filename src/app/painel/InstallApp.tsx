@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 import { useEffect, useState } from "react";
 
 /** Botão "Instalar o app do Visatto" no painel: Android/Chrome instala direto; iPhone mostra o passo a passo. */
@@ -28,7 +29,7 @@ export default function InstallApp({ dismissible = false }: { dismissible?: bool
 
   if (installed || hidden || (!can && !ios)) return null;
   return (
-    <div className="relative mt-3 rounded-xl bg-ink p-3 text-xs text-white">
+    <div className={`relative mt-3 rounded-xl p-3 text-xs text-white ${dismissible ? "bg-ink" : "bg-white/[0.06] ring-1 ring-white/10"}`}>
       {dismissible && (
         <button
           aria-label="Fechar"
@@ -38,7 +39,7 @@ export default function InstallApp({ dismissible = false }: { dismissible?: bool
           ×
         </button>
       )}
-      <p className="font-bold">📲 Visatto no seu celular</p>
+      <p className="flex items-center gap-1.5 font-bold"><Icon name="phone" size={14} /> Visatto no seu celular</p>
       <p className="mt-0.5 text-white/70">Ícone na tela inicial, abre como app. Grátis, sem loja.</p>
       {can ? (
         <button

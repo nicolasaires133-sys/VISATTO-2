@@ -97,9 +97,9 @@ export function ArBadge({ className = "" }: { className?: string }) {
 
 /** Foto do prato; sem foto, um prato desenhado (neutro, igual em todo celular). */
 export function Thumb({ item, className = "" }: { item: Pick<MenuItem, "image" | "name">; className?: string }) {
-  if (item.image) return <img src={item.image} alt="" loading="lazy" decoding="async" className={`bg-[#efede8] object-cover ${className}`} />;
+  if (item.image) return <img src={item.image} alt="" loading="lazy" decoding="async" className={`bg-[#ececE7] object-cover ${className}`} />;
   return (
-    <div className={`grid place-items-center bg-[#efede8] ${className}`} aria-hidden="true">
+    <div className={`grid place-items-center bg-[#ececE7] ${className}`} aria-hidden="true">
       <svg viewBox="0 0 64 64" className="h-[46%] max-h-16 w-[46%] max-w-16 text-black/20" fill="none" stroke="currentColor" strokeWidth="2.5">
         <circle cx="32" cy="32" r="24" />
         <circle cx="32" cy="32" r="15" />
@@ -137,7 +137,7 @@ export function Dims({ dims }: { dims: { w: number; d: number; h: number } }) {
     </div>
   );
   return (
-    <div className="rounded-2xl bg-[#f5f4f1] px-2 py-3">
+    <div className="rounded-2xl bg-[#efefeb] px-2 py-3">
       <p className="mb-2.5 text-center text-[12.5px] font-semibold text-black/60">Tamanho real, medido no restaurante</p>
       <div className="flex divide-x divide-black/10">
         {cell("largura", dims.w)}

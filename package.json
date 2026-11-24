@@ -1,6 +1,6 @@
 {
   "name": "visatto",
-  "version": "0.16.2",
+  "version": "0.17.0",
   "engines": {
     "node": "22.x"
   },
@@ -13,8 +13,10 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
     "@electric-sql/pglite": "^0.5.15",
+    "@fontsource-variable/anybody": "^5.3.0",
     "@fontsource-variable/gabarito": "^5.3.0",
     "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/onest": "^5.3.1",
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",

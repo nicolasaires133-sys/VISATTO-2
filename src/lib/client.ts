@@ -11,15 +11,23 @@ function authHeaders(): Record<string, string> {
 }
 
 export async function api<T = any>(url: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
-  const res = await fetch(url, {
-    method: opts.method || (opts.body ? "POST" : "GET"),
-    headers: { ...(opts.body ? { "Content-Type": "application/json" } : {}), ...authHeaders() },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: opts.method || (opts.body ? "POST" : "GET"),
+      headers: { ...(opts.body ? { "Content-Type": "application/json" } : {}), ...authHeaders() },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    const err: any = new Error("Sem conexão com a internet. Confira o sinal e tente de novo.");
+    err.status = 0;
+    throw err;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err: any = new Error(data?.error || "Algo deu errado. Tente de novo.");
+    const fallback = res.status >= 500 ? "O servidor não conseguiu concluir agora. Tente de novo em alguns segundos." : "Algo deu errado. Tente de novo.";
+    const err: any = new Error(data?.error || fallback);
     err.status = res.status;
     throw err;
   }
