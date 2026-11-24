@@ -501,7 +501,7 @@ export async function identifyProduct(opts: { image?: { data: string; mediaType:
           {
             type: "text",
             text:
-              `Foto tirada pelo dono de um restaurante para escanear um item do cardápio em 3D. Ao lado há uma folha branca com um quadrado preto de 15 cm (é só a régua, ignore).\n` +
+              `Foto tirada pelo dono de um restaurante para escanear um item do cardápio em 3D. Ao lado há uma folha A4 branca, às vezes com um quadrado preto impresso (é só a régua, ignore).\n` +
               `Nome no cardápio: "${opts.name}".` +
               (opts.note ? `\nO dono descreveu assim: "${opts.note}".` : "") +
               `\nIdentifique o produto, seja ele qual for: prato, sobremesa, doce, salgado, bebida, porção, lanche, fruta, pão... Diga a altura e a largura típicas de verdade para ESTE produto do jeito que aparece (com o recipiente), porque elas guiam a medição. Se a foto e o nome discordarem, confie na foto, mas use o nome para dar o nome certo.`,
