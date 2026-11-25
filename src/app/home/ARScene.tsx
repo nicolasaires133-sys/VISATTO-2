@@ -3,6 +3,7 @@
 // pousa no tamanho real. É uma encenação do "Ver na mesa" do cardápio, conduzida pela rolagem.
 import { useRef } from "react";
 import Model, { type ModelHandle } from "./Model";
+import SeeOnTable from "./SeeOnTable";
 import { lerp, seg, useScrollScene } from "./useScroll";
 
 export default function ARScene() {
@@ -16,6 +17,7 @@ export default function ARScene() {
     v("--t1", seg(p, 0.1, 0.24) * (1 - seg(p, 0.42, 0.5)));
     v("--t2", seg(p, 0.52, 0.62) * (1 - seg(p, 0.88, 0.96)));
     v("--chip", seg(p, 0.58, 0.66));
+    el.style.setProperty("--t2-pe", seg(p, 0.52, 0.62) * (1 - seg(p, 0.88, 0.96)) > 0.5 ? "auto" : "none");
     model.current?.orbit(lerp(-30, 40, p), lerp(66, 58, p), "118%");
   });
 
@@ -30,10 +32,11 @@ export default function ARScene() {
           <h3 className="cine-title mt-3 text-[44px] leading-[0.98]">Aponta para a mesa.</h3>
           <p className="mt-4 text-[17px] leading-relaxed text-white/60">Um toque no prato e a câmera abre, direto no navegador. Nada para instalar.</p>
         </div>
-        <div className="pointer-events-none absolute right-[6vw] top-1/2 hidden max-w-[300px] -translate-y-1/2 lg:block" style={{ opacity: "var(--t2)", transform: "translateY(calc(-50% + (1 - var(--t2)) * 24px))" }}>
+        <div className="absolute right-[6vw] top-1/2 hidden max-w-[300px] lg:block" style={{ opacity: "var(--t2)", transform: "translateY(calc(-50% + (1 - var(--t2)) * 24px))", pointerEvents: "var(--t2-pe, none)" as never }}>
           <p className="cine-kicker">Tamanho real</p>
           <h3 className="cine-title mt-3 text-[44px] leading-[0.98]">O prato pousa do tamanho certo.</h3>
-          <p className="mt-4 text-[17px] leading-relaxed text-white/60">Dá para chegar perto, ver a altura e as camadas. Acaba o “achei que era maior”.</p>
+          <p className="mt-4 text-[17px] leading-relaxed text-white/60">Dá para chegar perto e ver as camadas. Acaba o “achei que era maior”.</p>
+          <div className="mt-6"><SeeOnTable prato="tiramisu" label="Experimentar na sua mesa" /></div>
         </div>
         <p className="cine-title pointer-events-none absolute inset-x-5 bottom-[4vh] text-center text-[30px] leading-tight lg:hidden" style={{ opacity: "max(var(--t1), var(--t2))" }}>
           Aponta para a mesa. O prato pousa do tamanho certo.
@@ -66,7 +69,7 @@ export default function ARScene() {
               </div>
               <div className="absolute inset-x-0 bottom-[6%] flex justify-center" style={{ opacity: "var(--chip)", transform: "translateY(calc((1 - var(--chip)) * 12px))" }}>
                 <span className="tnum flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-[clamp(11px,1.6svh,14px)] font-semibold text-white backdrop-blur">
-                  <span className="h-2 w-2 rounded-full bg-[#4ade80]" /> Tamanho real: 22 × 22 × 6,4 cm
+                  <span className="h-2 w-2 rounded-full bg-[#4ade80]" /> Tamanho real
                 </span>
               </div>
               <span aria-hidden className="absolute left-1/2 top-[1.6%] h-[3%] w-[30%] -translate-x-1/2 rounded-full bg-[#0b0e14]" />

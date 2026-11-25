@@ -1,10 +1,10 @@
 "use client";
 // Abertura cinematográfica: a pizza em 3D, enorme, sob uma luz de restaurante. Rolando, ela gira para a
-// vista de cima, a régua mede 40 cm e o texto troca de "Antes do pedido" para "Tamanho real" e "Só a câmera".
+// vista de cima e o texto troca de "Antes do pedido" para "Tamanho real" e "Só a câmera".
 // Toda a cena é presa na tela e conduzida pela rolagem; sem rolar, o prato gira devagar sozinho.
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import Icon from "@/components/Icon";
+import SeeOnTable from "./SeeOnTable";
 import Model, { type ModelHandle } from "./Model";
 import { lerp, seg, useScrollScene } from "./useScroll";
 
@@ -19,7 +19,6 @@ export default function Hero() {
     v("--a", 1 - seg(p, 0.08, 0.26));
     v("--b", seg(p, 0.34, 0.46) * (1 - seg(p, 0.64, 0.72)));
     v("--c", seg(p, 0.76, 0.86));
-    v("--m", seg(p, 0.36, 0.5) * (1 - seg(p, 0.66, 0.74)));
     // no computador, na fase "tamanho real" a pizza vai para a direita e o texto fica à esquerda
     const wide = window.innerWidth >= 1024;
     const side = seg(p, 0.3, 0.44) * (1 - seg(p, 0.66, 0.76));
@@ -52,7 +51,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section ref={scene} className="hero-scene relative h-[320vh]" style={{ ["--a" as string]: 1, ["--b" as string]: 0, ["--c" as string]: 0, ["--m" as string]: 0, ["--s" as string]: 1, ["--g" as string]: 0.55 }}>
+    <section ref={scene} className="hero-scene relative h-[320vh]" style={{ ["--a" as string]: 1, ["--b" as string]: 0, ["--c" as string]: 0, ["--s" as string]: 1, ["--g" as string]: 0.55 }}>
       <div className="sticky top-0 h-svh overflow-hidden">
         {/* luz de restaurante atrás do prato */}
         <div aria-hidden className="absolute left-1/2 top-[52%] h-[120vmin] w-[120vmin] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,138,76,0.30), rgba(255,90,46,0.10) 45%, transparent 72%)", opacity: "var(--g)" }} />
@@ -74,18 +73,6 @@ export default function Hero() {
             decay={140}
             className="h-full w-full"
           />
-          {/* régua de 40 cm sobre a pizza vista de cima */}
-          <svg aria-hidden viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" style={{ opacity: "var(--m)" }}>
-            <circle cx="50" cy="50" r="33" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.25" strokeDasharray="0.8 1.2" />
-            <line x1="17" y1="88" x2="83" y2="88" stroke="#fff" strokeWidth="0.3" />
-            <line x1="17" y1="85.5" x2="17" y2="90.5" stroke="#fff" strokeWidth="0.3" />
-            <line x1="83" y1="85.5" x2="83" y2="90.5" stroke="#fff" strokeWidth="0.3" />
-            <line x1="17" y1="50" x2="17" y2="87" stroke="rgba(255,255,255,0.3)" strokeWidth="0.2" strokeDasharray="0.6 0.8" />
-            <line x1="83" y1="50" x2="83" y2="87" stroke="rgba(255,255,255,0.3)" strokeWidth="0.2" strokeDasharray="0.6 0.8" />
-          </svg>
-          <p className="tnum pointer-events-none absolute left-1/2 top-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#07090d] px-4 py-1.5 text-[clamp(15px,1.6vw,20px)] font-bold text-white ring-1 ring-white/25" style={{ opacity: "var(--m)" }}>
-            40 cm
-          </p>
         </div>
 
         {/* 1: a promessa */}
@@ -98,7 +85,7 @@ export default function Hero() {
         <div className="absolute inset-x-0 bottom-[7vh] flex flex-col items-center gap-5 px-5" style={{ opacity: "var(--a)" }}>
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/cadastro" className="cine-btn">Criar meu cardápio grátis</Link>
-            <Link href="/r/cantina-da-nonna?mesa=7" className="cine-btn-ghost"><Icon name="phone" size={18} /> Ver o exemplo</Link>
+            <SeeOnTable prato="pizza" label="Ver uma pizza na sua mesa" />
           </div>
           <span className="flex items-center gap-2 text-[13px] text-white/45"><span className="scroll-cue" aria-hidden /> Role para ver</span>
         </div>
@@ -107,7 +94,7 @@ export default function Hero() {
         <div className="pointer-events-none absolute inset-x-0 top-[11vh] px-5 text-center lg:inset-x-auto lg:left-[7vw] lg:top-1/2 lg:max-w-[40vw] lg:-translate-y-1/2 lg:px-0 lg:text-left" style={{ opacity: "var(--b)" }}>
           <h2 className="cine-title text-[clamp(48px,7.4vw,128px)] leading-[0.9]">Tamanho real.</h2>
           <p className="mx-auto mt-5 max-w-[30rem] text-[clamp(16px,1.4vw,20px)] leading-relaxed text-white/65 lg:mx-0">
-            Pizza de 40 cm aparece com 40 cm na mesa. O tamanho fica travado: ninguém aumenta a porção com os dedos.
+            O prato aparece na mesa do tamanho que vai chegar. Sem susto quando ele chega.
           </p>
         </div>
 

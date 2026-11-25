@@ -809,7 +809,7 @@ function ItemSheet({
               {item.tags.map((tag) => <Pill key={tag}>{tag}</Pill>)}
             </div>
           </div>
-          {item.model?.dims && item.model.dims.w > 0 && <Dims dims={item.model.dims} />}
+          {item.model?.dims && item.model.dims.w > 0 && <Dims dims={item.model.dims} label={t("seeSize")} sizeLabel={t("size")} note={t("sizeNote")} />}
 
           <div className="rounded-2xl bg-[#efefeb] p-3.5 text-[14px]">
             <p className="flex items-center gap-1.5 font-semibold"><Icon name="info" size={16} /> {t("allergens")}</p>

@@ -9,7 +9,7 @@ const TICKS = 72;
 const STEPS = [
   { t: "Uma folha A4 em branco ao lado.", d: "Sulfite comum, sem imprimir nada, a um palmo do prato. É a régua: dá a medida certa." },
   { t: "Uma volta devagar em torno.", d: "O celular guia e tira as fotos sozinho. Mesa branca? Um pano escuro embaixo da folha." },
-  { t: "O 3D fica pronto no próprio celular.", d: "Mede largura, profundidade e altura e pinta com as cores de verdade. Sem custo por prato." },
+  { t: "O 3D fica pronto no próprio celular.", d: "Mede o prato sozinho e pinta com as cores de verdade. Sem custo por prato." },
 ];
 
 export default function ScanScene() {

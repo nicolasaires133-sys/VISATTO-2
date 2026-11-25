@@ -1,7 +1,7 @@
 "use client";
 // Peças compartilhadas do cardápio do cliente.
 import { DishArt } from "@/components/DishArt";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import type { PublicItem as MenuItem } from "@/lib/format";
 
@@ -117,27 +117,24 @@ export function Stepper({ qty, onChange, min = 0, size = "md" }: { qty: number; 
   );
 }
 
-const cm = (v: number) => (Math.round(v * 10) / 10).toString().replace(".", ",");
 
 /** Medidas reais do prato, desenhadas como cotas (a régua é a marca do Visatto). */
-export function Dims({ dims }: { dims: { w: number; d: number; h: number } }) {
-  const cell = (label: string, v: number, vertical = false) => (
-    <div className="flex-1 px-1 text-center">
-      <svg viewBox="0 0 60 14" className="mx-auto h-3.5 w-14 text-black/45" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
-        {vertical ? <path d="M30 1v12M25 1h10M25 13h10" /> : <path d="M3 7h54M3 2v10M57 2v10" />}
-      </svg>
-      <p className="tnum mt-1 font-display text-[19px] font-bold leading-none">{cm(v)} <span className="text-[13px] font-semibold text-black/55">cm</span></p>
-      <p className="mt-1 text-[12px] text-black/55">{label}</p>
-    </div>
-  );
-  return (
-    <div className="rounded-2xl bg-[#efefeb] px-2 py-3">
-      <p className="mb-2.5 text-center text-[12.5px] font-semibold text-black/60">Tamanho real, medido no restaurante</p>
-      <div className="flex divide-x divide-black/10">
-        {cell("largura", dims.w)}
-        {cell("profundidade", dims.d)}
-        {cell("altura", dims.h, true)}
-      </div>
-    </div>
+/** Tamanho do prato só quando o cliente quer ver: um botão discreto que mostra "40 cm". */
+export function Dims({ dims, label = "Ver o tamanho", sizeLabel = "Tamanho", note = "medido no restaurante" }: { dims: { w: number; d: number; h: number }; label?: string; sizeLabel?: string; note?: string }) {
+  const [open, setOpen] = useState(false);
+  const size = `${Math.round(Math.max(dims.w, dims.d || 0))} cm`;
+  return open ? (
+    <button type="button" onClick={() => setOpen(false)} className="animate-enter flex w-full items-center gap-3 rounded-2xl bg-[#efefeb] px-4 py-3 text-left">
+      <Icon name="ruler" size={20} className="shrink-0 text-black/50" />
+      <span className="flex-1">
+        <b className="tnum text-[17px]">{sizeLabel}: {size}</b>
+        <span className="block text-[12.5px] text-black/50">{note}</span>
+      </span>
+      <Icon name="close" size={16} className="text-black/35" />
+    </button>
+  ) : (
+    <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-semibold text-black/65 ring-1 ring-black/12 transition-colors hover:bg-black/[0.04]">
+      <Icon name="ruler" size={16} /> {label}
+    </button>
   );
 }

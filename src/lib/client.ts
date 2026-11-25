@@ -146,6 +146,12 @@ export async function glbToUsdz(glbUrl: string): Promise<Blob> {
   return new Blob([arr as any], { type: "model/vnd.usdz+zip" });
 }
 
+/** Tamanho simples para o cliente: só a maior medida, arredondada ("40 cm"). */
+export function simpleSize(d?: { w: number; d: number; h: number } | null) {
+  if (!d || !d.w) return "";
+  return `${Math.round(Math.max(d.w, d.d || 0))} cm`;
+}
+
 export function formatDims(d?: { w: number; d: number; h: number } | null) {
   if (!d || !d.w) return "";
   const n = (v: number) => (Math.round(v * 10) / 10).toString().replace(".", ",");

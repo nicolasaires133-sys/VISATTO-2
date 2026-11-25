@@ -4,12 +4,14 @@
 import Link from "next/link";
 import { useRef } from "react";
 import Model from "./Model";
+import SeeOnTable from "./SeeOnTable";
+import SizeToggle from "./SizeToggle";
 import { useScrollScene } from "./useScroll";
 
 const DISHES = [
-  { src: "/demo/pizza.glb", name: "Pizza Calabresa Grande", price: "R$ 74,90", dims: "40 × 40 × 3,7 cm", orbit: "0deg 58deg 105%" },
-  { src: "/demo/lasanha.glb", name: "Lasanha à Bolonhesa", price: "R$ 62,00", dims: "26 × 26 × 6 cm", orbit: "0deg 62deg 110%" },
-  { src: "/demo/tiramisu.glb", name: "Tiramisù da Casa", price: "R$ 29,00", dims: "22 × 22 × 6,4 cm", orbit: "0deg 64deg 112%" },
+  { id: "pizza", src: "/demo/pizza.glb", name: "Pizza Calabresa Grande", price: "R$ 74,90", size: "40 cm", orbit: "0deg 58deg 105%" },
+  { id: "lasanha", src: "/demo/lasanha.glb", name: "Lasanha à Bolonhesa", price: "R$ 62,00", size: "26 cm", orbit: "0deg 62deg 110%" },
+  { id: "tiramisu", src: "/demo/tiramisu.glb", name: "Tiramisù da Casa", price: "R$ 29,00", size: "22 cm", orbit: "0deg 64deg 112%" },
 ];
 
 export default function Gallery() {
@@ -33,12 +35,15 @@ export default function Gallery() {
               <article key={d.name} className="cine-card relative flex h-[min(62svh,540px)] w-[82vw] max-w-[440px] shrink-0 flex-col overflow-hidden rounded-[28px] lg:w-[440px]">
                 <div aria-hidden className="absolute inset-x-0 top-0 h-2/3" style={{ background: "radial-gradient(60% 60% at 50% 45%, rgba(255,150,90,0.18), transparent 70%)" }} />
                 <Model src={d.src} alt={`${d.name} em 3D`} orbit={d.orbit} rotateSpeed="22deg" className="min-h-0 flex-1" />
-                <div className="relative flex items-end justify-between gap-4 border-t border-white/10 p-6">
-                  <div>
-                    <h3 className="text-[20px] font-bold">{d.name}</h3>
-                    <p className="tnum mt-1 text-[14.5px] text-white/55">{d.dims}</p>
+                <div className="relative border-t border-white/10 p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-[20px] font-bold leading-tight">{d.name}</h3>
+                    <span className="tnum shrink-0 whitespace-nowrap text-[18px] font-bold text-[#ff7a4d]">{d.price}</span>
                   </div>
-                  <span className="tnum shrink-0 whitespace-nowrap text-[18px] font-bold text-[#ff7a4d]">{d.price}</span>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <SeeOnTable prato={d.id} label="Ver na mesa" className="cine-btn-ghost !h-10 !px-4 !text-[14px]" />
+                    <SizeToggle size={d.size} />
+                  </div>
                 </div>
               </article>
             ))}

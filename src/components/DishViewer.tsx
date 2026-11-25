@@ -73,6 +73,7 @@ export default function DishViewer({
   const [arMsg, setArMsg] = useState("");
   const [tips, setTips] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [qr, setQr] = useState("");
   const logged = useRef(false);
 
   useEffect(() => {
@@ -137,6 +138,19 @@ export default function DishViewer({
   }
 
   const dims = formatDims(model.dims);
+
+  // no computador: um QR para abrir esta mesma página no celular e ver o prato na mesa
+  useEffect(() => {
+    if (!showArButton || isMobile()) return;
+    let alive = true;
+    import("qrcode")
+      .then((Q) => Q.toDataURL(window.location.href, { margin: 1, width: 280 }))
+      .then((u) => alive && setQr(u))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [showArButton]);
   const inApp = inAppBrowser();
   const mobile = isMobile();
 
@@ -189,7 +203,12 @@ export default function DishViewer({
             Não foi possível carregar o 3D deste prato.
           </div>
         )}
-        {loaded && !touched && !dark && !hideHint && (
+        {showArButton && loaded && canAR && (
+          <button type="button" onClick={() => setTips(true)} className="absolute bottom-3 right-3 z-[1] flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold text-white shadow-lg" style={{ background: color }}>
+            <Icon name="scan" size={16} stroke={2.2} /> Ver na mesa
+          </button>
+        )}
+        {loaded && !touched && !dark && !hideHint && !(showArButton && canAR) && (
           <span className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-black/70">
             <Icon name="rotate" size={14} />
             Gire com o dedo
@@ -212,12 +231,13 @@ export default function DishViewer({
             </p>
           ) : mobile ? (
             <p className="rounded-xl bg-black/5 p-3 text-center text-sm text-black/60">
-              Seu celular não abre a câmera em 3D, mas você pode girar o prato acima para ver todos os detalhes.
+              Para ver o prato na sua mesa, abra esta página no <b>Safari</b> (iPhone) ou no <b>Chrome</b> (Android). Aqui dá para girar o prato com o dedo.
             </p>
           ) : (
-            <p className="rounded-xl bg-black/5 p-3 text-center text-sm text-black/60">
-              Abra este cardápio no celular para ver o prato em cima da sua mesa, no tamanho real.
-            </p>
+            <div className="flex items-center gap-4 rounded-xl bg-black/5 p-3 text-sm text-black/65">
+              {qr && <img src={qr} alt="QR code para abrir no celular" className="h-24 w-24 shrink-0 rounded-lg bg-white p-1" />}
+              <p>Aponte a câmera do celular para o QR e toque em <b>Ver na minha mesa</b>: o prato aparece em cima da sua mesa, no tamanho real.</p>
+            </div>
           )}
           {arMsg && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{arMsg}</p>}
         </div>
