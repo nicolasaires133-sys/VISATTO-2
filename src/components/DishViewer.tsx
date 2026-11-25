@@ -29,7 +29,7 @@ function isMobile() {
 }
 
 let loader: Promise<unknown> | null = null;
-function loadModelViewer() {
+export function loadModelViewer() {
   if (!loader) loader = import("@google/model-viewer").catch((e) => ((loader = null), Promise.reject(e)));
   return loader;
 }

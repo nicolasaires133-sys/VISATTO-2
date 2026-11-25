@@ -62,21 +62,21 @@ const TABS: Tab[] = [
   },
 ];
 
-export default function PanelShowcase() {
+export default function PanelShowcase({ dark = false }: { dark?: boolean }) {
   const [tab, setTab] = useState(0);
   const [spot, setSpot] = useState(0);
   const t = TABS[tab];
 
   return (
     <div>
-      <div className="no-scrollbar flex items-center gap-1 overflow-x-auto rounded-xl bg-ink/[0.05] p-1 text-[14.5px] font-semibold sm:inline-flex" role="tablist" aria-label="Telas do painel">
+      <div className={`no-scrollbar flex items-center gap-1 overflow-x-auto rounded-xl p-1 ${dark ? "bg-white/[0.07]" : "bg-ink/[0.05]"} text-[14.5px] font-semibold sm:inline-flex`} role="tablist" aria-label="Telas do painel">
         {TABS.map((x, i) => (
           <button
             key={x.id}
             role="tab"
             aria-selected={tab === i}
             onClick={() => { setTab(i); setSpot(0); }}
-            className={`flex-1 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 transition-[background-color,color,box-shadow] duration-200 sm:flex-none ${tab === i ? "bg-white text-ink shadow-[0_1px_3px_rgba(23,32,51,0.12)]" : "text-slate hover:text-ink"}`}
+            className={`flex-1 shrink-0 whitespace-nowrap rounded-lg px-4 py-2 transition-[background-color,color,box-shadow] duration-200 sm:flex-none ${tab === i ? "bg-white text-ink shadow-[0_1px_3px_rgba(23,32,51,0.12)]" : dark ? "text-white/60 hover:text-white" : "text-slate hover:text-ink"}`}
           >
             {x.label}
           </button>
@@ -84,7 +84,7 @@ export default function PanelShowcase() {
       </div>
 
       <div className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
-        <Browser>
+        <Browser className={dark ? "shadow-[0_60px_140px_-40px_rgba(255,106,61,0.35)] ring-white/10" : ""}>
           <img key={t.img} src={t.img} alt={t.alt} loading="lazy" className="animate-fade block w-full" />
           {t.spots.map((s, i) => (
             <button
@@ -102,16 +102,16 @@ export default function PanelShowcase() {
         </Browser>
 
         <div>
-          <p className="text-[16.5px] leading-relaxed text-slate">{t.intro}</p>
-          <ol className="mt-5 divide-y divide-line border-y border-line">
+          <p className={`text-[16.5px] leading-relaxed ${dark ? "text-white/65" : "text-slate"}`}>{t.intro}</p>
+          <ol className={`mt-5 divide-y border-y ${dark ? "divide-white/10 border-white/10" : "divide-line border-line"}`}>
             {t.spots.map((s, i) => (
               <li key={`${t.id}-${i}`}>
                 <button onClick={() => setSpot(i)} aria-pressed={spot === i} className="flex w-full gap-3 py-3.5 text-left">
-                  <span className={`tnum mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-colors duration-200 ${spot === i ? "bg-brand text-white" : "bg-ink/[0.07] text-ink"}`}>{i + 1}</span>
+                  <span className={`tnum mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-colors duration-200 ${spot === i ? "bg-brand text-white" : dark ? "bg-white/10 text-white" : "bg-ink/[0.07] text-ink"}`}>{i + 1}</span>
                   <span>
                     <b className="block text-[15.5px]">{s.title}</b>
                     <span className={`grid transition-[grid-template-rows,opacity] duration-300 ${spot === i ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
-                      <span className="overflow-hidden text-[14.5px] leading-relaxed text-slate">{s.text}</span>
+                      <span className={`overflow-hidden text-[14.5px] leading-relaxed ${dark ? "text-white/60" : "text-slate"}`}>{s.text}</span>
                     </span>
                   </span>
                 </button>
