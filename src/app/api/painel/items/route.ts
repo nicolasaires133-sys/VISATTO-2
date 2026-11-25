@@ -38,5 +38,7 @@ export async function POST(req: Request) {
     [id, r.id, f.category_id, f.name, f.description, f.price_cents, f.image, f.serves, JSON.stringify(f.tags), f.available, f.featured, Number(max) + 1,
      JSON.stringify(f.allergens), f.allergens_known, JSON.stringify(f.pairs), f.promote, f.substitute_id, JSON.stringify(f.dayparts), f.cost_cents]
   );
+  if (f.options.length || f.promo)
+    await db.query(`UPDATE items SET options=$3::jsonb, promo=$4::jsonb WHERE id=$1 AND restaurant_id=$2`, [id, r.id, JSON.stringify(f.options), JSON.stringify(f.promo ?? {})]);
   return ok({ id });
 }

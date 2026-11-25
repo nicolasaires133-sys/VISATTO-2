@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
+import { basePrice } from "@/lib/options";
 import { brl, type CartLine, type PublicItem as MenuItem, type PublicRestaurant, type WaiterAction } from "@/lib/format";
 import { CloseButton, Sheet, Thumb } from "./parts";
 
@@ -115,7 +116,7 @@ export default function Waiter(props: {
                           className="btn mt-2 w-full py-1.5 text-xs text-white"
                           style={{ background: color }}
                         >
-                          {inCart ? "+ mais um" : `Adicionar ${brl(it.price_cents)}`}
+                          {inCart ? "+ mais um" : `Adicionar ${brl(basePrice(it))}`}
                         </button>
                       </div>
                     </div>

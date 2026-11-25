@@ -54,6 +54,10 @@ export type MenuItem = {
   dayparts?: string[];
   cost_cents?: number;
   translations?: import("./sell").Translations;
+  /** opções e adicionais (tamanho, ponto, adicionais...) */
+  options?: import("./options").OptionGroup[];
+  /** preço promocional, com dias e horário opcionais */
+  promo?: import("./options").Promo;
 };
 
 /** nenhum → gerando (IA) → processando → revisar (dono confere) → pronto | erro */
@@ -64,6 +68,8 @@ export type PublicItem = Omit<MenuItem, `model_${string}` | "cost_cents"> & {
   model: { glb: string; usdz: string; dims: { w: number; d: number; h: number } | null } | null;
   /** pratos que os clientes mais pedem junto com este (calculado dos pedidos) */
   bought?: string[];
+  /** um dos mais pedidos do restaurante nos últimos 30 dias */
+  popular?: boolean;
 };
 
 export type Category = { id: string; name: string; position: number; translations?: import("./sell").Translations };
@@ -89,7 +95,7 @@ export type PublicRestaurant = {
 
 export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };
 
-export type CartLine = { itemId: string; qty: number; notes: string; viaAi: boolean; viaSuggest?: boolean };
+export type CartLine = { itemId: string; qty: number; notes: string; viaAi: boolean; viaSuggest?: boolean; opts?: import("./options").Picks };
 
 export type WaiterAction =
   | { type: "add"; itemId: string; qty: number; notes?: string }

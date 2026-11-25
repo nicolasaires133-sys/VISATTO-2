@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
+import { basePrice, hasRequired, picksKey, priceWith, promoActive, type Picks } from "@/lib/options";
 import { brl, PAYMENT_LABEL, type CartLine, type Category, type PublicItem as MenuItem, type PublicRestaurant } from "@/lib/format";
 import { ArBadge, CloseButton, Dims, leavingPage, Pill, save, Sheet, Stepper, store, Thumb } from "./parts";
 import type { ChatEntry } from "./Waiter";
@@ -164,7 +165,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const name = (i: MenuItem) => tr(i, lang).name;
   const lines = cart.filter((l) => byId.get(l.itemId)?.available);
   const count = lines.reduce((s, l) => s + l.qty, 0);
-  const subtotal = lines.reduce((s, l) => s + byId.get(l.itemId)!.price_cents * l.qty, 0);
+  const subtotal = lines.reduce((s, l) => s + unitOf(byId.get(l.itemId)!, l.opts) * l.qty, 0);
   const qtyOf = (id: string) => lines.reduce((s, l) => s + (l.itemId === id ? l.qty : 0), 0);
 
   // filtros de dieta: só aparecem os que existem nas etiquetas do cardápio
@@ -257,18 +258,27 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     toastTimer.current = setTimeout(() => setToast(""), 2000);
   }
 
-  function addToCart(itemId: string, qty = 1, notes = "", viaAi = false, viaSuggest = false, from?: Element | null) {
+  function addToCart(itemId: string, qty = 1, notes = "", viaAi = false, viaSuggest = false, from?: Element | null, opts?: Picks) {
     const item = byId.get(itemId);
     if (!item || !item.available) return;
+    // prato com escolha obrigatória (tamanho, ponto...): abre a folha do prato para a pessoa escolher
+    if (!opts && hasRequired(item.options)) {
+      setChatOpen(false);
+      setCartOpen(false);
+      setDetail(item);
+      flash(t("chooseOptions", { name: name(item) }));
+      return;
+    }
     flyToBag(from ?? null, color);
+    const key = picksKey(opts);
     setCart((c) => {
-      const i = c.findIndex((l) => l.itemId === itemId && l.notes === notes);
+      const i = c.findIndex((l) => l.itemId === itemId && l.notes === notes && picksKey(l.opts) === key);
       if (i >= 0) {
         const copy = [...c];
         copy[i] = { ...copy[i], qty: Math.min(50, copy[i].qty + qty), viaAi: copy[i].viaAi || viaAi, viaSuggest: copy[i].viaSuggest || viaSuggest };
         return copy;
       }
-      return [...c, { itemId, qty, notes, viaAi, viaSuggest }];
+      return [...c, { itemId, qty, notes, viaAi, viaSuggest, ...(opts && Object.keys(opts).length ? { opts } : {}) }];
     });
     flash(t("added", { name: `${qty > 1 ? `${qty}x ` : ""}${name(item)}` }));
   }
@@ -475,7 +485,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                     </div>
                     <button onClick={() => setDetail(i)} className="block w-full text-left">
                       <span className="mt-2 line-clamp-2 block pr-1 text-[14.5px] font-bold leading-tight">{name(i)}</span>
-                      <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(i.price_cents)}</span>
+                      <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(basePrice(i))}</span>
                       {hist[i.id] > 0 && <span className="block text-[12.5px] text-black/45">{t("orderedTimes", { n: hist[i.id] })}</span>}
                     </button>
                   </div>
@@ -495,7 +505,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                       {i.model && <ArBadge className="absolute left-2 top-2" />}
                     </span>
                     <span className="mt-2 line-clamp-2 block text-[14.5px] font-bold leading-tight">{name(i)}</span>
-                    <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(i.price_cents)}</span>
+                    <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(basePrice(i))}</span>
                   </button>
                 ))}
               </div>
@@ -512,7 +522,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                     {i.model && <ArBadge className="absolute left-2.5 top-2.5" />}
                     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent p-3 pt-10 text-white">
                       <span className="line-clamp-2 font-display text-[16px] font-bold leading-tight">{name(i)}</span>
-                      <span className="tnum mt-0.5 block text-[14px] font-semibold">{brl(i.price_cents)}</span>
+                      <span className="tnum mt-0.5 block text-[14px] font-semibold">{brl(basePrice(i))}</span>
                     </span>
                   </button>
                 ))}
@@ -591,8 +601,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           onClose={() => setDetail(null)}
           onOpen={(x) => setDetail(x)}
           onAddPair={(id) => addToCart(id, 1, "", false, true)}
-          onAdd={(qty, notes) => {
-            addToCart(detail.id, qty, notes);
+          onAdd={(qty, notes, opts) => {
+            addToCart(detail.id, qty, notes, false, false, null, opts ?? {});
             setDetail(null);
           }}
         />
@@ -681,8 +691,10 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
             <span className="block font-display text-[17px] font-bold leading-snug">{name}</span>
             {description && <span className="mt-1 line-clamp-2 block text-[14px] leading-snug text-black/60">{description}</span>}
             <span className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="tnum mr-1 text-[15.5px] font-bold" style={{ color }}>{brl(i.price_cents)}</span>
+              <PriceTag item={i} color={color} t={t} />
               {!i.available && <Pill tone="warn">{t("soldOut")}</Pill>}
+              {i.available && promoActive(i.promo ?? null, i.price_cents) && <PromoPill item={i} t={t} />}
+              {i.available && i.popular && <PopularPill t={t} />}
               {i.model && <ArBadge />}
               {i.serves > 1 && <Pill>{t("serves", { n: i.serves })}</Pill>}
               {i.tags.slice(0, i.model ? 1 : 2).map((tag) => <Pill key={tag}>{tag}</Pill>)}
@@ -719,7 +731,7 @@ function SuggestRow({ item, name, color, t, onOpen, onAdd }: { item: MenuItem; n
         <Thumb item={item} className="h-12 w-12 shrink-0 rounded-xl" />
         <span className="min-w-0">
           <span className="block truncate text-[14.5px] font-semibold">{name}</span>
-          <span className="tnum text-[13.5px] text-black/60">{brl(item.price_cents)}</span>
+          <span className="tnum text-[13.5px] text-black/60">{brl(basePrice(item))}</span>
         </span>
       </button>
       <button type="button" onClick={(e) => onAdd(e.currentTarget)} aria-label={t("addAria", { name })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition-transform active:scale-90" style={{ background: color }}>
@@ -754,7 +766,7 @@ function ItemSheet({
   goesWith: MenuItem[];
   onClose: () => void;
   onOpen: (x: MenuItem) => void;
-  onAdd: (qty: number, notes: string) => void;
+  onAdd: (qty: number, notes: string, opts?: Picks) => void;
   onAddPair: (id: string) => void;
   onTrack: (type: "view3d" | "ar") => void;
   fav: boolean;
@@ -762,6 +774,29 @@ function ItemSheet({
 }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
+  const [picks, setPicks] = useState<Picks>({});
+  const [tried, setTried] = useState(false);
+  const groups = item.options ?? [];
+  const priced = priceWith(item, picks);
+  const unit = priced.ok ? priced.unit : basePrice(item);
+  const missing = groups.find((g) => (picks[g.id]?.length ?? 0) < g.min);
+  function toggle(gid: string, cid: string, max: number) {
+    setPicks((p) => {
+      const cur = p[gid] ?? [];
+      if (max === 1) return { ...p, [gid]: [cid] };
+      if (cur.includes(cid)) return { ...p, [gid]: cur.filter((x) => x !== cid) };
+      if (cur.length >= max) return p;
+      return { ...p, [gid]: [...cur, cid] };
+    });
+  }
+  function add() {
+    if (missing) {
+      setTried(true);
+      document.getElementById(`grp-${missing.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    onAdd(qty, notes.trim(), priced.ok ? priced.picks : {});
+  }
   const [view, setView] = useState<"3d" | "foto">(item.model ? "3d" : "foto");
   const [added, setAdded] = useState<string[]>([]);
   // a lista fica parada enquanto a folha está aberta (o item adicionado vira "no pedido", não some)
@@ -783,9 +818,9 @@ function ItemSheet({
                 onEvent={onTrack}
                 hideDims
                 arTitle={name}
-                arSubtitle={brl(item.price_cents)}
-                arAction={!paused && item.available ? t("addToOrder") : undefined}
-                onArAction={!paused && item.available ? () => onAdd(1, "") : undefined}
+                arSubtitle={brl(basePrice(item))}
+                arAction={!paused && item.available && !hasRequired(groups) ? t("addToOrder") : undefined}
+                onArAction={!paused && item.available && !hasRequired(groups) ? () => onAdd(1, "", {}) : undefined}
               />
             </div>
           ) : (
@@ -813,8 +848,17 @@ function ItemSheet({
           <div>
             <div className="flex items-start justify-between gap-4">
               <h3 className="text-[24px] font-extrabold leading-tight">{name}</h3>
-              <p className="tnum shrink-0 pt-1 font-display text-[20px] font-bold" style={{ color }}>{brl(item.price_cents)}</p>
+              <div className="shrink-0 pt-1 text-right">
+                <p className="tnum font-display text-[20px] font-bold" style={{ color }}>{brl(basePrice(item))}</p>
+                {basePrice(item) < item.price_cents && <p className="tnum text-[13px] text-black/45 line-through">{brl(item.price_cents)}</p>}
+              </div>
             </div>
+            {(promoActive(item.promo ?? null, item.price_cents) || item.popular) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {promoActive(item.promo ?? null, item.price_cents) && <PromoPill item={item} t={t} />}
+                {item.popular && <PopularPill t={t} />}
+              </div>
+            )}
             {description && <p className="mt-2 text-[15.5px] leading-relaxed text-black/70">{description}</p>}
             <div className="mt-3 flex flex-wrap gap-1.5">
               <Pill>{t("servesLong", { n: item.serves, p: item.serves === 1 ? t("person") : t("people") })}</Pill>
@@ -841,6 +885,47 @@ function ItemSheet({
               <Icon name="right" size={16} />
             </button>
           )}
+
+          {item.available && !paused && groups.map((g) => {
+            const chosen = picks[g.id] ?? [];
+            const bad = tried && chosen.length < g.min;
+            return (
+              <fieldset key={g.id} id={`grp-${g.id}`} className={`rounded-2xl p-3.5 ring-1 transition-colors ${bad ? "bg-red-50 ring-red-300" : "ring-black/10"}`}>
+                <legend className="sr-only">{g.name}</legend>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[16px] font-bold">{g.name}</p>
+                  <span className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${g.min > 0 ? (chosen.length >= g.min ? "bg-emerald-100 text-emerald-800" : "bg-ink text-white") : "bg-black/[0.06] text-black/60"}`}>
+                    {g.min > 0 ? (chosen.length >= g.min ? "✓" : t("required")) : t("optional")}
+                  </span>
+                </div>
+                <p className="-mt-1 mb-2 text-[13px] text-black/55">{g.max === 1 ? t("chooseOne") : g.min > 1 ? t("chooseAtLeast", { n: g.min }) : t("chooseUpTo", { n: g.max })}</p>
+                <div className="space-y-1.5">
+                  {g.choices.map((c) => {
+                    const on = chosen.includes(c.id);
+                    const full = !on && g.max > 1 && chosen.length >= g.max;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        role={g.max === 1 ? "radio" : "checkbox"}
+                        aria-checked={on}
+                        disabled={full}
+                        onClick={() => toggle(g.id, c.id, g.max)}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] ring-1 transition-colors disabled:opacity-40 ${on ? "bg-white ring-2" : "bg-white ring-black/10"}`}
+                        style={on ? { boxShadow: `inset 0 0 0 2px ${color}`, outline: "none" } : undefined}
+                      >
+                        <span className={`grid h-5 w-5 shrink-0 place-items-center ${g.max === 1 ? "rounded-full" : "rounded-md"} ring-2`} style={{ background: on ? color : "white", boxShadow: on ? `0 0 0 2px ${color}` : undefined, borderColor: color }}>
+                          {on && <Icon name="check" size={13} stroke={3} className="text-white" />}
+                        </span>
+                        <span className="flex-1 font-medium">{c.name}</span>
+                        {c.price_cents > 0 && <span className="tnum text-[14px] text-black/60">+ {brl(c.price_cents)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            );
+          })}
 
           {item.available && !paused && (
             <div>
@@ -873,9 +958,9 @@ function ItemSheet({
         ) : item.available ? (
           <>
             <Stepper qty={qty} min={1} onChange={(q) => setQty(Math.min(50, q))} size="lg" />
-            <button onClick={() => onAdd(qty, notes.trim())} className="btn h-12 flex-1 justify-between px-5 text-[15.5px] text-white" style={{ background: color }}>
-              <span>{t("add")}</span>
-              <span className="tnum">{brl(item.price_cents * qty)}</span>
+            <button onClick={add} className={`btn h-12 flex-1 justify-between px-5 text-[15.5px] text-white ${missing ? "opacity-60" : ""}`} style={{ background: color }}>
+              <span className="truncate">{missing && tried ? t("missingChoice", { g: missing.name.toLowerCase() }) : t("add")}</span>
+              <span className="tnum">{brl(unit * qty)}</span>
             </button>
           </>
         ) : (
@@ -1012,8 +1097,9 @@ function CartSheet(props: {
                 <Thumb item={it!} className="h-14 w-14 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold leading-tight">{tr(it!, lang).name}</p>
+                  {optSummary(it!, l.opts) && <p className="mt-0.5 text-[13px] text-black/65">{optSummary(it!, l.opts)}</p>}
                   {l.notes && <p className="mt-0.5 text-[13px] text-black/55">{l.notes}</p>}
-                  <p className="tnum mt-0.5 text-[14px] text-black/65">{brl(it!.price_cents * l.qty)}</p>
+                  <p className="tnum mt-0.5 text-[14px] text-black/65">{brl(unitOf(it!, l.opts) * l.qty)}</p>
                 </div>
                 <Stepper qty={l.qty} onChange={(q) => setQty(idx, q)} />
               </div>
@@ -1115,7 +1201,7 @@ function CartSheet(props: {
             <a
               className="mt-2 flex h-10 items-center justify-center gap-1.5 text-[14px] font-semibold text-black/60 underline-offset-2 hover:underline"
               href={`https://wa.me/55${r.whatsapp.replace(/^55/, "")}?text=${encodeURIComponent(
-                `${t("yourOrder")} (${r.name}):\n${visible.map(({ l, it }) => `${l.qty}x ${tr(it!, "pt").name}${l.notes ? ` (${l.notes})` : ""}`).join("\n")}\n${t("total")}: ${brl(subtotal + fee)}${f.address ? `\n${f.address}` : ""}`
+                `${t("yourOrder")} (${r.name}):\n${visible.map(({ l, it }) => `${l.qty}x ${tr(it!, "pt").name}${optSummary(it!, l.opts) ? ` [${optSummary(it!, l.opts)}]` : ""}${l.notes ? ` (${l.notes})` : ""}`).join("\n")}\n${t("total")}: ${brl(subtotal + fee)}${f.address ? `\n${f.address}` : ""}`
               )}`}
               target="_blank"
               rel="noopener"
@@ -1127,4 +1213,40 @@ function CartSheet(props: {
       </form>
     </Sheet>
   );
+}
+
+/** Preço de uma unidade com as escolhas (e a promoção, se estiver valendo). */
+function unitOf(item: MenuItem, opts?: Picks) {
+  const p = priceWith(item, opts);
+  return p.ok ? p.unit : basePrice(item);
+}
+function optSummary(item: MenuItem, opts?: Picks) {
+  if (!opts || !item.options?.length) return "";
+  const p = priceWith(item, opts);
+  return p.ok ? p.summary : "";
+}
+
+/** Preço na lista: promoção riscando o preço normal; "a partir de" quando as opções mudam o preço. */
+function PriceTag({ item, color, t }: { item: MenuItem; color: string; t: T }) {
+  const now = basePrice(item);
+  const from = (item.options ?? []).some((g) => g.choices.some((c) => c.price_cents > 0));
+  const minAdd = (item.options ?? []).filter((g) => g.min > 0).reduce((s, g) => s + Math.min(...g.choices.map((c) => c.price_cents)) * g.min, 0);
+  return (
+    <span className="mr-1 inline-flex items-baseline gap-1.5">
+      {from && <span className="text-[12.5px] text-black/50">{t("fromPrice")}</span>}
+      <span className="tnum text-[15.5px] font-bold" style={{ color }}>{brl(now + minAdd)}</span>
+      {now < item.price_cents && <span className="tnum text-[13px] text-black/40 line-through">{brl(item.price_cents + minAdd)}</span>}
+    </span>
+  );
+}
+function PopularPill({ t }: { t: T }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[12px] font-bold text-amber-900">
+      <Icon name="sparkle" size={12} /> {t("popular")}
+    </span>
+  );
+}
+function PromoPill({ item, t }: { item: MenuItem; t: T }) {
+  const to = item.promo?.to;
+  return <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-bold text-emerald-900">{to ? t("promoUntil", { h: to.replace(":00", "h").replace(":", "h") }) : t("promo")}</span>;
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api, dataUrlToBlob, resizeImage, uploadFile } from "@/lib/client";
 import Icon from "@/components/Icon";
 import ModelStudio from "./ModelStudio";
+import { OptionsEditor, PromoEditor, fromEditGroups, fromEditPromo, toEditGroups, toEditPromo } from "./OptionsEditor";
 import { usePainel } from "../ctx";
 import { Confirm, Dialog, IconButton, Notice, PageHead, Switch, SwitchRow, Thumb } from "../ui";
 import { brl, TAG_OPTIONS, type Category, type MenuItem } from "@/lib/format";
@@ -211,6 +212,8 @@ export default function Cardapio() {
                         <p className="truncate font-display text-[16.5px] font-bold leading-tight">{i.name}</p>
                         <p className="mt-1 line-clamp-1 text-[13.5px] text-black/55">
                           <b className="tnum text-[14.5px] text-ink">{brl(i.price_cents)}</b>
+                          {i.promo ? <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[11.5px] font-bold text-emerald-800">promoção</span> : null}
+                          {i.options?.length ? <span className="ml-1.5 rounded bg-black/[0.07] px-1.5 py-0.5 text-[11.5px] font-bold text-black/65">{i.options.length} {i.options.length === 1 ? "opção" : "opções"}</span> : null}
                           {i.description ? ` · ${i.description}` : ""}
                         </p>
                       </button>
@@ -317,6 +320,8 @@ function ItemForm({
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
+  const [optGroups, setOptGroups] = useState(() => toEditGroups(draft.options));
+  const [promoEdit, setPromoEdit] = useState(() => toEditPromo(draft.promo));
   const isNew = !draft.id;
 
   const [uploading, setUploading] = useState(false);
@@ -359,10 +364,23 @@ function ItemForm({
       setErr(!f.name?.trim() ? "Informe o nome do prato." : "Informe o preço do prato.");
       return;
     }
+    const promo = fromEditPromo(promoEdit);
+    const normal = Math.round(Number(String(f.price).replace(/\./g, "").replace(",", ".")) * 100);
+    if (promoEdit.on && (!promo || (normal > 0 && promo.price_cents >= normal))) {
+      setTab("venda");
+      setErr(!promo ? "Informe o preço da promoção ou desligue a promoção." : "O preço da promoção precisa ser menor que o preço normal.");
+      return;
+    }
+    const half = optGroups.find((g) => g.name.trim() && !g.choices.some((c) => c.name.trim()));
+    if (half) {
+      setTab("info");
+      setErr(`Coloque pelo menos uma opção em “${half.name}”, ou apague o grupo.`);
+      return;
+    }
     setBusy(true);
     setErr("");
     try {
-      const body = { ...f, price: f.price, cost: f.cost ?? "" };
+      const body = { ...f, price: f.price, cost: f.cost ?? "", options: fromEditGroups(optGroups), promo };
       if (isNew) {
         const { id } = await api<{ id: string }>("/api/painel/items", { body });
         onSaved(id);
@@ -408,6 +426,7 @@ function ItemForm({
       ) : (
         <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="space-y-4 overflow-y-auto p-5">
+            {tab === "venda" && <PromoEditor p={promoEdit} onChange={setPromoEdit} price={String(f.price ?? "")} />}
             {tab === "venda" && <SellFields f={f} setF={setF} others={others} />}
             <div className={tab === "venda" ? "hidden" : "space-y-4"}>
             <label className="flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-dashed border-black/20 p-3 hover:border-ink">
@@ -456,6 +475,7 @@ function ItemForm({
                 </select>
               </div>
             </div>
+            <OptionsEditor groups={optGroups} onChange={setOptGroups} />
             <fieldset>
               <legend className="label">Etiquetas</legend>
               <div className="flex flex-wrap gap-1.5">

@@ -60,6 +60,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
     const [k] = await db.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM items WHERE restaurant_id=$1 AND allergens_known`, [exists[0].id]);
     if (!k?.n) await applySell(db, exists[0].id);
     await applyLoyalty(db, exists[0].id);
+    await applyOptions(db, exists[0].id);
     return { created: false, password: null };
   }
 
@@ -108,7 +109,30 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
   }
   await applySell(db, rid);
   await applyLoyalty(db, rid);
+  await applyOptions(db, rid);
   return { created: true, password };
+}
+
+/** Opções, adicionais e promoções de exemplo (só em pratos que ainda não têm nada disso). */
+async function applyOptions(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
+  const list: [string, unknown[], unknown][] = [
+    ["Pizza Calabresa Grande", [{ id: "borda", name: "Borda recheada", min: 0, max: 1, choices: [{ id: "cat", name: "Catupiry", price_cents: 1200 }, { id: "ched", name: "Cheddar", price_cents: 1200 }] }], {}],
+    ["Pizza Margherita Grande", [{ id: "borda", name: "Borda recheada", min: 0, max: 1, choices: [{ id: "cat", name: "Catupiry", price_cents: 1200 }, { id: "ched", name: "Cheddar", price_cents: 1200 }] }], {}],
+    ["Espaguete ao Pomodoro", [
+      { id: "massa", name: "Massa", min: 1, max: 1, choices: [{ id: "esp", name: "Espaguete", price_cents: 0 }, { id: "pen", name: "Penne", price_cents: 0 }, { id: "tal", name: "Talharim fresco", price_cents: 600 }] },
+      { id: "add", name: "Adicionais", min: 0, max: 2, choices: [{ id: "parm", name: "Parmesão extra", price_cents: 500 }, { id: "bac", name: "Bacon crocante", price_cents: 700 }, { id: "alm", name: "Almôndegas (3 un.)", price_cents: 1400 }] },
+    ], {}],
+    ["Bruschetta Tradicional (4 un.)", [], { price_cents: 2790, days: [], from: "", to: "" }],
+    ["Vinho Tinto da Casa (taça)", [], { price_cents: 1900, days: [1, 2, 3, 4, 5], from: "17:00", to: "20:00" }],
+  ];
+  for (const [n, options, promo] of list) {
+    await db.query(
+      `UPDATE items SET options = CASE WHEN options IS NULL OR options='[]'::jsonb THEN $3::jsonb ELSE options END,
+                        promo = CASE WHEN promo IS NULL OR promo='{}'::jsonb THEN $4::jsonb ELSE promo END
+        WHERE restaurant_id=$1 AND name=$2`,
+      [rid, n, JSON.stringify(options), JSON.stringify(promo)]
+    );
+  }
 }
 
 /** Combinações, alergênicos, horários e custo dos pratos da demonstração. */

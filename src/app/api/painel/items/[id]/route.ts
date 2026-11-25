@@ -50,6 +50,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
      JSON.stringify(f.allergens), f.allergens_known, JSON.stringify(f.pairs.filter((x) => x !== id)), f.promote,
      f.substitute_id === id ? "" : f.substitute_id, JSON.stringify(f.dayparts), f.cost_cents]
   );
+  await db.query(`UPDATE items SET options=$3::jsonb, promo=$4::jsonb WHERE id=$1 AND restaurant_id=$2`, [id, r.id, JSON.stringify(f.options), JSON.stringify(f.promo ?? {})]);
   if (prev.image && prev.image !== f.image) await deleteFile(prev.image);
   return ok({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { getDB } from "./db";
 import type { Category, MenuItem } from "./format";
+import { normalizeOptions, normalizePromo } from "./options";
 
 export async function loadMenu(restaurantId: string, opts: { withImages?: boolean } = {}) {
   const db = await getDB();
@@ -12,7 +13,7 @@ export async function loadMenu(restaurantId: string, opts: { withImages?: boolea
             serves, tags, available, featured, position,
             model_status, model_glb_url, model_usdz_url, model_width_cm, model_dims, model_progress,
             model_published, model_error, allergens, allergens_known, pairs, promote, substitute_id, dayparts,
-            cost_cents, translations
+            cost_cents, translations, options, promo
        FROM items WHERE restaurant_id = $1 ORDER BY position, name`,
     [restaurantId]
   );
@@ -37,6 +38,8 @@ export async function loadMenu(restaurantId: string, opts: { withImages?: boolea
     i.translations = json(i.translations, {});
     i.cost_cents = Number(i.cost_cents) || 0;
     if (i.substitute_id && !ids.has(i.substitute_id)) i.substitute_id = "";
+    i.options = normalizeOptions(i.options);
+    i.promo = normalizePromo(i.promo);
   }
   for (const c of categories) c.translations = json(c.translations, {});
   return { categories, items };
@@ -85,8 +88,27 @@ export async function boughtTogether(restaurantId: string): Promise<Map<string, 
   return map;
 }
 
+/** Os 3 pratos mais pedidos nos últimos 30 dias (pelo menos 5 unidades), guardado por 10 minutos. */
+const popularCache = new Map<string, { at: number; set: Set<string> }>();
+export async function popularItems(restaurantId: string): Promise<Set<string>> {
+  const hit = popularCache.get(restaurantId);
+  if (hit && Date.now() - hit.at < 600_000) return hit.set;
+  const db = await getDB();
+  const rows = await db
+    .query<{ item_id: string }>(
+      `SELECT oi.item_id FROM order_items oi JOIN orders o ON o.id = oi.order_id
+        WHERE o.restaurant_id = $1 AND o.status <> 'cancelado' AND o.created_at > NOW() - INTERVAL '30 days' AND oi.item_id IS NOT NULL
+        GROUP BY oi.item_id HAVING SUM(oi.qty) >= 5 ORDER BY SUM(oi.qty) DESC LIMIT 3`,
+      [restaurantId]
+    )
+    .catch(() => []);
+  const set = new Set(rows.map((r) => r.item_id));
+  popularCache.set(restaurantId, { at: Date.now(), set });
+  return set;
+}
+
 /** Versão pública do cardápio: só expõe o 3D de pratos com modelo publicado. */
-export function publicItems(items: MenuItem[], bought?: Map<string, string[]>) {
+export function publicItems(items: MenuItem[], bought?: Map<string, string[]>, popular?: Set<string>) {
   return items.map((i) => {
     const has3d = i.model_published && i.model_status === "pronto" && !!i.model_glb_url;
     return {
@@ -109,6 +131,9 @@ export function publicItems(items: MenuItem[], bought?: Map<string, string[]>) {
       dayparts: i.dayparts ?? [],
       translations: i.translations ?? {},
       bought: bought?.get(i.id) ?? [],
+      options: i.options ?? [],
+      promo: i.promo ?? null,
+      popular: popular?.has(i.id) ?? false,
       model: has3d ? { glb: i.model_glb_url, usdz: i.model_usdz_url || "", dims: i.model_dims || null } : null,
     };
   });
@@ -129,6 +154,6 @@ export async function publicMenu(slug: string) {
   const { readLoyalty } = await import("./loyalty");
   pub.loyalty = readLoyalty(pub.loyalty);
   const { waiterEnabled } = await import("./ai");
-  const bought = await boughtTogether(r.id);
-  return { restaurant: pub, categories, items: publicItems(items, bought), waiter: waiterEnabled() };
+  const [bought, popular] = await Promise.all([boughtTogether(r.id), popularItems(r.id)]);
+  return { restaurant: pub, categories, items: publicItems(items, bought, popular), waiter: waiterEnabled() };
 }

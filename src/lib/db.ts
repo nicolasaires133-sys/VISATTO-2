@@ -224,6 +224,11 @@ CREATE INDEX IF NOT EXISTS loyalty_rest_phone ON loyalty_redemptions(restaurant_
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS amount_cents INTEGER DEFAULT 0;
 ALTER TABLE calls ADD COLUMN IF NOT EXISTS method TEXT DEFAULT '';
 
+-- v8: opções e adicionais, preço promocional com horário
+ALTER TABLE items ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS promo JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS options TEXT DEFAULT '';
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;

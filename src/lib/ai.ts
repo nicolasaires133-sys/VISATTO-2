@@ -1,6 +1,7 @@
 // Toda a inteligência do produto fica aqui.
 // Com ANTHROPIC_API_KEY configurada usa o Claude; sem a chave entra em "modo demonstração"
 // (respostas simples por palavra-chave) para dar para testar o app sem custo.
+import { basePrice } from "./options";
 import Anthropic from "@anthropic-ai/sdk";
 import type { MenuItem, Category, CartLine, WaiterAction } from "./format";
 import { brl } from "./format";
@@ -37,7 +38,10 @@ function menuText(categories: Category[], items: MenuItem[]) {
         `id=${i.id}`,
         `categoria=${catName.get(i.category_id ?? "") ?? "Outros"}`,
         `nome=${i.name}`,
-        `preço=${brl(i.price_cents)}`,
+        `preço=${brl(basePrice(i))}${basePrice(i) < i.price_cents ? ` (EM PROMOÇÃO agora, normal ${brl(i.price_cents)})` : ""}`,
+        i.options?.length
+          ? `opções=${i.options.map((g) => `${g.name}${g.min ? " (obrigatório)" : ""}: ${g.choices.map((c) => c.name + (c.price_cents ? ` +${brl(c.price_cents)}` : "")).join(", ")}`).join("; ")} (o cliente escolhe na tela do prato)`
+          : "",
         `serve=${i.serves} pessoa(s)`,
         i.tags?.length ? `tags=${i.tags.join(", ")}` : "",
         i.featured ? "destaque da casa" : "",

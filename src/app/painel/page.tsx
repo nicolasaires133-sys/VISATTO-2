@@ -7,6 +7,7 @@ import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { brl, PAYMENT_LABEL, STATUS_LABEL } from "@/lib/format";
 import { usePainel, type Call, type Order } from "./ctx";
+import Cozinha from "./Cozinha";
 
 const NEXT: Record<string, { mesa: string; delivery: string; label: { mesa: string; delivery: string } }> = {
   novo: { mesa: "preparo", delivery: "preparo", label: { mesa: "Aceitar", delivery: "Aceitar" } },
@@ -33,6 +34,7 @@ export default function Pedidos() {
   const [tab, setTab] = useState("novo");
   const [ticket, setTicket] = useState<Order | null>(null);
   const [refuse, setRefuse] = useState<Order | null>(null);
+  const [kitchen, setKitchen] = useState(false);
   const [, tick] = useState(0);
 
   // os "há X min" andam sozinhos
@@ -112,6 +114,10 @@ export default function Pedidos() {
         </div>
         <div className="flex flex-wrap gap-2">
           <ComoUsar tela="pedidos" />
+          <button onClick={() => setKitchen(true)} className="btn-ghost" title="Tela cheia para tablet ou TV na cozinha">
+            <Icon name="chef" size={17} />
+            Modo cozinha
+          </button>
           <button onClick={() => setSound(!sound)} aria-pressed={sound} className={sound ? "btn-dark" : "btn-ghost"}>
             <Icon name={sound ? "sound" : "mute"} size={17} />
             {sound ? "Som ligado" : "Ligar som de aviso"}
@@ -225,6 +231,7 @@ export default function Pedidos() {
       )}
 
       {ticket && <Ticket o={ticket} name={r.name} />}
+      {kitchen && <Cozinha orders={orders} onMove={move} onClose={() => setKitchen(false)} />}
     </div>
   );
 }

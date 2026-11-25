@@ -3,6 +3,7 @@ import { ok, fail } from "@/lib/http";
 import { loadMenu, restaurantBySlug } from "@/lib/menu";
 import { allow, clientIp } from "@/lib/limit";
 import { toCents } from "@/lib/http";
+import { priceWith } from "@/lib/options";
 
 export async function POST(req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -36,15 +37,23 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   const byId = new Map(items.map((i) => [i.id, i]));
   const lines = (Array.isArray(b.items) ? b.items : [])
     .slice(0, 50)
-    .map((l: any) => ({ item: byId.get(String(l.itemId)), qty: Math.min(50, Math.max(1, Number(l.qty) || 1)), notes: String(l.notes || "").slice(0, 200), viaAi: Boolean(l.viaAi), viaSuggest: !l.viaAi && Boolean(l.viaSuggest) }))
+    .map((l: any) => ({ item: byId.get(String(l.itemId)), qty: Math.min(50, Math.max(1, Number(l.qty) || 1)), notes: String(l.notes || "").slice(0, 200), viaAi: Boolean(l.viaAi), viaSuggest: !l.viaAi && Boolean(l.viaSuggest), opts: l.opts && typeof l.opts === "object" ? l.opts : undefined, unit: 0, summary: "" }))
     .filter((l: any) => l.item);
   if (!lines.length) return fail("Seu carrinho está vazio.");
   const unavailable = lines.filter((l: any) => !l.item.available);
   if (unavailable.length) return fail(`Esgotado no momento: ${unavailable.map((l: any) => l.item.name).join(", ")}.`);
+  // preço de cada unidade: promoção (se valendo agora) + opções escolhidas
+  const now = new Date();
+  for (const l of lines as any[]) {
+    const p = priceWith(l.item, l.opts, now);
+    if (!p.ok) return fail(p.error);
+    l.unit = p.unit;
+    l.summary = p.summary;
+  }
 
-  const subtotal = lines.reduce((s: number, l: any) => s + l.item.price_cents * l.qty, 0);
-  const aiCents = lines.filter((l: any) => l.viaAi).reduce((s: number, l: any) => s + l.item.price_cents * l.qty, 0);
-  const suggestCents = lines.filter((l: any) => l.viaSuggest).reduce((s: number, l: any) => s + l.item.price_cents * l.qty, 0);
+  const subtotal = lines.reduce((s: number, l: any) => s + l.unit * l.qty, 0);
+  const aiCents = lines.filter((l: any) => l.viaAi).reduce((s: number, l: any) => s + l.unit * l.qty, 0);
+  const suggestCents = lines.filter((l: any) => l.viaSuggest).reduce((s: number, l: any) => s + l.unit * l.qty, 0);
   const lang = ["en", "es"].includes(b.lang) ? String(b.lang) : "pt";
   const optin = channel === "delivery" && Boolean(b.marketingOptin);
   if (changeFor && changeFor < subtotal) return fail("O valor do troco precisa ser maior que o total do pedido.");
@@ -78,10 +87,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
 
   const values: unknown[] = [];
   const rows = lines.map((l: any, i: number) => {
-    values.push(newId(), id, l.item.id, l.item.name, l.item.price_cents, l.qty, l.notes, l.viaAi, l.viaSuggest);
-    const b = i * 9;
-    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9})`;
+    // as escolhas vão junto da observação, para aparecerem na cozinha, na comanda e na conta sem mudar nada lá
+    const notes = (l.summary ? [l.summary, l.notes ? `Obs: ${l.notes}` : ""].filter(Boolean).join(" · ") : l.notes).slice(0, 400);
+    values.push(newId(), id, l.item.id, l.item.name, l.unit, l.qty, notes, l.viaAi, l.viaSuggest, l.summary);
+    const b = i * 10;
+    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10})`;
   });
-  await db.query(`INSERT INTO order_items (id, order_id, item_id, name, price_cents, qty, notes, via_ai, via_suggestion) VALUES ${rows.join(",")}`, values);
+  await db.query(`INSERT INTO order_items (id, order_id, item_id, name, price_cents, qty, notes, via_ai, via_suggestion, options) VALUES ${rows.join(",")}`, values);
   return ok({ id, number: n });
 }
