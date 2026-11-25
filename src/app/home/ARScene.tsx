@@ -59,7 +59,7 @@ export default function ARScene() {
 
               {/* o prato */}
               <div className="absolute inset-x-[-10%] top-[22%] h-[64%]" style={{ opacity: "var(--land)", transform: "translateY(calc((1 - var(--land)) * -18%)) scale(calc(0.9 + var(--land) * 0.1))" }}>
-                <Model ref={model} src="/demo/tiramisu.glb" alt="Tiramisù em 3D pousado na mesa" autoRotate={false} orbit="-30deg 66deg 118%" exposure={1.15} shadow={1.4} decay={160} className="h-full w-full" />
+                <Model ref={model} src="/demo/tiramisu.glb?v=4" alt="Tiramisù em 3D pousado na mesa" autoRotate={false} orbit="-30deg 66deg 118%" exposure={1.15} shadow={1.4} decay={160} className="h-full w-full" />
               </div>
 
               {/* interface do "ver na mesa" */}

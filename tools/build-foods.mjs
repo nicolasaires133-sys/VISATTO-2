@@ -152,44 +152,65 @@ async function layeredSlice(doc, buf, mesh, { W, D, H, R = 0.006, F = 0.004, Y0 
   return { outline };
 }
 
-// LASANHA (prato de 26 cm): massa, molho à bolonhesa, bechamel e queijo gratinado
+// LASANHA (prato de 26 cm): camadas onduladas que cedem, ragu em pedaços escorrendo, bechamel,
+// massa com bordas aparentes e queijo gratinado derretendo pelas bordas
 async function lasanha() {
   const { doc, buf, mesh } = start("lasanha");
-  const W = 0.1, D = 0.085, H = 0.058;
-  // camadas de baixo para cima: massa, molho, bechamel, massa, molho, bechamel, massa, molho, queijo
-  const L = [["m", 0.06], ["s", 0.2], ["b", 0.07], ["m", 0.05], ["s", 0.19], ["b", 0.07], ["m", 0.05], ["s", 0.14], ["q", 0.17]];
+  const W = 0.1, D = 0.082, H = 0.056;
+  const L = [["m", 0.045], ["s", 0.17], ["b", 0.06], ["m", 0.04], ["s", 0.17], ["b", 0.06], ["m", 0.04], ["s", 0.13], ["q", 0.285]];
   const cuts = []; { let acc = 0; for (const [k, h] of L) { cuts.push([k, acc, acc + h]); acc += h; } }
-  const kindAt = (u, t) => { const w = fbmWrap(u, t * 4, 10, 3) * 0.03; for (const [k, a, b] of cuts) if (t + w < b) return k; return "q"; };
+  // fronteiras bem onduladas (a lasanha cede e as camadas não ficam retas)
+  const wav = (u, t) => fbmWrap(u, t * 3 + 1.7, 7, 4) * 0.08 + Math.sin(u * TAU * 3 + t * 5) * 0.015 + fbmWrap(u, t * 9, 30, 2) * 0.02;
+  const kindAt = (u, t) => { const tt = t + wav(u, t); for (const [k, a, b] of cuts) if (tt < b) return k; return "q"; };
+  const drip = (u) => Math.pow(Math.max(0, fbmWrap(u, 3.3, 9, 3) + 0.15), 1.5) * 2.4; // queijo escorrendo
   const sideTex = await img(2048, 1024, (u, y) => {
     const t = 1 - y, k = kindAt(u, t);
-    if (k === "m") return mix(hex("#f2d58c"), hex("#e2b866"), 0.5 + fbmWrap(u, t * 30, 40, 3));
-    if (k === "s") { let c = mix(hex("#9c2c14"), hex("#6a1a0a"), 0.5 + fbmWrap(u, t * 40, 60, 3) * 1.4); if (perlin(u * 500, t * 100) > 0.3) c = mix(c, hex("#4a2414"), 0.6); if (perlin(u * 900 + 5, t * 190) > 0.55) c = mix(c, hex("#d8562e"), 0.5); return c; }
-    if (k === "b") return mix(hex("#f7eedc"), hex("#e9d9b8"), 0.5 + fbmWrap(u, t * 20, 30, 3));
-    let c = mix(hex("#f6cf6e"), hex("#e2a540"), 0.5 + fbmWrap(u, t * 30, 50, 4) * 1.3); if (t > 0.94) c = mix(c, hex("#9a5a22"), smooth(0.94, 1, t) * 0.7); return c;
-  });
-  const sideN = await normalMap(1024, 512, (u, y) => { const t = 1 - y, k = kindAt(u, t); return k === "s" ? 0.5 + perlin(u * 500, t * 100) * 0.8 : k === "q" ? 0.5 + fbmWrap(u, t * 30, 50, 3) * 0.6 : 0.5 + fbmWrap(u, t * 20, 30, 2) * 0.2; }, 3);
-  const topTex = await img(1024, 1024, (u, v) => {
-    const b = perlin(u * 26, v * 26) + fbm(u * 5, v * 5, 3) * 0.6;
-    let c = mix(hex("#f8d77c"), hex("#eab04a"), 0.5 + fbm(u * 12, v * 12, 4));
-    c = mix(c, hex("#b86f28"), smooth(0.15, 0.45, b) * 0.85); c = mix(c, hex("#5c3010"), smooth(0.45, 0.7, b) * 0.7);
-    if (fbm(u * 8 + 9, v * 8, 3) > 0.32) c = mix(c, hex("#a22c12"), 0.75); // molho aparecendo
-    if (perlin(u * 700, v * 700) > 0.6) c = mix(c, hex("#3e5a1d"), 0.8);
+    if (k === "m") { let c = mix(hex("#f4dc98"), hex("#e2bb6a"), 0.5 + fbmWrap(u, t * 25, 40, 3)); if (perlin(u * 400, t * 80) > 0.4) c = mix(c, hex("#c99a4a"), 0.4); return c; }
+    if (k === "s") {
+      const g = Math.abs(perlin(u * 520, t * 110)), g2 = perlin(u * 260 + 3, t * 55);
+      let c = mix(hex("#c4421d"), hex("#8e2611"), 0.5 + fbmWrap(u, t * 18, 30, 3) * 1.3);
+      if (g < 0.1) c = mix(c, hex("#5a2412"), 0.7); // carne moída
+      if (g2 > 0.45) c = mix(c, hex("#6e3018"), 0.6);
+      if (perlin(u * 900 + 5, t * 190) > 0.55) c = mix(c, hex("#e0602e"), 0.55); // óleo/tomate
+      return c;
+    }
+    if (k === "b") { let c = mix(hex("#f8efdc"), hex("#ead8b4"), 0.5 + fbmWrap(u, t * 15, 30, 3)); if (fbmWrap(u, t * 9 + 4, 20, 3) > 0.25) c = mix(c, hex("#d97a52"), 0.45); return c; }
+    // queijo: dourado, mais escuro em cima, escorrendo pela lateral
+    let c = mix(hex("#f7d36e"), hex("#e7a83e"), 0.5 + fbmWrap(u, t * 20, 40, 4) * 1.3);
+    const top = smooth(0.86, 1, t); c = mix(c, hex("#b5692a"), top * 0.6);
+    if (perlin(u * 300, t * 60) > 0.38) c = mix(c, hex("#8f4c1c"), top * 0.7);
+    if (t < 0.83 && t > 0.83 - 0.12 * drip(u)) c = mix(hex("#f2c45a"), hex("#e2a240"), perlin(u * 80, t * 30) + 0.5); // gotas de queijo
     return c;
   });
-  const topN = await normalMap(512, 512, (u, v) => 0.5 + perlin(u * 26, v * 26) * 0.7 + fbm(u * 12, v * 12, 3) * 0.3, 3);
-  await layeredSlice(doc, buf, mesh, {
-    W, D, H, sideTex, sideN, topTex, topN, topRough: 0.38, sideRough: 0.55,
-    bulge: (u, t) => { const k = kindAt(u, t); return k === "s" ? 0.0012 * (1 + fbmWrap(u, t * 9, 20, 2)) : k === "q" ? 0.0006 : k === "b" ? 0.0007 : -0.0003; },
-    topH: (x, z) => 0.0025 * Math.max(0, perlin(x * 60, z * 60)) + 0.001 * fbm(x * 30, z * 30, 3),
+  const sideN = await normalMap(1024, 512, (u, y) => { const t = 1 - y, k = kindAt(u, t); return k === "s" ? 0.5 - Math.abs(perlin(u * 520, t * 110)) * 1.2 + perlin(u * 260, t * 55) * 0.4 : k === "q" ? 0.5 + fbmWrap(u, t * 20, 40, 3) * 0.7 : k === "m" ? 0.5 + perlin(u * 400, t * 80) * 0.25 : 0.5 + fbmWrap(u, t * 15, 30, 2) * 0.3; }, 4);
+  const topTex = await img(1024, 1024, (u, v) => {
+    const b = perlin(u * 22, v * 22) + fbm(u * 5, v * 5, 3) * 0.7;
+    let c = mix(hex("#f8d77c"), hex("#eab04a"), 0.5 + fbm(u * 12, v * 12, 4));
+    c = mix(c, hex("#c07a30"), smooth(0.05, 0.4, b) * 0.85); c = mix(c, hex("#6b3612"), smooth(0.42, 0.75, b) * 0.8);
+    if (fbm(u * 7 + 9, v * 7, 3) > 0.34) c = mix(c, hex("#a8341a"), 0.7);
+    if (perlin(u * 650, v * 650) > 0.58) c = mix(c, hex("#2f6a1f"), 0.85); // salsinha
+    return c;
   });
-  // molho escorrido no prato e manjericão
-  const sauceTex = await img(256, 256, (u, v) => mix(hex("#a22c12"), hex("#6a1a0a"), 0.5 + fbm(u * 8, v * 8, 3)));
-  const sauceMat = material(doc, "molho", { tex: sauceTex, rough: 0.2 });
-  const pool = grid(96, 5, (u, v) => { const a = u * TAU; const r = 0.05 + v * (0.012 + 0.018 * Math.max(0, Math.sin(a * 3 + 1) * Math.sin(a * 2))); return [0.006 + Math.cos(a) * r * 1.15, 0.0088 + (1 - v) * 0.0012, Math.sin(a) * r]; }, { wrap: true, flip: true });
-  mesh.addPrimitive(prim(doc, buf, pool, sauceMat));
+  const topN = await normalMap(512, 512, (u, v) => 0.5 + perlin(u * 22, v * 22) * 0.9 + fbm(u * 12, v * 12, 3) * 0.4, 3.5);
+  await layeredSlice(doc, buf, mesh, {
+    W, D, H, R: 0.005, F: 0.006, sideTex, sideN, topTex, topN, topRough: 0.32, sideRough: 0.42,
+    bulge: (u, t) => {
+      const k = kindAt(u, t), n = fbmWrap(u, t * 12, 26, 3);
+      let o = k === "s" ? 0.0026 + 0.0026 * n + 0.0018 * Math.abs(perlin(u * 60, t * 22)) : k === "b" ? 0.0012 + 0.0008 * n : k === "m" ? 0.0018 + 0.0006 * Math.sin(u * 160) : 0.001 + 0.0008 * n;
+      if (t > 0.6) o += 0.0016 * drip(u) * smooth(0.6, 0.85, t) * (1 - smooth(0.92, 1, t)); // queijo derretendo
+      return o * (0.6 + 0.4 * smooth(0, 0.15, t)); // na base encosta no prato
+    },
+    topH: (x, z, k) => 0.003 * Math.max(0, perlin(x * 55, z * 55)) + 0.0016 * fbm(x * 30, z * 30, 3) + 0.0025 * Math.min(1, (1 - k) * 3),
+  });
+  // molho escorrido no prato, em volta da base
+  const sauceTex = await img(256, 256, (u, v) => { let c = mix(hex("#a63618"), hex("#6a1a0a"), 0.5 + fbm(u * 8, v * 8, 3)); if (Math.abs(perlin(u * 60, v * 60)) < 0.1) c = mix(c, hex("#3e1a0c"), 0.7); return c; });
+  const sauceMat = material(doc, "molho", { tex: sauceTex, rough: 0.18 });
+  const out = roundRect(W + 0.004, D + 0.004, 0.008);
+  const pool = grid(160, 6, (u, v) => { const [x, z, nx, nz] = out(u); const ext = v * (0.004 + 0.016 * Math.pow(Math.max(0, fbmWrap(u, 7.1, 8, 3) + 0.2), 1.6) * 2); return [x + nx * ext, 0.0088 + (1 - v) * 0.0018, z + nz * ext]; }, { wrap: true, flip: true });
+  planarUV(pool, 0.2); mesh.addPrimitive(prim(doc, buf, pool, sauceMat));
   const leafMat = material(doc, "manjericao", { tex: await leafTex(), rough: 0.55 }); leafMat.setDoubleSided(true);
-  mesh.addPrimitive(prim(doc, buf, leafGeo(0.01, 0.0085 + H + 0.003, -0.006, 0.032, 0.012, -0.4, 0.15), leafMat));
-  mesh.addPrimitive(prim(doc, buf, leafGeo(0.01, 0.0085 + H + 0.0035, -0.006, 0.026, 0.01, 0.9, 0.3), leafMat));
+  mesh.addPrimitive(prim(doc, buf, leafGeo(0.012, 0.0085 + H + 0.004, -0.006, 0.034, 0.013, -0.4, 0.12), leafMat));
+  mesh.addPrimitive(prim(doc, buf, leafGeo(0.012, 0.0085 + H + 0.0045, -0.006, 0.028, 0.011, 0.9, 0.28), leafMat));
   mesh.addPrimitive(prim(doc, buf, plateGeo(0.13), ceramic(doc)));
   scene(doc, mesh, "lasanha"); await save(doc, "lasanha");
 }
@@ -249,54 +270,109 @@ async function pudim() {
   scene(doc, mesh, "pudim"); await save(doc, "pudim");
 }
 
-// SHAWARMA: enrolado cortado ao meio mostrando o recheio, metade no papel
+// SHAWARMA: duas metades de pão sírio enrolado, uma deitada e outra apoiada nela mostrando o recheio
+// (carne, alface, pepino, tomate, cenoura), com molho de alho escorrendo, num prato escuro com folha de alface
+function rotZ(g, a) { const c = Math.cos(a), s = Math.sin(a); for (let i = 0; i < g.pos.length; i += 3) { const x = g.pos[i], y = g.pos[i + 1]; g.pos[i] = x * c - y * s; g.pos[i + 1] = x * s + y * c; const nx = g.nor[i], ny = g.nor[i + 1]; g.nor[i] = nx * c - ny * s; g.nor[i + 1] = nx * s + ny * c; } return g; }
 async function shawarma() {
   const { doc, buf, mesh } = start("shawarma");
-  const r = 0.028, len = 0.11, Y = 0.0085;
-  const wrapTex = await img(1024, 512, (u, v) => { let c = mix(hex("#f1d39a"), hex("#ddb26a"), 0.5 + fbm(u * 10, v * 6, 4) * 1.2); const mark = Math.abs(((u * 6 + v * 0.8) % 1) - 0.5) < 0.05 && perlin(u * 20, v * 20) > -0.2; if (mark) c = mix(c, hex("#6e3c16"), 0.7); if (perlin(u * 120, v * 60) > 0.45) c = mix(c, hex("#a46a2c"), 0.6); return c; });
-  const wrapN = await normalMap(512, 256, (u, v) => 0.5 + fbm(u * 30, v * 15, 4) * 0.6, 2);
-  const wrapMat = material(doc, "pao-sirio", { tex: wrapTex, normal: wrapN, rough: 0.75 });
-  // corte: espiral do pão, carne, alface, tomate, molho branco
-  const cutTex = await img(1024, 1024, (u, v) => {
-    const x = (u - 0.5) * 2.2, y = (v - 0.5) * 2.2, rr = Math.hypot(x, y), a = Math.atan2(y, x);
-    if (rr > 0.9) return mix(hex("#e7c27f"), hex("#c79446"), 0.5 + perlin(u * 40, v * 40));
-    const spiral = Math.abs(((rr * 3 + a / TAU) % 1) - 0.5) < 0.04 && rr > 0.55;
-    if (spiral) return hex("#e9c886");
-    const n = fbm(u * 12, v * 12, 3), m = perlin(u * 18 + 3, v * 18);
-    if (m > 0.32) return mix(hex("#5aa83f"), hex("#2f7a26"), perlin(u * 60, v * 60) + 0.5); // alface
-    if (m < -0.36) return mix(hex("#e0442c"), hex("#b72515"), perlin(u * 40, v * 40) + 0.5); // tomate
-    if (n > 0.22) return mix(hex("#f6f1e4"), hex("#e8dfc7"), perlin(u * 50, v * 50) + 0.5); // molho de alho
-    let c = mix(hex("#9c5a2c"), hex("#5f2f12"), 0.5 + perlin(u * 70, v * 30) * 1.2); // carne em tiras
-    if (perlin(u * 90, v * 220) > 0.4) c = mix(c, hex("#c98a4f"), 0.5);
+  const Y = 0.012; // altura do fundo do prato
+  // pão: claro, com manchas de chapa e farinha
+  const wrapTex = await img(1024, 1024, (u, v) => {
+    let c = mix(hex("#f4ecdc"), hex("#e6d6b8"), 0.5 + fbm(u * 8, v * 8, 4));
+    const spot = perlin(u * 70, v * 70) + fbm(u * 14, v * 14, 2) * 0.5;
+    if (spot > 0.22) c = mix(c, hex("#c49a62"), smooth(0.22, 0.5, spot) * 0.8);
+    if (spot > 0.45) c = mix(c, hex("#5e3a1c"), smooth(0.45, 0.7, spot) * 0.8);
+    if (perlin(u * 300, v * 300) > 0.5) c = mix(c, hex("#fbf7ee"), 0.6);
     return c;
   });
-  const cutN = await normalMap(512, 512, (u, v) => 0.5 + perlin(u * 70, v * 30) * 0.6 + fbm(u * 12, v * 12, 3) * 0.4, 3);
-  const cutMat = material(doc, "recheio", { tex: cutTex, normal: cutN, rough: 0.5 });
-  const paperTex = await img(512, 512, (u, v) => { let c = mix(hex("#f5efe2"), hex("#e7ddc8"), 0.5 + fbm(u * 8, v * 8, 3) * 0.6); if (Math.abs(((u * 10) % 1) - 0.5) < 0.12) c = mix(c, hex("#c8452c"), 0.85); return c; });
-  const paperMat = material(doc, "papel", { tex: paperTex, rough: 0.9 }); paperMat.setDoubleSided(true);
-  const bump = (u, v) => 0.0018 * fbm(u * 8, v * 4, 3) + 0.0012 * Math.sin(u * TAU * 3 + v * 6);
-  for (const [dx, dz, ang, paper] of [[-0.03, 0.022, 0.35, true], [0.035, -0.02, -0.25, false]]) {
-    const c = lyingCylinder(len, r, bump);
-    for (const part of [c.body, c.capL, c.capR]) { rotY(part, ang); translate(part, dx, Y, dz); }
-    mesh.addPrimitive(prim(doc, buf, c.body, wrapMat));
-    mesh.addPrimitive(prim(doc, buf, c.capL, wrapMat));
-    mesh.addPrimitive(prim(doc, buf, c.capR, cutMat));
-    if (paper) {
-      const pg = grid(48, 10, (u, v) => { const a = (u * 0.75 + 0.62) * TAU, rr = r + 0.0035; return [(v - 0.5) * len * 0.55 - len * 0.22, Math.sin(a) * rr + r, Math.cos(a) * rr]; });
-      rotY(pg, ang); translate(pg, dx, Y, dz);
-      mesh.addPrimitive(prim(doc, buf, pg, paperMat));
-    }
+  const wrapN = await normalMap(512, 512, (u, v) => 0.5 + fbm(u * 20, v * 20, 4) * 0.5 + perlin(u * 70, v * 70) * 0.2, 2.5);
+  const wrapMat = material(doc, "pao-sirio", { tex: wrapTex, normal: wrapN, rough: 0.82 }); wrapMat.setDoubleSided(true);
+  // corte: duas voltas do pão por fora e recheio em pedaços
+  const cutTex = await img(1024, 1024, (u, v) => {
+    const x = (u - 0.5) * 2, y = (v - 0.5) * 2, rr = Math.hypot(x, y), a = Math.atan2(y, x);
+    if (rr > 0.94) return mix(hex("#efe2c6"), hex("#d9c39a"), perlin(u * 50, v * 50) + 0.5);
+    if (Math.abs(rr - (0.86 + 0.03 * Math.sin(a * 2))) < 0.022) return hex("#f1e6cc"); // segunda volta do pão
+    const n1 = perlin(u * 7, v * 7) + perlin(u * 18, v * 18) * 0.25, n2 = perlin(u * 8 + 7.3, v * 8 + 2.1), n3 = perlin(u * 6 + 3, v * 6 + 9);
+    if (n3 > 0.42) return mix(hex("#fbf8ef"), hex("#efe7d4"), perlin(u * 40, v * 40) + 0.5); // molho branco
+    if (n1 > -0.05) { const g = Math.abs(perlin(u * 60, v * 60)); let c = mix(hex("#7f4524"), hex("#4a230f"), 0.5 + perlin(u * 25, v * 25) * 1.2); if (g < 0.1) c = mix(c, hex("#2a1308"), 0.8); if (perlin(u * 120, v * 120) > 0.45) c = mix(c, hex("#a4673a"), 0.6); return c; } // carne
+    if (n2 > 0.28) return mix(hex("#e0f0c0"), hex("#a6d27a"), perlin(u * 30, v * 30) + 0.5); // pepino
+    if (n2 < -0.28) return mix(hex("#e5512f"), hex("#c13219"), perlin(u * 30, v * 30) + 0.5); // tomate
+    if (n1 < -0.42) return mix(hex("#f08a2a"), hex("#d9661a"), perlin(u * 40, v * 40) + 0.5); // cenoura
+    return mix(hex("#a6dc6c"), hex("#5ea838"), perlin(u * 40, v * 40) + 0.5); // alface
+  });
+  const cutN = await normalMap(512, 512, (u, v) => 0.5 + perlin(u * 16, v * 16) * 0.6 + Math.abs(perlin(u * 90, v * 90)) * -0.5, 4);
+  const cutMat = material(doc, "recheio", { tex: cutTex, normal: cutN, rough: 0.45 }); cutMat.setDoubleSided(true);
+
+  /** uma metade: eixo x, ponta fechada em x<0, corte em x=+len/2 com o recheio estufando para fora */
+  function half(len, r) {
+    const seam = (a, x) => { const q = (((a / TAU + x * 9) % 1) + 1) % 1; return q < 0.08 ? 0.0016 * (1 - q / 0.08) : 0; }; // aba do pão enrolado
+    const rAt = (x, a) => r * (0.94 + 0.06 * (x / len + 0.5)) + seam(a, x) + 0.0012 * fbm(Math.cos(a) * 3 + x * 30, Math.sin(a) * 3, 3);
+    const body = grid(72, 30, (u, v) => {
+      const a = u * TAU;
+      if (v < 0.25) { const q = (v / 0.25) * Math.PI / 2; const x = -len / 2 - Math.cos(q) * r * 0.55; const rr = rAt(-len / 2, a) * Math.sin(q); return [x, Math.sin(a) * rr, Math.cos(a) * rr]; } // ponta dobrada
+      const x = -len / 2 + ((v - 0.25) / 0.75) * len; const rr = rAt(x, a); return [x, Math.sin(a) * rr, Math.cos(a) * rr];
+    }, { wrap: true });
+    for (let i = 0; i < body.uv.length; i += 2) { const p = (i / 2) * 3; body.uv[i] = (i / 2 % 73) / 72; body.uv[i + 1] = (body.pos[p] + len) / (len * 2.2); }
+    const cap = grid(72, 14, (u, v) => {
+      const a = u * TAU, rho = 1 - v; const rr = rAt(len / 2, a) * rho;
+      const bulge = rho < 0.9 ? (0.006 * (1 - rho * rho) + 0.004 * Math.max(0, perlin(Math.cos(a) * rho * 4 + 9, Math.sin(a) * rho * 4))) : 0;
+      return [len / 2 + bulge, Math.sin(a) * rr, Math.cos(a) * rr];
+    }, { wrap: true });
+    for (let i = 0; i < cap.uv.length; i += 2) { const p = (i / 2) * 3; cap.uv[i] = 0.5 + cap.pos[p + 2] / (2 * r * 1.02); cap.uv[i + 1] = 0.5 - cap.pos[p + 1] / (2 * r * 1.02); }
+    return { body, cap };
   }
-  // molho de alho num potinho e tábua
-  const wood = material(doc, "tabua", { tex: await woodTex(true), rough: 0.6 });
-  const board = roundRect(0.3, 0.2, 0.02);
-  const top = capInside(board, Y, 0.0005, () => 0, 96, 6, 0.3);
-  const side = grid(96, 2, (u, v) => { const [x, z] = board(u); return [x, v * Y, z]; }, { wrap: true });
-  mesh.addPrimitive(prim(doc, buf, top, wood)); mesh.addPrimitive(prim(doc, buf, side, wood));
-  const pot = lathe([[0.0001, Y], [0.022, Y], [0.026, Y + 0.022], [0.028, Y + 0.024], [0.024, Y + 0.022], [0.0001, Y + 0.018]], 64);
-  translate(pot, 0.1, 0, 0.06); mesh.addPrimitive(prim(doc, buf, pot, ceramic(doc)));
-  const sauce = material(doc, "molho-alho", { color: [0.97, 0.95, 0.88, 1], rough: 0.3 });
-  mesh.addPrimitive(prim(doc, buf, disc(0.1, Y + 0.0185, 0.06, 0.023, (x, z) => 0.0015 * fbm(x * 90, z * 90, 2)), sauce));
+  const place = (g, tilt, yaw, dx, dy, dz) => { rotZ(g, tilt); rotY(g, yaw); translate(g, dx, dy, dz); return g; };
+  const r = 0.027, len = 0.11;
+  // A: deitada, corte virado para a frente-direita
+  const A = half(len, r);
+  for (const g of [A.body, A.cap]) place(g, 0, 0.75, -0.005, Y + r, 0.018);
+  // B: apoiada em A, inclinada, corte para cima
+  const B = half(len * 0.9, r);
+  for (const g of [B.body, B.cap]) place(g, 0.38, 1.25, 0.014, Y + r + 0.019, -0.022);
+  mesh.addPrimitive(prim(doc, buf, A.body, wrapMat)); mesh.addPrimitive(prim(doc, buf, A.cap, cutMat));
+  mesh.addPrimitive(prim(doc, buf, B.body, wrapMat)); mesh.addPrimitive(prim(doc, buf, B.cap, cutMat));
+  // molho de alho: sai do corte de B, escorre por cima de A e forma uma poça no prato
+  const sauce = material(doc, "molho-alho", { color: [0.98, 0.97, 0.93, 1], rough: 0.22 });
+  const capC = (() => { let x = 0, y = 0, z = 0; const n = B.cap.pos.length / 3; for (let i = 0; i < n; i++) { x += B.cap.pos[i * 3]; y += B.cap.pos[i * 3 + 1]; z += B.cap.pos[i * 3 + 2]; } return [x / n, y / n, z / n]; })();
+  // caminho: do corte de B desce até o topo de A, escorre pela lateral de A e chega ao prato
+  const ax = [Math.cos(0.75), 0, Math.sin(0.75)], ac = [-0.005, Y + r, 0.018];
+  const sP = Math.max(-0.04, Math.min(0.03, (capC[0] - ac[0]) * ax[0] + (capC[2] - ac[2]) * ax[2]));
+  const onA = [ac[0] + ax[0] * sP, Y + 2 * r + 0.004, ac[2] + ax[2] * sP];
+  const side = [-ax[2], 0, ax[0]]; // perpendicular a A, para o lado de B
+  const sg = (capC[0] - onA[0]) * side[0] + (capC[2] - onA[2]) * side[2] > 0 ? 1 : -1;
+  const path = [capC, [lerp(capC[0], onA[0], 0.5), lerp(capC[1], onA[1], 0.45), lerp(capC[2], onA[2], 0.5)], onA,
+    [onA[0] - side[0] * sg * r * 0.8, Y + r * 1.5, onA[2] - side[2] * sg * r * 0.8], [onA[0] - side[0] * sg * (r + 0.012), Y + 0.004, onA[2] - side[2] * sg * (r + 0.012)]];
+  const centerOf = (g) => { let x = 0, y = 0, z = 0; const n = g.pos.length / 3; for (let k = 0; k < n; k++) { x += g.pos[k * 3]; y += g.pos[k * 3 + 1]; z += g.pos[k * 3 + 2]; } return [x / n, y / n, z / n]; };
+  // molho de alho: uma camada cremosa sobre cada corte, escorrendo para baixo pela borda
+  sauce.setDoubleSided(true);
+  for (const [piece, R] of [[B, 0.019], [A, 0.016]]) {
+    const c = centerOf(piece.cap), bc = centerOf(piece.body);
+    let n = [c[0] - bc[0], c[1] - bc[1], c[2] - bc[2]]; let l = Math.hypot(...n); n = n.map((x) => x / l);
+    let d = [0, -1, 0]; const dn = d[0] * n[0] + d[1] * n[1] + d[2] * n[2]; d = d.map((x, k) => x - dn * n[k]); l = Math.hypot(...d) || 1; d = d.map((x) => x / l);
+    const e = [n[1] * d[2] - n[2] * d[1], n[2] * d[0] - n[0] * d[2], n[0] * d[1] - n[1] * d[0]];
+    const blob = grid(64, 12, (u, v) => {
+      const a = u * TAU, rho = 1 - v;
+      const lobe = Math.pow(Math.max(0, Math.cos(a)), 8); // escorre na direção "para baixo" (cos a = 1)
+      const rr = R * (0.72 + 0.18 * fbm(Math.cos(a) * 2 + 5, Math.sin(a) * 2, 3) + 0.65 * lobe) * rho;
+      const h = 0.0055 * Math.pow(Math.max(0, 1 - rho * rho), 0.6) + 0.0006;
+      const off = 0.0045 + h; // um pouco acima do recheio estufado
+      return [0, 1, 2].map((k) => c[k] + n[k] * off + (d[k] * Math.cos(a) + e[k] * Math.sin(a)) * rr);
+    }, { wrap: true });
+    mesh.addPrimitive(prim(doc, buf, blob, sauce));
+  }
+  // folha de alface ondulada atrás
+  const letTex = await img(512, 512, (u, v) => { const vein = Math.abs(v - 0.5) < 0.02 || Math.abs(((u * 6 + Math.abs(v - 0.5) * 3) % 1) - 0.5) < 0.03; const c = mix(hex("#9edb5c"), hex("#5aa832"), 0.5 + fbm(u * 5, v * 5, 3) + Math.abs(v - 0.5)); return vein ? mix(c, hex("#d8f2a8"), 0.6) : c; });
+  const letMat = material(doc, "alface", { tex: letTex, rough: 0.5 }); letMat.setDoubleSided(true);
+  const lettuce = grid(40, 16, (u, v) => { const x = (u - 0.5) * 0.09, half = Math.sin(Math.PI * u) * 0.035; const z = (v - 0.5) * 2 * half; const edge = Math.abs(v - 0.5) * 2; return [x, Y + 0.004 + edge * edge * 0.012 + 0.004 * Math.sin(u * 40) * edge * edge, z]; });
+  rotY(lettuce, 0.9); translate(lettuce, -0.06, 0, -0.05); mesh.addPrimitive(prim(doc, buf, lettuce, letMat));
+  // prato quadrado escuro (ardósia)
+  const slateTex = await img(512, 512, (u, v) => mix(hex("#2c2c2e"), hex("#1c1c1e"), 0.5 + fbm(u * 6, v * 6, 4) * 0.8));
+  const slate = material(doc, "ardosia", { tex: slateTex, rough: 0.55 });
+  const outl = roundRect(0.25, 0.21, 0.035);
+  const center = capInside(outl, Y, 0.03, () => 0, 128, 10, 0.3);
+  const rim = grid(160, 6, (u, v) => { const [x, z, nx, nz] = outl(u); const o = -0.03 + v * 0.03; return [x + nx * o, Y + Math.pow(v, 2) * 0.012, z + nz * o]; }, { wrap: true });
+  const under = grid(160, 2, (u, v) => { const [x, z, nx, nz] = outl(u); return [x - nx * v * 0.02, (1 - v) * (Y + 0.012), z - nz * v * 0.02]; }, { wrap: true, flip: true });
+  for (const g of [center, rim, under]) { planarUV(g, 0.3); mesh.addPrimitive(prim(doc, buf, g, slate)); }
   scene(doc, mesh, "shawarma"); await save(doc, "shawarma");
 }
 

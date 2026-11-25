@@ -104,7 +104,8 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
   return { created: true, password };
 }
 
-// Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo)
+// Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo). Trocou um arquivo? Aumente DEMO_V.
+const DEMO_V = 4;
 const MODELS: [string, string, number, { w: number; d: number; h: number }][] = [
   ["Pizza Calabresa Grande", "pizza", 43.2, { w: 43.2, d: 43.2, h: 4 }],
   ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 7.6 }],
@@ -138,12 +139,17 @@ async function applyModels(db: Awaited<ReturnType<typeof getDB>>, rid: string, o
       `UPDATE items SET model_status='pronto', model_published=TRUE, model_glb_url=$3, model_usdz_url=$4, model_width_cm=$5,
               model_dims=$6::jsonb, model_progress=100, image=$7, model_updated_at=NOW()
         WHERE restaurant_id=$1 AND name=$2 ${onlyMissing ? "AND (model_glb_url IS NULL OR model_glb_url='')" : ""}`,
-      [rid, name, `/demo/${file}.glb`, `/demo/${file}.usdz`, width, JSON.stringify(dims), `/demo/${file}.jpg`]
+      [rid, name, `/demo/${file}.glb?v=${DEMO_V}`, `/demo/${file}.usdz?v=${DEMO_V}`, width, JSON.stringify(dims), `/demo/${file}.jpg?v=${DEMO_V}`]
     );
   }
   // medidas dos modelos refeitos (pizza, lasanha e tiramisù novos)
   for (const [, file, width, dims] of MODELS)
-    await db.query(`UPDATE items SET model_dims=$2::jsonb, model_width_cm=$3 WHERE restaurant_id=$1 AND model_glb_url=$4`, [rid, JSON.stringify(dims), width, `/demo/${file}.glb`]);
+    // versão nova do arquivo (?v=) para o celular não mostrar o modelo antigo guardado
+    await db.query(
+      `UPDATE items SET model_dims=$2::jsonb, model_width_cm=$3, model_glb_url=$5, model_usdz_url=$6, image=$7
+        WHERE restaurant_id=$1 AND (model_glb_url=$4 OR model_glb_url LIKE $4 || '?v=%')`,
+      [rid, JSON.stringify(dims), width, `/demo/${file}.glb`, `/demo/${file}.glb?v=${DEMO_V}`, `/demo/${file}.usdz?v=${DEMO_V}`, `/demo/${file}.jpg?v=${DEMO_V}`]
+    );
 }
 
 /** Opções, adicionais e promoções de exemplo (só em pratos que ainda não têm nada disso). */
