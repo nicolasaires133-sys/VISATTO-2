@@ -24,6 +24,8 @@ const MENU: [string, [string, string, number, number, string[], boolean][]][] = 
   ["Sobremesas", [
     ["Tiramisù da Casa", "Mascarpone, café espresso, biscoito champagne e cacau.", 29.0, 1, [], false],
     ["Panna Cotta com Frutas Vermelhas", "Creme de baunilha com calda de frutas vermelhas.", 24.0, 1, ["sem glúten"], false],
+    ["Pudim de Leite", "Pudim cremoso de leite condensado com calda de caramelo. Fatia generosa.", 22.0, 1, ["sem glúten"], false],
+    ["Brownie com Sorvete", "Brownie de chocolate meio amargo, sorvete de creme e calda quente de chocolate.", 27.0, 1, [], false],
   ]],
   ["Bebidas", [
     ["Coca-Cola 2L", "Gelada.", 16.0, 4, [], false],
@@ -61,6 +63,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
     if (!k?.n) await applySell(db, exists[0].id);
     await applyLoyalty(db, exists[0].id);
     await applyOptions(db, exists[0].id);
+    await ensureItems(db, exists[0].id);
     await applyModels(db, exists[0].id, true);
     return { created: false, password: null };
   }
@@ -103,11 +106,31 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
 
 // Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo)
 const MODELS: [string, string, number, { w: number; d: number; h: number }][] = [
-  ["Pizza Calabresa Grande", "pizza", 40, { w: 40, d: 40, h: 3.7 }],
-  ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 6 }],
+  ["Pizza Calabresa Grande", "pizza", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 7.6 }],
   ["Tiramisù da Casa", "tiramisu", 22, { w: 22, d: 22, h: 7.8 }],
   ["Panna Cotta com Frutas Vermelhas", "pannacotta", 18, { w: 18, d: 18, h: 6.8 }],
+  ["Pudim de Leite", "pudim", 26, { w: 26, d: 26, h: 6.6 }],
+  ["Brownie com Sorvete", "brownie", 20, { w: 20, d: 20, h: 9.5 }],
 ];
+
+/** Demonstração antiga: acrescenta os pratos novos do cardápio que ainda não existem nela. */
+async function ensureItems(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
+  for (const [cat, items] of MENU) {
+    const [c] = await db.query<{ id: string }>(`SELECT id FROM categories WHERE restaurant_id=$1 AND name=$2`, [rid, cat]);
+    if (!c) continue;
+    for (const [name, description, price, serves, tags, featured] of items) {
+      const [has] = await db.query(`SELECT 1 FROM items WHERE restaurant_id=$1 AND name=$2`, [rid, name]);
+      if (has) continue;
+      const [mx] = await db.query<{ p: number }>(`SELECT COALESCE(MAX(position),0)::int AS p FROM items WHERE restaurant_id=$1 AND category_id=$2`, [rid, c.id]);
+      await db.query(
+        `INSERT INTO items (id, restaurant_id, category_id, name, description, price_cents, serves, tags, featured, position)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10)`,
+        [newId(), rid, c.id, name, description, Math.round(price * 100), serves, JSON.stringify(tags), featured, (mx?.p ?? 0) + 1]
+      );
+    }
+  }
+}
 /** Põe os modelos 3D nos pratos. onlyMissing: só nos pratos que ainda não têm 3D (demonstração antiga). */
 async function applyModels(db: Awaited<ReturnType<typeof getDB>>, rid: string, onlyMissing: boolean) {
   for (const [name, file, width, dims] of MODELS) {
@@ -118,8 +141,9 @@ async function applyModels(db: Awaited<ReturnType<typeof getDB>>, rid: string, o
       [rid, name, `/demo/${file}.glb`, `/demo/${file}.usdz`, width, JSON.stringify(dims), `/demo/${file}.jpg`]
     );
   }
-  // medida nova do tiramisù (o modelo novo é mais alto)
-  await db.query(`UPDATE items SET model_dims=$2::jsonb WHERE restaurant_id=$1 AND model_glb_url='/demo/tiramisu.glb'`, [rid, JSON.stringify({ w: 22, d: 22, h: 7.8 })]);
+  // medidas dos modelos refeitos (pizza, lasanha e tiramisù novos)
+  for (const [, file, width, dims] of MODELS)
+    await db.query(`UPDATE items SET model_dims=$2::jsonb, model_width_cm=$3 WHERE restaurant_id=$1 AND model_glb_url=$4`, [rid, JSON.stringify(dims), width, `/demo/${file}.glb`]);
 }
 
 /** Opções, adicionais e promoções de exemplo (só em pratos que ainda não têm nada disso). */
@@ -169,6 +193,8 @@ async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
     ["Burrata com Tomates", { allergens: ["leite", "castanhas", "gluten"], pairs: ["Vinho Tinto da Casa (taça)"], cost: 24, promote: true }],
     ["Tiramisù da Casa", { allergens: ["gluten", "leite", "ovo"], cost: 7, promote: true }],
     ["Panna Cotta com Frutas Vermelhas", { allergens: ["leite"], cost: 6 }],
+    ["Pudim de Leite", { allergens: ["leite", "ovo"], cost: 5 }],
+    ["Brownie com Sorvete", { allergens: ["gluten", "leite", "ovo"], cost: 8 }],
     ["Coca-Cola 2L", { allergens: [], cost: 7 }],
     ["Suco de Laranja Natural 500ml", { allergens: [], dayparts: ["almoco"], cost: 3 }],
     ["Vinho Tinto da Casa (taça)", { allergens: [], dayparts: ["noite"], cost: 8 }],

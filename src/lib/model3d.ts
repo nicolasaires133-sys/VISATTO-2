@@ -64,6 +64,10 @@ export type PrepareOptions = {
   widthCm?: number | null;
   /** Medidas reais do escâner (cm). Ajusta a largura e também a ALTURA (o 3D da IA costuma errar a profundidade). */
   targetDims?: { w: number; d: number; h: number } | null;
+  /** Escala em cada eixo (x, y, z), aplicada a um modelo que já está em tamanho real (modelos prontos). */
+  scale?: [number, number, number] | null;
+  /** Mantém animações (ex.: o açaí enchendo o copo). */
+  keepAnimations?: boolean;
 };
 
 export async function prepareModel(input: Uint8Array, opts: PrepareOptions = {}): Promise<{ glb: Uint8Array; dims: ModelDims; triangles: number }> {
@@ -87,7 +91,7 @@ export async function prepareModel(input: Uint8Array, opts: PrepareOptions = {})
   for (const s of root.listScenes()) if (s !== scene) s.dispose();
 
   // Animações e câmeras não fazem sentido para um prato
-  for (const a of root.listAnimations()) a.dispose();
+  if (!opts.keepAnimations) for (const a of root.listAnimations()) a.dispose();
   for (const c of root.listCameras()) c.dispose();
 
   await doc.transform(dedup(), flatten(), weld(), prune());
@@ -121,7 +125,15 @@ export async function prepareModel(input: Uint8Array, opts: PrepareOptions = {})
   if (!(horizontal > 0)) throw new Error("Não foi possível medir o modelo.");
   const target = opts.targetDims && opts.targetDims.w > 0 && opts.targetDims.h > 0 ? opts.targetDims : null;
   const widthCm = target ? Math.max(target.w, target.d) : opts.widthCm;
-  if (widthCm && widthCm > 0) {
+  const sc = opts.scale && opts.scale.every((v) => v > 0.05 && v < 20) ? opts.scale : null;
+  if (sc) {
+    const wrapper = doc.createNode("Visatto_Escala").setScale(sc);
+    for (const child of scene2.listChildren()) {
+      scene2.removeChild(child);
+      wrapper.addChild(child);
+    }
+    scene2.addChild(wrapper);
+  } else if (widthCm && widthCm > 0) {
     const factor = widthCm / 100 / horizontal;
     let fy = factor;
     if (target) {

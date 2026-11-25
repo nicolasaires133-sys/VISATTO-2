@@ -119,6 +119,7 @@ export default function DishViewer({
     const onLoad = () => {
       setLoaded(true);
       setCanAR(Boolean(el.canActivateAR));
+      playOnce(el);
       // o modo de AR é escolhido de forma assíncrona; confere de novo em seguida
       for (const ms of [300, 1000, 2500]) timers.push(setTimeout(() => setCanAR(Boolean(el.canActivateAR)), ms));
       if (!logged.current) {
@@ -170,6 +171,8 @@ export default function DishViewer({
       }
       if (s === "object-placed") {
         try { reveal(400); } catch { setArSearching(false); }
+        // modelos com animação (ex.: o açaí enchendo o copo) tocam de novo quando o prato pousa na mesa
+        setTimeout(() => playOnce(el), 420);
       }
       if (s === "not-presenting") {
         setArSearching(false);
@@ -326,12 +329,7 @@ export default function DishViewer({
             Não foi possível carregar o 3D deste prato.
           </div>
         )}
-        {showArButton && loaded && arOk && (
-          <button type="button" onClick={askAR} className="absolute bottom-3 right-3 z-[1] flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold text-white shadow-lg" style={{ background: color }}>
-            <Icon name="scan" size={16} stroke={2.2} /> Ver na mesa
-          </button>
-        )}
-        {loaded && !touched && !dark && !hideHint && !(showArButton && arOk) && (
+        {loaded && !touched && !dark && !hideHint && (
           <span className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-black/70">
             <Icon name="rotate" size={14} />
             Gire com o dedo
@@ -402,4 +400,14 @@ export default function DishViewer({
       )}
     </div>
   );
+}
+
+/** Toca a animação do modelo uma vez (ex.: o açaí enchendo o copo) e para no final. */
+function playOnce(el: any) {
+  try {
+    if (!el?.availableAnimations?.length) return;
+    el.animationName = el.availableAnimations[0];
+    el.currentTime = 0;
+    el.play({ repetitions: 1 });
+  } catch {}
 }

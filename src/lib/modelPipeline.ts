@@ -1,5 +1,5 @@
 import { getDB } from "./db";
-import { prepareModel } from "./model3d";
+import { prepareModel, type PrepareOptions } from "./model3d";
 import { putFile, readFile, deleteFile } from "./storage";
 import { getMeshyTask } from "./meshy";
 
@@ -37,9 +37,10 @@ export async function processAndStore(
   srcBuffer: Uint8Array,
   srcUrl: string,
   widthCm: number | null,
-  targetDims?: { w: number; d: number; h: number } | null
+  targetDims?: { w: number; d: number; h: number } | null,
+  extra?: Partial<PrepareOptions>
 ) {
-  const { glb, dims } = await prepareModel(srcBuffer, { widthCm, targetDims });
+  const { glb, dims } = await prepareModel(srcBuffer, { widthCm, targetDims, ...extra });
   const glbUrl = await putFile(`modelos/${row.restaurant_id}/${row.id}.glb`, glb, "model/gltf-binary");
   const db = await getDB();
   const oldGlb = row.model_glb_url;

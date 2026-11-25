@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { api, formatDims, glbToUsdz, resizeImage, uploadFile } from "@/lib/client";
+import { ACAI_SIZES, TEMPLATES, type TemplateKind } from "@/lib/templates";
 import QRCode from "qrcode";
 import { usePainel } from "../ctx";
 import Icon from "@/components/Icon";
@@ -24,7 +25,8 @@ type ModelInfo = {
 
 export default function ModelStudio({ itemId, itemName, image, onChanged }: { itemId: string; itemName: string; image?: string; onChanged?: () => void }) {
   const [info, setInfo] = useState<ModelInfo | null>(null);
-  const [mode, setMode] = useState<"escanear" | "ia" | "arquivo">("escanear");
+  // pizza, açaí e marmita: começa no modelo pronto (não precisa escanear)
+  const [mode, setMode] = useState<"escanear" | "pronto" | "ia" | "arquivo">(() => (guessTemplate(itemName) ? "pronto" : "escanear"));
   const [scan, setScan] = useState<{ url: string; qr: string; base: string | null } | null>(null);
   const [rescan, setRescan] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -199,6 +201,7 @@ export default function ModelStudio({ itemId, itemName, image, onChanged }: { it
   const has3d = (st === "revisar" || st === "pronto") && !!info.model_glb_url;
   const modes = [
     { id: "escanear" as const, label: "Escanear", icon: "video" },
+    { id: "pronto" as const, label: "Modelo pronto", icon: "cube" },
     ...(info.meshyEnabled ? [{ id: "ia" as const, label: "IA por fotos", icon: "sparkle" }] : []),
     { id: "arquivo" as const, label: "Arquivo 3D", icon: "upload" },
   ];
@@ -353,6 +356,16 @@ export default function ModelStudio({ itemId, itemName, image, onChanged }: { it
                 </button>
               )}
             </div>
+          ) : mode === "pronto" ? (
+            <TemplatePicker
+              itemId={itemId}
+              itemName={itemName}
+              onDone={async () => {
+                await load();
+                setRescan(false);
+                onChanged?.();
+              }}
+            />
           ) : mode === "ia" ? (
             <div className="space-y-3">
               <p className="text-[14px] text-black/65">
@@ -428,6 +441,99 @@ function WidthField({ value, onChange }: { value: string; onChange: (v: string) 
       <label className="label" htmlFor="largura-real">Largura real do prato ou travessa (cm)</label>
       <input id="largura-real" className="input" inputMode="decimal" placeholder="Ex.: 28" value={value} onChange={(e) => onChange(e.target.value)} />
       <p className="mt-1.5 text-[13px] text-black/55">Meça com uma régua a parte mais larga, contando o prato. É isso que garante o tamanho real na mesa.</p>
+    </div>
+  );
+}
+
+function guessTemplate(name: string): TemplateKind | null {
+  const n = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\bacai\b/.test(n)) return "acai";
+  if (/marmit|quentinha|prato feito|\bpf\b/.test(n)) return "marmita";
+  if (/pizza/.test(n) && !/broto|fatia/.test(n)) return "pizza-caixa";
+  return null;
+}
+
+/** Modelo pronto: o dono escolhe pizza na caixa, açaí no copo ou marmita e digita a medida da embalagem. */
+function TemplatePicker({ itemId, itemName, onDone }: { itemId: string; itemName: string; onDone: () => Promise<void> }) {
+  const [kind, setKind] = useState<TemplateKind>(() => guessTemplate(itemName) ?? "pizza-caixa");
+  const [w, setW] = useState("");
+  const [d, setD] = useState("");
+  const [h, setH] = useState("");
+  const [ml, setMl] = useState("500");
+  const [other, setOther] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  async function create() {
+    setErr("");
+    setBusy(true);
+    try {
+      const body = kind === "acai" ? { kind, ml } : kind === "pizza-caixa" ? { kind, w, d: d || w } : { kind, w, d, h };
+      await api(`/api/painel/items/${itemId}/model/template`, { body });
+      await onDone();
+    } catch (e: any) {
+      setErr(e.message);
+    }
+    setBusy(false);
+  }
+  const field = (id: string, label: string, v: string, set: (s: string) => void, ph: string) => (
+    <div className="flex-1">
+      <label className="label" htmlFor={id}>{label}</label>
+      <div className="relative">
+        <input id={id} className="input pr-10" inputMode="decimal" value={v} onChange={(e) => set(e.target.value)} placeholder={ph} />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-black/55">cm</span>
+      </div>
+    </div>
+  );
+  return (
+    <div className="space-y-4">
+      <p className="text-[14px] text-black/65">Sem escanear: escolha o modelo e informe a medida da embalagem. O 3D sai no tamanho certo em poucos segundos.</p>
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Modelo pronto">
+        {(Object.keys(TEMPLATES) as TemplateKind[]).map((k) => (
+          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`overflow-hidden rounded-2xl bg-white text-left ring-1 transition-shadow ${kind === k ? "ring-2 ring-ink" : "ring-black/10 hover:ring-black/25"}`}>
+            <img src={TEMPLATES[k].image} alt="" className="aspect-square w-full bg-[#efe9e0] object-cover" />
+            <span className="block px-2.5 py-2 text-[13.5px] font-bold leading-tight">{TEMPLATES[k].label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="text-[13.5px] text-black/60">{TEMPLATES[kind].desc}</p>
+
+      {kind === "pizza-caixa" && (
+        <div className="flex gap-3">
+          {field("tpl-w", "Largura da caixa", w, setW, "35")}
+          {field("tpl-d", "Comprimento (se diferente)", d, setD, w || "35")}
+        </div>
+      )}
+      {kind === "marmita" && (
+        <div className="flex gap-3">
+          {field("tpl-w", "Largura", w, setW, "20")}
+          {field("tpl-d", "Comprimento", d, setD, "14")}
+          {field("tpl-h", "Altura", h, setH, "5")}
+        </div>
+      )}
+      {kind === "acai" && (
+        <div>
+          <p className="label">Tamanho do copo</p>
+          <div className="flex flex-wrap gap-2">
+            {ACAI_SIZES.map((s) => (
+              <button key={s} type="button" aria-pressed={!other && ml === String(s)} onClick={() => { setOther(false); setMl(String(s)); }} className={`h-11 rounded-full px-4 text-[14.5px] font-semibold ${!other && ml === String(s) ? "bg-ink text-white" : "bg-black/[0.06] text-black/75"}`}>
+                {s} ml
+              </button>
+            ))}
+            <button type="button" aria-pressed={other} onClick={() => { setOther(true); setMl(""); }} className={`h-11 rounded-full px-4 text-[14.5px] font-semibold ${other ? "bg-ink text-white" : "bg-black/[0.06] text-black/75"}`}>Outro</button>
+          </div>
+          {other && (
+            <div className="mt-2 max-w-40">
+              <label className="label" htmlFor="tpl-ml">Quantos ml?</label>
+              <input id="tpl-ml" className="input" inputMode="numeric" value={ml} onChange={(e) => setMl(e.target.value.replace(/\D/g, ""))} placeholder="350" />
+            </div>
+          )}
+        </div>
+      )}
+      {kind !== "acai" && <p className="text-[13px] text-black/55">Meça a embalagem por fora, com uma régua ou fita métrica.</p>}
+      {err && <Notice tone="error">{err}</Notice>}
+      <button type="button" onClick={create} disabled={busy} className="btn-primary h-12 w-full">
+        {busy ? "Criando o 3D..." : "Criar o 3D"}
+      </button>
     </div>
   );
 }

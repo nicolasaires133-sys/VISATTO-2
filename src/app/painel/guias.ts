@@ -32,6 +32,22 @@ export const GUIAS: Guia[] = [
     minutos: 1,
   },
   {
+    id: "modelo-pronto",
+    titulo: "Pôr pizza, açaí ou marmita em 3D sem escanear",
+    resumo: "Escolha o modelo pronto e informe a medida da embalagem. O 3D sai no tamanho certo em segundos.",
+    passos: [
+      "Em Cardápio, toque no prato e abra a aba 3D.",
+      "Toque em Modelo pronto e escolha: Pizza na caixa, Açaí no copo ou Marmita.",
+      "Pizza: meça a caixa por fora e digite a largura. Açaí: escolha o tamanho do copo (300, 400, 500, 700 ml ou outro). Marmita: digite largura, comprimento e altura da embalagem.",
+      "Toque em Criar o 3D, confira e toque em Mostrar aos clientes.",
+      "No celular do cliente, o açaí enche o copo numa animação quando aparece.",
+    ],
+    href: "/painel/cardapio",
+    acao: "Abrir Cardápio",
+    tela: "cardapio",
+    minutos: 1,
+  },
+  {
     id: "modo-cozinha",
     titulo: "Usar uma tela só para a cozinha",
     resumo: "Um tablet ou TV na cozinha mostra os pedidos em letra grande, com um relógio que fica vermelho quando atrasa.",
