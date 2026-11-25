@@ -1,5 +1,6 @@
 // Página inicial do Visatto, escura e cinematográfica: a comida em 3D é a estrela, sob luz de restaurante,
 // e a rolagem conduz as cenas (o prato gira e é medido, pousa na mesa, os pratos passam, o escâner fecha o anel).
+import { Backdrop, Contours, Divider } from "./home/Backdrop";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import Icon from "@/components/Icon";
@@ -91,7 +92,8 @@ const faq = [
 
 export default function Home() {
   return (
-    <main className="cine overflow-x-clip bg-[#07090d] text-white">
+    <main className="cine isolate overflow-x-clip bg-[#07090d] text-white">
+      <Backdrop />
       <div aria-hidden className="cine-grain pointer-events-none fixed inset-0 z-50 hidden md:block" />
       <Header />
 
@@ -108,7 +110,9 @@ export default function Home() {
 
       {/* o caminho completo do cliente, em telas reais */}
       <section id="cliente" className="relative scroll-mt-16 py-24 md:py-36">
-        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+        <Divider />
+        <Contours seed={1.3} className="-right-40 top-10 w-[720px] opacity-80 md:-right-24" />
+        <div className="relative mx-auto max-w-[1200px] px-5 md:px-8">
           <p className="cine-kicker">Para o cliente</p>
           <h2 className="cine-title mt-3 max-w-4xl text-[clamp(40px,6vw,88px)] leading-[0.95]">Do QR code à conta paga, sem chamar ninguém.</h2>
           <p className="mt-6 max-w-2xl text-[18px] leading-relaxed text-white/60">As telas são o cardápio de verdade, do restaurante de exemplo. Abra no seu celular e teste.</p>
@@ -122,8 +126,9 @@ export default function Home() {
 
       {/* o painel do dono */}
       <section id="painel" className="relative scroll-mt-16 py-24 md:py-36">
-        <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+        <Divider />
+        <Contours seed={4.1} tone="#7fa2ff" className="-left-56 top-24 w-[760px] opacity-70" />
+        <div className="relative mx-auto max-w-[1200px] px-5 md:px-8">
           <p className="cine-kicker">Para você</p>
           <h2 className="cine-title mt-3 max-w-4xl text-[clamp(40px,6vw,88px)] leading-[0.95]">Um painel que se aprende em uma tarde.</h2>
           <p className="mt-6 max-w-2xl text-[18px] leading-relaxed text-white/60">Toque nos números em cima de cada tela para ver para que serve cada parte. No primeiro acesso, um tour guiado mostra o mesmo caminho.</p>
@@ -135,7 +140,9 @@ export default function Home() {
 
       {/* recursos */}
       <section className="relative py-24 md:py-32">
-        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+        <Divider />
+        <Contours seed={2.6} className="-right-48 bottom-0 w-[680px] opacity-70" />
+        <div className="relative mx-auto max-w-[1200px] px-5 md:px-8">
           <h2 className="cine-title max-w-4xl text-[clamp(40px,6vw,88px)] leading-[0.95]">Tudo o que o salão precisa, num lugar só.</h2>
           <div className="mt-16 grid gap-14 md:grid-cols-3 md:gap-10">
             {groups.map((g) => (
@@ -157,7 +164,9 @@ export default function Home() {
 
       {/* preços */}
       <section id="precos" className="relative scroll-mt-16 py-24 md:py-32">
-        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+        <Divider />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[min(1100px,100vw)] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,106,61,0.12), transparent 70%)" }} />
+        <div className="relative mx-auto max-w-[1200px] px-5 md:px-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h2 className="cine-title text-[clamp(40px,6vw,88px)] leading-[0.95]">Preços</h2>
             <p className="text-[16.5px] text-white/55">14 dias grátis em qualquer plano. Sem fidelidade e sem comissão.</p>
@@ -198,7 +207,9 @@ export default function Home() {
 
       {/* perguntas */}
       <section id="perguntas" className="relative scroll-mt-16 py-24 md:py-32">
-        <div className="mx-auto grid max-w-[1200px] gap-10 px-5 md:grid-cols-[0.8fr_1.2fr] md:px-8">
+        <Divider />
+        <Contours seed={5.7} tone="#7fa2ff" className="-left-60 bottom-[-120px] w-[640px] opacity-60" />
+        <div className="relative mx-auto grid max-w-[1200px] gap-10 px-5 md:grid-cols-[0.8fr_1.2fr] md:px-8">
           <div>
             <h2 className="cine-title text-[clamp(40px,5vw,72px)] leading-[0.95]">Perguntas comuns</h2>
             <p className="mt-5 max-w-xs text-[16px] leading-relaxed text-white/55">Ficou alguma dúvida? Crie a conta grátis e veja o painel por dentro: não precisa de cartão.</p>

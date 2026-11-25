@@ -61,6 +61,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
     if (!k?.n) await applySell(db, exists[0].id);
     await applyLoyalty(db, exists[0].id);
     await applyOptions(db, exists[0].id);
+    await applyModels(db, exists[0].id, true);
     return { created: false, password: null };
   }
 
@@ -93,24 +94,32 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
       );
     }
   }
-  // Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo)
-  const models: [string, string, number, { w: number; d: number; h: number }][] = [
-    ["Pizza Calabresa Grande", "pizza", 40, { w: 40, d: 40, h: 3.7 }],
-    ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 6 }],
-    ["Tiramisù da Casa", "tiramisu", 22, { w: 22, d: 22, h: 6.4 }],
-  ];
-  for (const [name, file, width, dims] of models) {
-    await db.query(
-      `UPDATE items SET model_status='pronto', model_published=TRUE, model_glb_url=$3, model_usdz_url=$4, model_width_cm=$5,
-              model_dims=$6::jsonb, model_progress=100, image=$7, model_updated_at=NOW()
-        WHERE restaurant_id=$1 AND name=$2`,
-      [rid, name, `/demo/${file}.glb`, `/demo/${file}.usdz`, width, JSON.stringify(dims), `/demo/${file}.jpg`]
-    );
-  }
+  await applyModels(db, rid, false);
   await applySell(db, rid);
   await applyLoyalty(db, rid);
   await applyOptions(db, rid);
   return { created: true, password };
+}
+
+// Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo)
+const MODELS: [string, string, number, { w: number; d: number; h: number }][] = [
+  ["Pizza Calabresa Grande", "pizza", 40, { w: 40, d: 40, h: 3.7 }],
+  ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 6 }],
+  ["Tiramisù da Casa", "tiramisu", 22, { w: 22, d: 22, h: 7.8 }],
+  ["Panna Cotta com Frutas Vermelhas", "pannacotta", 18, { w: 18, d: 18, h: 6.8 }],
+];
+/** Põe os modelos 3D nos pratos. onlyMissing: só nos pratos que ainda não têm 3D (demonstração antiga). */
+async function applyModels(db: Awaited<ReturnType<typeof getDB>>, rid: string, onlyMissing: boolean) {
+  for (const [name, file, width, dims] of MODELS) {
+    await db.query(
+      `UPDATE items SET model_status='pronto', model_published=TRUE, model_glb_url=$3, model_usdz_url=$4, model_width_cm=$5,
+              model_dims=$6::jsonb, model_progress=100, image=$7, model_updated_at=NOW()
+        WHERE restaurant_id=$1 AND name=$2 ${onlyMissing ? "AND (model_glb_url IS NULL OR model_glb_url='')" : ""}`,
+      [rid, name, `/demo/${file}.glb`, `/demo/${file}.usdz`, width, JSON.stringify(dims), `/demo/${file}.jpg`]
+    );
+  }
+  // medida nova do tiramisù (o modelo novo é mais alto)
+  await db.query(`UPDATE items SET model_dims=$2::jsonb WHERE restaurant_id=$1 AND model_glb_url='/demo/tiramisu.glb'`, [rid, JSON.stringify({ w: 22, d: 22, h: 7.8 })]);
 }
 
 /** Opções, adicionais e promoções de exemplo (só em pratos que ainda não têm nada disso). */

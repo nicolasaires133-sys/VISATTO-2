@@ -2,6 +2,7 @@
 // Abertura cinematográfica: a pizza em 3D, enorme, sob uma luz de restaurante. Rolando, ela gira para a
 // vista de cima e o texto troca de "Antes do pedido" para "Tamanho real" e "Só a câmera".
 // Toda a cena é presa na tela e conduzida pela rolagem; sem rolar, o prato gira devagar sozinho.
+import { TableFloor } from "./Backdrop";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import SeeOnTable from "./SeeOnTable";
@@ -55,7 +56,8 @@ export default function Hero() {
       <div className="sticky top-0 h-svh overflow-hidden">
         {/* luz de restaurante atrás do prato */}
         <div aria-hidden className="absolute left-1/2 top-[52%] h-[120vmin] w-[120vmin] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,138,76,0.30), rgba(255,90,46,0.10) 45%, transparent 72%)", opacity: "var(--g)" }} />
-        <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#07090d] to-transparent" />
+        <TableFloor />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-[12%] bg-gradient-to-t from-[#07090d] to-transparent" />
 
         {/* o prato */}
         <div

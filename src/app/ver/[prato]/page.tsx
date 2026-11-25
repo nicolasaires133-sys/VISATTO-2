@@ -10,7 +10,8 @@ import { Dims } from "@/app/r/[slug]/parts";
 const PRATOS: Record<string, { name: string; desc: string; glb: string; usdz: string; dims: { w: number; d: number; h: number } }> = {
   pizza: { name: "Pizza Calabresa Grande", desc: "Calabresa artesanal, cebola roxa, muçarela e orégano.", glb: "/demo/pizza.glb", usdz: "/demo/pizza.usdz", dims: { w: 40, d: 40, h: 3.7 } },
   lasanha: { name: "Lasanha à Bolonhesa", desc: "Massa fresca, ragu de carne, bechamel e parmesão gratinado.", glb: "/demo/lasanha.glb", usdz: "/demo/lasanha.usdz", dims: { w: 26, d: 26, h: 6 } },
-  tiramisu: { name: "Tiramisù da Casa", desc: "Mascarpone, café espresso, biscoito champagne e cacau.", glb: "/demo/tiramisu.glb", usdz: "/demo/tiramisu.usdz", dims: { w: 22, d: 22, h: 6.4 } },
+  tiramisu: { name: "Tiramisù da Casa", desc: "Mascarpone, café espresso, biscoito champagne e cacau.", glb: "/demo/tiramisu.glb", usdz: "/demo/tiramisu.usdz", dims: { w: 22, d: 22, h: 7.8 } },
+  pannacotta: { name: "Panna Cotta", desc: "Creme de baunilha com calda e frutas vermelhas.", glb: "/demo/pannacotta.glb", usdz: "/demo/pannacotta.usdz", dims: { w: 18, d: 18, h: 6.8 } },
 };
 
 export default function Ver({ params }: { params: Promise<{ prato: string }> }) {
