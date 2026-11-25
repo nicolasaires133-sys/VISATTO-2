@@ -9,13 +9,13 @@ import SizeToggle from "./SizeToggle";
 import { useScrollScene } from "./useScroll";
 
 const DISHES = [
-  { id: "pizza", src: "/demo/pizza.glb?v=4", name: "Pizza Calabresa Grande", price: "R$ 74,90", size: "40 cm", orbit: "0deg 58deg 105%" },
-  { id: "lasanha", src: "/demo/lasanha.glb?v=4", name: "Lasanha à Bolonhesa", price: "R$ 62,00", size: "26 cm", orbit: "0deg 62deg 110%" },
-  { id: "shawarma", src: "/demo/shawarma.glb?v=4", name: "Shawarma de Carne", price: "R$ 34,00", size: "30 cm", orbit: "0deg 58deg 105%" },
-  { id: "acai", src: "/demo/acai.glb?v=4", name: "Açaí 500 ml", price: "R$ 22,00", size: "500 ml", orbit: "0deg 72deg 115%" },
-  { id: "tiramisu", src: "/demo/tiramisu.glb?v=4", name: "Tiramisù da Casa", price: "R$ 29,00", size: "22 cm", orbit: "0deg 64deg 112%" },
-  { id: "pudim", src: "/demo/pudim.glb?v=4", name: "Pudim de Leite", price: "R$ 22,00", size: "20 cm", orbit: "0deg 60deg 108%" },
-  { id: "brownie", src: "/demo/brownie.glb?v=4", name: "Brownie com Sorvete", price: "R$ 27,00", size: "8 cm", orbit: "0deg 64deg 112%" },
+  { id: "pizza", src: "/demo/pizza.glb?v=5", name: "Pizza Calabresa Grande", price: "R$ 74,90", size: "40 cm", orbit: "0deg 58deg 105%" },
+  { id: "lasanha", src: "/demo/lasanha.glb?v=5", name: "Lasanha à Bolonhesa", price: "R$ 62,00", size: "26 cm", orbit: "0deg 62deg 110%" },
+  { id: "shawarma", src: "/demo/shawarma.glb?v=5", name: "Shawarma de Frango", price: "R$ 34,00", size: "23 cm", orbit: "0deg 68deg 108%" },
+  { id: "acai", src: "/demo/acai.glb?v=5", name: "Açaí 500 ml", price: "R$ 22,00", size: "500 ml", orbit: "0deg 72deg 115%" },
+  { id: "tiramisu", src: "/demo/tiramisu.glb?v=5", name: "Tiramisù da Casa", price: "R$ 29,00", size: "22 cm", orbit: "0deg 64deg 112%" },
+  { id: "pudim", src: "/demo/pudim.glb?v=5", name: "Pudim de Leite", price: "R$ 22,00", size: "20 cm", orbit: "0deg 60deg 108%" },
+  { id: "brownie", src: "/demo/brownie.glb?v=5", name: "Brownie com Sorvete", price: "R$ 27,00", size: "8 cm", orbit: "0deg 64deg 112%" },
 ];
 
 export default function Gallery() {

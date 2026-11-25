@@ -105,7 +105,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
 }
 
 // Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo). Trocou um arquivo? Aumente DEMO_V.
-const DEMO_V = 4;
+const DEMO_V = 5;
 const MODELS: [string, string, number, { w: number; d: number; h: number }][] = [
   ["Pizza Calabresa Grande", "pizza", 43.2, { w: 43.2, d: 43.2, h: 4 }],
   ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 7.6 }],

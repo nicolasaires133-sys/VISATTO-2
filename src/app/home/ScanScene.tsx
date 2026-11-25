@@ -55,7 +55,7 @@ export default function ScanScene() {
               })}
             </svg>
             <div className="absolute inset-[11%]">
-              <Model ref={model} src="/demo/lasanha.glb?v=4" alt="Lasanha sendo escaneada em 3D" autoRotate={false} orbit="0deg 70deg 112%" decay={120} className="h-full w-full" />
+              <Model ref={model} src="/demo/lasanha.glb?v=5" alt="Lasanha sendo escaneada em 3D" autoRotate={false} orbit="0deg 70deg 112%" decay={120} className="h-full w-full" />
             </div>
             <p className="absolute inset-x-0 -bottom-[7%] text-center text-[13px] font-semibold text-white/60">Fotos do prato <span ref={pct} className="tnum text-white">0%</span></p>
           </div>

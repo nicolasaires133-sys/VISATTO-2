@@ -10,7 +10,7 @@ export default function FinalDish() {
       <div className="relative mx-auto max-w-[1200px] px-5 text-center md:px-8">
         <h2 className="cine-title mx-auto max-w-5xl text-[clamp(48px,9vw,150px)] leading-[0.9]">Seu primeiro prato em 3D, hoje.</h2>
         <div className="relative mx-auto -mt-[4vw] aspect-[16/10] w-full max-w-[900px]">
-          <Model src="/demo/pizza.glb?v=4" alt="Pizza calabresa em 3D girando" orbit="0deg 66deg 100%" rotateSpeed="14deg" exposure={1.15} shadow={1.3} className="h-full w-full" />
+          <Model src="/demo/pizza.glb?v=5" alt="Pizza calabresa em 3D girando" orbit="0deg 66deg 100%" rotateSpeed="14deg" exposure={1.15} shadow={1.3} className="h-full w-full" />
         </div>
         <div className="relative -mt-[6vw] flex flex-wrap justify-center gap-3">
           <Link href="/cadastro" className="cine-btn">Criar meu cardápio grátis</Link>
