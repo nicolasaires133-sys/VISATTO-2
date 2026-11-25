@@ -287,7 +287,7 @@ function torus(R, r, segU = 32, segV = 10) {
 }
 async function shawarma() {
   const { doc, buf, mesh } = start("shawarma");
-  const B = 0.022; // altura da tábua
+  const B = 0; // o enrolado é montado em pé e depois deitado no prato (veja o fim da função)
   const H = 0.19, R0 = 0.025, R1 = 0.032; // altura do enrolado, raio embaixo e em cima
   const rAt = (y) => lerp(R0, R1, Math.min(1, y / H));
   const FRONT = Math.PI / 2; // a boca aberta fica virada para +z (de frente para quem olha)
@@ -358,12 +358,19 @@ async function shawarma() {
   // pimentões
   for (let i = 0; i < 8; i++) { const [x, z] = inDisc(0.022); put(lump(0.007, 0.0035, 0.009, 0.18, 20 + i), i % 2 ? yel : red, rnd(), rnd() * TAU, x, yTop + 0.016 + rnd() * 0.014, z); }
 
-  // tábua redonda de madeira
-  const wood = material(doc, "madeira", { tex: await woodTex(), rough: 0.6 });
-  const board = lathe([[0.0001, B], [0.085, B], [0.09, B - 0.003], [0.091, 0.003], [0.087, 0], [0.0001, 0]], 96);
-  planarUV(board, 0.18);
-  mesh.addPrimitive(prim(doc, buf, board, wood));
-  scene(doc, mesh, "shawarma"); await save(doc, "shawarma");
+  // deita o enrolado no prato: eixo na horizontal, levemente inclinado (a ponta aberta é mais larga),
+  // com a boca virada para a frente-direita
+  const tilt = Math.atan((R1 - R0) / H);
+  const qz = [0, 0, Math.sin((-Math.PI / 2 + tilt) / 2), Math.cos((-Math.PI / 2 + tilt) / 2)];
+  const yaw = -0.55, qy = [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)];
+  const qm = (a, b) => [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+  const q = qm(qy, qz);
+  const cx = -H / 2 * Math.cos(-yaw), cz = -H / 2 * Math.sin(-yaw);
+  const wrapNode = doc.createNode("enrolado").setMesh(mesh).setRotation(q).setTranslation([cx, 0.0085 + R0 + 0.0005, cz]);
+  const plateMesh = doc.createMesh("prato").addPrimitive(prim(doc, buf, plateGeo(0.135), ceramic(doc)));
+  const root = doc.createNode("shawarma").addChild(wrapNode).addChild(doc.createNode("prato").setMesh(plateMesh));
+  doc.createScene("Scene").addChild(root);
+  await save(doc, "shawarma");
 }
 
 // AÇAÍ NO COPO (500 ml) — copo transparente, açaí em camadas com banana, granola, morango e leite condensado.

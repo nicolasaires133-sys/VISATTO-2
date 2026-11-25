@@ -1093,6 +1093,9 @@ function CartSheet(props: {
     if (busy) return;
     setErr("");
     if (channel === "delivery" && !payment) return setErr(t("choosePay"));
+    // item guardado antes de o prato ganhar uma escolha obrigatória (ex.: tamanho): abre para escolher
+    const pend = visible.find((x) => !priceWith(x.it!, x.l.opts).ok);
+    if (pend) return props.onEdit(pend.idx);
     setBusy(true);
     try {
       if (channel === "delivery" || f.phone.trim()) save("gia:customer", f);

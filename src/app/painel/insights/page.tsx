@@ -84,15 +84,15 @@ export default function Insights() {
 
       <ArCard a={d.arStats} items={d.arItems} />
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="card p-5">
+      <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
+        <div className="card min-w-0 p-5">
           <h2 className="text-[17px] font-bold">Últimos 14 dias</h2>
           {d.daily.length === 0 ? (
             <p className="py-10 text-center text-[14px] text-black/60">Os pedidos dos últimos 14 dias aparecem aqui.</p>
           ) : (
             <div className="mt-4 flex h-48 items-end gap-1 sm:gap-1.5">
               {timeline(d.daily).map((x, i) => (
-                <div key={x.day} className="flex h-full flex-1 flex-col items-center gap-1" title={`${x.day}: ${brl(x.revenue)}`}>
+                <div key={x.day} className="flex h-full min-w-0 flex-1 flex-col items-center gap-1" title={`${x.day}: ${brl(x.revenue)}`}>
                   <div className="flex w-full flex-1 flex-col justify-end">
                     {x.revenue > 0 ? (
                       <div className="flex w-full flex-col justify-end overflow-hidden rounded-t-md bg-ink/80" style={{ height: `${(x.revenue / maxDay) * 100}%`, minHeight: 4 }}>

@@ -66,7 +66,7 @@ export default function Hero() {
         >
           <Model
             ref={model}
-            src="/demo/pizza.glb?v=5"
+            src="/demo/pizza.glb?v=6"
             alt="Pizza calabresa em 3D"
             autoRotate={false}
             orbit="-25deg 74deg 98%"

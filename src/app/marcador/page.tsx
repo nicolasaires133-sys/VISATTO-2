@@ -26,6 +26,8 @@ export default function Marcador() {
         </div>
       </div>
 
+      {/* a folha tem o tamanho exato do A4; em telas menores ela rola de lado em vez de estourar a página */}
+      <div className="max-w-full overflow-x-auto print:overflow-visible">
       <div
         className="folha mx-auto mb-10 bg-white shadow-xl print:mb-0"
         style={{ width: "210mm", height: "297mm", position: "relative", overflow: "hidden" }}
@@ -49,6 +51,7 @@ export default function Marcador() {
           ))}
         </div>
         <p style={{ position: "absolute", top: "274mm", width: "100%", textAlign: "center", fontSize: "3.2mm", fontFamily: "sans-serif" }}>10 cm</p>
+      </div>
       </div>
     </main>
   );
