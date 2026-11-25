@@ -165,7 +165,7 @@ export default function Home() {
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {plans.map((pl) => (
               <div key={pl.n} className={`relative flex flex-col rounded-[26px] p-7 ${pl.hl ? "cine-card-hl" : "cine-card"}`}>
-                {pl.hl && <span className="absolute -top-3 left-7 rounded-full bg-[#ff5a2e] px-3 py-1 text-[12.5px] font-bold text-white">O mais escolhido</span>}
+                {pl.hl && <span className="absolute -top-3 left-7 rounded-full bg-[#cf4520] px-3 py-1 text-[12.5px] font-bold text-white">O mais escolhido</span>}
                 <p className="text-[18px] font-bold">{pl.n}</p>
                 <p className="mt-1 text-[14.5px] text-white/55">{pl.sub}</p>
                 <p className="tnum mt-7 leading-none">

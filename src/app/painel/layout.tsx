@@ -53,6 +53,13 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   const known = useRef<{ orders: Set<string>; calls: Set<string> } | null>(null);
 
   const [loadErr, setLoadErr] = useState("");
+  const [toastMsg, setToastMsg] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastMsg(""), 2600);
+  }, []);
   const reload = useCallback(async () => {
     try {
       setState(await api("/api/painel/restaurant"));
@@ -156,7 +163,8 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   };
 
   return (
-    <PainelCtx.Provider value={{ ...state, reload, orders, calls, offline, refreshOrders, setOrders, setCalls, sound, setSound }}>
+    <PainelCtx.Provider value={{ ...state, reload, orders, calls, offline, refreshOrders, setOrders, setCalls, sound, setSound, toast }}>
+      <a href="#conteudo" className="no-print sr-only z-[90] rounded-xl bg-ink px-4 py-3 font-semibold text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Pular para o conteúdo</a>
       <div className="min-h-dvh md:flex">
         {/* Computador: menu lateral claro, agrupado pelo que a pessoa faz */}
         <aside className="no-print sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col overflow-y-auto border-r border-line bg-white px-3.5 py-4 md:flex">
@@ -172,7 +180,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           <nav className="mt-3" aria-label="Painel">
             {["Dia a dia", "Acompanhar"].map((g) => (
               <div key={g} className="mt-3 first:mt-0">
-                <p className="px-2.5 pb-1.5 text-[12.5px] font-semibold text-slate/80">{g}</p>
+                <p className="px-2.5 pb-1.5 text-[12.5px] font-semibold text-slate">{g}</p>
                 <div className="space-y-0.5">
                   {nav.filter((n) => n.group === g).map((n) => (
                     <Link
@@ -183,7 +191,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
                       className={`group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[14.5px] font-semibold transition-colors duration-150 ${isActive(n.href) ? "bg-ink/[0.06] text-ink" : "text-slate hover:bg-ink/[0.04] hover:text-ink"}`}
                     >
                       <span aria-hidden className={`absolute -left-3.5 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand transition-all duration-300 ${isActive(n.href) ? "opacity-100" : "scale-y-0 opacity-0"}`} />
-                      <Icon name={n.icon} size={18} className={isActive(n.href) ? "text-brand" : "text-slate/80 group-hover:text-ink"} />
+                      <Icon name={n.icon} size={18} className={isActive(n.href) ? "text-brand" : "text-slate group-hover:text-ink"} />
                       <span className="flex-1">{n.label}</span>
                       {n.href === "/painel" && pending > 0 && (
                         <span className="tnum grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11.5px] font-bold text-white">{pending}</span>
@@ -223,7 +231,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           <div className="no-print px-4 md:hidden">
             <InstallApp dismissible />
           </div>
-          <div key={path} className="animate-enter mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-10 md:py-9">{children}</div>
+          <main id="conteudo" key={path} tabIndex={-1} className="animate-enter mx-auto max-w-6xl px-4 pb-28 pt-5 outline-none md:px-10 md:py-9">{children}</main>
         </div>
 
         {/* Celular: barra inferior */}
@@ -234,7 +242,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
               href={n.href}
               data-tour={`nav-${n.href}`}
               aria-current={isActive(n.href) ? "page" : undefined}
-              className={`relative flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-semibold ${isActive(n.href) ? "text-ink" : "text-slate/80"}`}
+              className={`relative flex flex-1 flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-semibold ${isActive(n.href) ? "text-ink" : "text-slate"}`}
             >
               <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors duration-200 ${isActive(n.href) ? "bg-ink text-white" : ""}`}>
                 <Icon name={n.icon} size={19} />
@@ -248,6 +256,14 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         </nav>
       </div>
       <Tour />
+      {/* confirmação do que acabou de ser salvo (o leitor de tela também lê) */}
+      <div aria-live="polite" role="status" className="no-print pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex justify-center px-4 md:bottom-8">
+        {toastMsg && (
+          <p key={toastMsg + Date.now()} className="animate-pop flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-[14.5px] font-semibold text-white shadow-xl">
+            <Icon name="check" size={17} stroke={2.4} className="text-emerald-300" /> {toastMsg}
+          </p>
+        )}
+      </div>
     </PainelCtx.Provider>
   );
 }

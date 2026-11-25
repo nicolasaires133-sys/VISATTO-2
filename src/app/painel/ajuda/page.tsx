@@ -83,7 +83,7 @@ export default function Ajuda() {
                       <span className="block text-[13.5px] text-slate">{g.resumo}</span>
                     </span>
                     <span className="tnum hidden shrink-0 text-[12.5px] text-slate sm:block">{g.minutos} min</span>
-                    <Icon name="down" size={18} className={`shrink-0 text-black/40 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+                    <Icon name="down" size={18} className={`shrink-0 text-black/60 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
                   </button>
                   {isOpen && (
                     <div className="animate-enter px-5 pb-5">

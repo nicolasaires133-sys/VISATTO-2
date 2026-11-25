@@ -18,7 +18,7 @@ const TONES = [
 ];
 
 export default function Config() {
-  const { restaurant: r, reload, waiter, aiEnabled } = usePainel();
+  const { restaurant: r, reload, waiter, aiEnabled, toast } = usePainel();
   const router = useRouter();
   const [f, setF] = useState({
     ...r,
@@ -61,6 +61,7 @@ export default function Config() {
       await reload();
       setDirty(false);
       setMsg({ ok: true, text: "Alterações salvas." });
+      toast("Alterações salvas");
     } catch (e: any) {
       setMsg({ ok: false, text: e.message });
     }
@@ -86,7 +87,7 @@ export default function Config() {
           <div>
             <label className="label" htmlFor="c-zap">WhatsApp do restaurante (com DDD)</label>
             <input id="c-zap" className="input" inputMode="tel" value={f.whatsapp} onChange={(e) => set({ whatsapp: e.target.value })} placeholder="11999990000" />
-            <p className="mt-1.5 text-[13px] text-black/50">O cliente usa para falar com você sobre o pedido.</p>
+            <p className="mt-1.5 text-[13px] text-black/60">O cliente usa para falar com você sobre o pedido.</p>
           </div>
           <div>
             <label className="label" htmlFor="c-cor">Cor da marca</label>
@@ -94,7 +95,7 @@ export default function Config() {
               <input type="color" aria-label="Escolher cor" className="h-[46px] w-14 shrink-0 cursor-pointer rounded-xl border border-black/15 bg-white p-1" value={f.primary_color} onChange={(e) => set({ primary_color: e.target.value })} />
               <input id="c-cor" className="input" value={f.primary_color} onChange={(e) => set({ primary_color: e.target.value })} />
             </div>
-            <p className="mt-1.5 text-[13px] text-black/50">Usada nos preços e nos botões do seu cardápio.</p>
+            <p className="mt-1.5 text-[13px] text-black/60">Usada nos preços e nos botões do seu cardápio.</p>
           </div>
         </div>
       </section>
@@ -132,7 +133,7 @@ export default function Config() {
         <div>
           <label className="label" htmlFor="c-serv">Taxa de serviço sugerida na conta da mesa (%)</label>
           <input id="c-serv" className="input max-w-28" inputMode="numeric" value={f.service_pct} onChange={(e) => set({ service_pct: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
-          <p className="mt-1.5 text-[13px] text-black/50">Aparece como opcional, e o cliente pode tirar. Coloque 0 se o restaurante não cobra.</p>
+          <p className="mt-1.5 text-[13px] text-black/60">Aparece como opcional, e o cliente pode tirar. Coloque 0 se o restaurante não cobra.</p>
         </div>
       </section>
 
@@ -166,7 +167,7 @@ export default function Config() {
         <div>
           <label className="label" htmlFor="c-google">Link de avaliação do Google</label>
           <input id="c-google" className="input" inputMode="url" value={f.google_review_url} onChange={(e) => set({ google_review_url: e.target.value })} placeholder="https://g.page/r/..." />
-          <p className="mt-1.5 text-[13px] text-black/50">No Google, abra o perfil do restaurante, toque em <b>Pedir avaliações</b> e copie o link.</p>
+          <p className="mt-1.5 text-[13px] text-black/60">No Google, abra o perfil do restaurante, toque em <b>Pedir avaliações</b> e copie o link.</p>
         </div>
       </section>
 
@@ -199,7 +200,7 @@ export default function Config() {
             onChange={(e) => set({ ai_instructions: e.target.value })}
             placeholder={"Ex.:\n- Sempre ofereça a sobremesa do dia (pudim).\n- Nossa pizza grande tem 8 fatias e 35 cm.\n- Às terças, chopp em dobro.\n- Não temos estacionamento, mas há zona azul na rua."}
           />
-          <p className="mt-1.5 text-[13px] text-black/50">Tudo o que você escrever aqui o garçom vai saber e usar na conversa.</p>
+          <p className="mt-1.5 text-[13px] text-black/60">Tudo o que você escrever aqui o garçom vai saber e usar na conversa.</p>
         </div>
       </section>}
 
@@ -265,7 +266,7 @@ function Languages({ initial, aiEnabled }: { initial: string[]; aiEnabled: boole
         </button>
       )}
       {msg && <p role={msg.ok ? "status" : "alert"} className={`text-[14px] font-semibold ${msg.ok ? "text-leaf" : "text-red-700"}`}>{msg.text}</p>}
-      <p className="text-[12.5px] text-black/45">Quando você muda o nome ou a descrição de um prato, toque aqui de novo para traduzir as mudanças.</p>
+      <p className="text-[12.5px] text-black/60">Quando você muda o nome ou a descrição de um prato, toque aqui de novo para traduzir as mudanças.</p>
     </section>
   );
 }

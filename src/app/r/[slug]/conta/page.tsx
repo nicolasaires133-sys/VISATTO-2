@@ -3,6 +3,7 @@
 // escolhe se paga a taxa de serviço e paga com Pix já com o valor, ou chama a equipe com a maquininha.
 // Nenhuma taxa é cobrada do cliente, e nada vem marcado sem ele escolher.
 import { use, useEffect, useMemo, useState } from "react";
+import { readable } from "@/lib/color";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { api } from "@/lib/client";
@@ -53,7 +54,7 @@ export default function Conta({ params, searchParams }: { params: Promise<{ slug
     load(); // eslint-disable-line react-hooks/exhaustive-deps
   }, [table]);
 
-  const color = bill?.restaurant.primary_color || "#E4572E";
+  const color = readable(bill?.restaurant.primary_color);
   const pct = bill?.service_pct ?? 0;
   const base = useMemo(() => {
     if (!bill) return 0;
@@ -171,7 +172,7 @@ export default function Conta({ params, searchParams }: { params: Promise<{ slug
                   <>
                     <span className="min-w-0">
                       <b className="tnum">{l.qty}x</b> {l.name}
-                      {l.notes ? <span className="block text-[13px] text-black/50">{l.notes}</span> : null}
+                      {l.notes ? <span className="block text-[13px] text-black/60">{l.notes}</span> : null}
                     </span>
                     <span className="tnum shrink-0">{brl(l.price_cents * l.qty)}</span>
                   </>
@@ -228,7 +229,7 @@ export default function Conta({ params, searchParams }: { params: Promise<{ slug
               <label className="flex cursor-pointer items-center justify-between gap-3">
                 <span className="flex items-center gap-2.5">
                   <input type="checkbox" className="h-5 w-5" style={{ accentColor: color }} checked={service} onChange={(e) => setService(e.target.checked)} />
-                  Taxa de serviço {pct}% <span className="text-black/50">(opcional)</span>
+                  Taxa de serviço {pct}% <span className="text-black/60">(opcional)</span>
                 </span>
                 <span className="tnum">{brl(serviceCents)}</span>
               </label>
@@ -284,7 +285,7 @@ export default function Conta({ params, searchParams }: { params: Promise<{ slug
                   <Icon name="cash" size={18} /> {busy === "dinheiro" ? "Avisando..." : "Dinheiro"}
                 </button>
               </div>
-              <p className="text-[13px] text-black/50">Cartão ou dinheiro: a equipe vem até a mesa. Sem nenhuma taxa a mais pelo app.</p>
+              <p className="text-[13px] text-black/60">Cartão ou dinheiro: a equipe vem até a mesa. Sem nenhuma taxa a mais pelo app.</p>
             </section>
           )}
           {err && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2.5 text-[14px] text-red-800">{err}</p>}

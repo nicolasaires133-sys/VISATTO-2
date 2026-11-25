@@ -3,6 +3,7 @@
 // usando a folha com o marcador como régua. A captura é guiada ao vivo (LiveCapture); vídeo gravado, fotos e o modo
 // manual de 2 fotos continuam como alternativas.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { readable } from "@/lib/color";
 import dynamic from "next/dynamic";
 import { api, glbToUsdz, setScanToken, uploadFile } from "@/lib/client";
 import { calibrate, cameraCenter, heightOnVertical, pixelToPlane, project, viewElevation, type Camera, type Vec2 } from "@/lib/scan/geometry";
@@ -393,7 +394,7 @@ export default function ScanApp({ token }: { token: string }) {
     );
   if (!info) return <Center><div className="skeleton mx-auto h-14 w-14 rounded-2xl" /><p className="mt-4 text-black/55">Abrindo o escâner...</p></Center>;
   const back = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("volta") === "painel";
-  const color = info.restaurant.primary_color || "#E4572E";
+  const color = readable(info.restaurant.primary_color);
   const stepIdx = STEPS.findIndex((s) => s.id === step || (s.id === "cima" && step === "contorno") || (s.id === "lado" && step === "altura"));
 
   return (
@@ -407,7 +408,7 @@ export default function ScanApp({ token }: { token: string }) {
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex-1">
               <div className={`h-1.5 rounded-full ${i <= stepIdx ? "bg-brand" : "bg-black/10"}`} />
-              <p className={`mt-1 text-[10px] font-semibold ${i === stepIdx ? "text-ink" : "text-black/40"}`}>{s.label}</p>
+              <p className={`mt-1 text-[10px] font-semibold ${i === stepIdx ? "text-ink" : "text-black/60"}`}>{s.label}</p>
             </div>
           ))}
         </div>
@@ -536,13 +537,13 @@ export default function ScanApp({ token }: { token: string }) {
               <div className="mx-auto mt-5 h-2.5 w-64 overflow-hidden rounded-full bg-black/10" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full bg-brand transition-all duration-300" style={{ width: `${Math.max(3, progress)}%` }} />
               </div>
-              <p className="tnum mt-2.5 text-[13.5px] text-black/50">{progress}% · costuma levar de 20 segundos a 1 minuto (em celulares mais simples, um pouco mais)</p>
+              <p className="tnum mt-2.5 text-[13.5px] text-black/60">{progress}% · costuma levar de 20 segundos a 1 minuto (em celulares mais simples, um pouco mais)</p>
               {profile && (
                 <p className="mx-auto mt-4 w-fit max-w-full truncate rounded-full bg-cream px-3.5 py-1.5 text-[13px] font-semibold text-black/70">
                   {profile.produto} · {profile.recipiente || KINDS[profile.kind].label}
                 </p>
               )}
-              <p className="mt-6 text-[13px] text-black/45">Deixe esta tela aberta até terminar.</p>
+              <p className="mt-6 text-[13px] text-black/60">Deixe esta tela aberta até terminar.</p>
             </div>
           </div>
         )}
@@ -609,7 +610,7 @@ export default function ScanApp({ token }: { token: string }) {
               </p>
             )}
             {recon && (
-              <p className="text-center text-[12.5px] text-black/45" data-escala={recon.scaleSource}>
+              <p className="text-center text-[12.5px] text-black/60" data-escala={recon.scaleSource}>
                 {recon.used} ângulos usados no 3D
                 {recon.scaleSource === "folha" ? ` · tamanho conferido pela folha A4${Math.abs(recon.markerCm - MARKER_CM) > 0.05 ? ` (impressão em ${Math.round((recon.markerCm / MARKER_CM) * 100)}%)` : ""}` : recon.scaleSource === "manual" ? ` · quadrado de ${fmt(recon.markerCm)} cm informado por você` : recon.scaleSource === "folha-branca" ? " · tamanho medido pela folha A4" : ""}
               </p>
@@ -667,8 +668,8 @@ export default function ScanApp({ token }: { token: string }) {
           <>
             <StepTitle n={1} title="Marque o contorno do prato" text="A foto foi “endireitada” como se fosse vista de cima. Arraste o círculo até a borda de fora do prato." />
             <div className="flex rounded-xl bg-black/5 p-1 text-sm font-semibold">
-              <button onClick={() => setRect(false)} className={`flex-1 rounded-lg py-2 ${!rect ? "bg-white shadow" : "text-black/50"}`}>⚪ Redondo</button>
-              <button onClick={() => setRect(true)} className={`flex-1 rounded-lg py-2 ${rect ? "bg-white shadow" : "text-black/50"}`}>▭ Retangular</button>
+              <button onClick={() => setRect(false)} className={`flex-1 rounded-lg py-2 ${!rect ? "bg-white shadow" : "text-black/60"}`}>⚪ Redondo</button>
+              <button onClick={() => setRect(true)} className={`flex-1 rounded-lg py-2 ${rect ? "bg-white shadow" : "text-black/60"}`}>▭ Retangular</button>
             </div>
             <TopEditor calib={top} outline={outline} onChange={setOutline} rect={rect} refSize={refSize} />
             {outline && realOutline && (
@@ -730,7 +731,7 @@ export default function ScanApp({ token }: { token: string }) {
                 </div>
               ))}
               {extras.length < 3 && (
-                <label className="grid aspect-square cursor-pointer place-items-center rounded-xl border-2 border-dashed border-black/15 text-center text-xs text-black/50">
+                <label className="grid aspect-square cursor-pointer place-items-center rounded-xl border-2 border-dashed border-black/15 text-center text-xs text-black/60">
                   <Icon name="camera" size={20} className="mx-auto mb-1" />Adicionar
                   <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onPhoto(e.target.files?.[0], "extra")} />
                 </label>
@@ -758,8 +759,8 @@ export default function ScanApp({ token }: { token: string }) {
             )}
             <div className="card space-y-3 p-4 text-sm">
               <div className="flex rounded-xl bg-black/5 p-1 font-semibold">
-                <button onClick={() => setTopRound(false)} className={`flex-1 rounded-lg py-2 ${!topRound ? "bg-white shadow" : "text-black/50"}`}>Topo reto</button>
-                <button onClick={() => setTopRound(true)} className={`flex-1 rounded-lg py-2 ${topRound ? "bg-white shadow" : "text-black/50"}`}>Topo arredondado</button>
+                <button onClick={() => setTopRound(false)} className={`flex-1 rounded-lg py-2 ${!topRound ? "bg-white shadow" : "text-black/60"}`}>Topo reto</button>
+                <button onClick={() => setTopRound(true)} className={`flex-1 rounded-lg py-2 ${topRound ? "bg-white shadow" : "text-black/60"}`}>Topo arredondado</button>
               </div>
               <label className="flex items-center gap-2"><input type="checkbox" checked={plate} onChange={(e) => setPlate(e.target.checked)} /> Servido em prato raso</label>
               {plate && (
@@ -804,7 +805,7 @@ export default function ScanApp({ token }: { token: string }) {
               {back ? (
                 <a className="btn-ghost h-12" href="/painel/cardapio">Voltar ao painel e escanear outro prato</a>
               ) : (
-                <p className="text-[13.5px] text-black/50">Pode fechar esta tela. Para escanear outro prato, gere um novo QR no painel.</p>
+                <p className="text-[13.5px] text-black/60">Pode fechar esta tela. Para escanear outro prato, gere um novo QR no painel.</p>
               )}
             </div>
           </Center>
@@ -816,7 +817,7 @@ export default function ScanApp({ token }: { token: string }) {
             <span>{err}</span>
           </p>
         )}
-        {busy && step !== "formato" && step !== "processando" && <p className="text-center text-sm text-black/50">{busy}</p>}
+        {busy && step !== "formato" && step !== "processando" && <p className="text-center text-sm text-black/60">{busy}</p>}
       </div>
     </main>
   );
@@ -840,7 +841,7 @@ function Choice({ active, onClick, title, text }: { active: boolean; onClick: ()
 function Dim({ label, v }: { label: string; v: number }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase text-black/45">{label}</p>
+      <p className="text-[11px] font-semibold uppercase text-black/60">{label}</p>
       <p className="text-lg font-extrabold">{fmt(v)} cm</p>
     </div>
   );
@@ -888,7 +889,7 @@ function SmallNote({ calib }: { calib: Calib }) {
   const elev = Math.round(viewElevation(calib.cam));
   const C = cameraCenter(calib.cam);
   return (
-    <p className="text-center text-[11px] text-black/40">
+    <p className="text-center text-[11px] text-black/60">
       Referência {calib.auto ? "encontrada automaticamente" : "marcada à mão"} • câmera a {Math.round(Math.hypot(C[0], C[1], C[2]))} cm, {elev}° acima da mesa •
       foco {calib.focal === "exif" ? "da câmera" : calib.focal === "foto" ? "calculado pela foto" : "estimado"}
     </p>
@@ -1353,7 +1354,7 @@ function RecognitionCard(props: {
               <button className="btn-primary h-11 w-full" disabled={props.busy} onClick={() => props.onRedo(research.profile)}>
                 Refazer o 3D com isso
               </button>
-              <p className="text-[12.5px] text-black/50">Usa as mesmas imagens, não precisa escanear de novo.</p>
+              <p className="text-[12.5px] text-black/60">Usa as mesmas imagens, não precisa escanear de novo.</p>
             </div>
           )}
         </div>

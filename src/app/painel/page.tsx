@@ -2,7 +2,8 @@
 // Pedidos ao vivo: chamados das mesas no topo, depois Novos → Em preparo → Prontos.
 import { ComoUsar } from "./ajuda-ui";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { brl, PAYMENT_LABEL, STATUS_LABEL } from "@/lib/format";
@@ -30,7 +31,7 @@ const ago = (d: string) => {
 };
 
 export default function Pedidos() {
-  const { restaurant: r, waiter, counts, orders, calls, offline, setOrders, setCalls, refreshOrders, reload, sound, setSound } = usePainel();
+  const { restaurant: r, waiter, counts, orders, calls, offline, setOrders, setCalls, refreshOrders, reload, sound, setSound, toast } = usePainel();
   const [tab, setTab] = useState("novo");
   const [ticket, setTicket] = useState<Order | null>(null);
   const [refuse, setRefuse] = useState<Order | null>(null);
@@ -69,12 +70,12 @@ export default function Pedidos() {
   }
   async function closeTable(c: Call) {
     setCalls((cs) => cs.filter((x) => !(x.type === "conta" && x.table_label.toLowerCase() === c.table_label.toLowerCase())));
-    await api("/api/painel/mesas", { body: { table: c.table_label } }).catch(refreshOrders);
+    await api("/api/painel/mesas", { body: { table: c.table_label } }).then(() => toast(`Mesa ${c.table_label} fechada`), refreshOrders);
     refreshOrders();
   }
   async function giveReward(o: Order) {
     setOrders((os) => os && os.map((x) => (x.customer_phone === o.customer_phone ? { ...x, reward: "" } : x)));
-    await api("/api/painel/fidelidade", { body: { phone: o.customer_phone, orderId: o.id } }).catch(refreshOrders);
+    await api("/api/painel/fidelidade", { body: { phone: o.customer_phone, orderId: o.id } }).then(() => toast("Prêmio entregue"), refreshOrders);
   }
   async function togglePause() {
     await api("/api/painel/restaurant", { method: "PUT", body: { accepting_orders: r.accepting_orders === false } }).catch(() => {});
@@ -165,14 +166,14 @@ export default function Pedidos() {
         </section>
       )}
 
-      {firstRun ? <FirstSteps counts={counts!} slug={r.slug} /> : <Tips />}
+      {firstRun && <FirstSteps counts={counts!} slug={r.slug} />}
 
       {/* Celular: uma coluna por vez */}
       <div className="mt-5 flex rounded-2xl bg-black/[0.05] p-1 text-[14px] font-semibold lg:hidden" role="tablist">
         {lists.map((c) => (
           <button key={c.key} role="tab" aria-selected={tab === c.key} onClick={() => setTab(c.key)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 transition-all duration-200 ${tab === c.key ? "bg-white shadow-sm" : "text-black/55"}`}>
             {c.title}
-            <span className={`tnum grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11.5px] ${c.list.length ? (c.key === "novo" ? "bg-brand text-white" : "bg-ink text-white") : "bg-black/10 text-black/50"}`}>{c.list.length}</span>
+            <span className={`tnum grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11.5px] ${c.list.length ? (c.key === "novo" ? "bg-brand text-white" : "bg-ink text-white") : "bg-black/10 text-black/60"}`}>{c.list.length}</span>
           </button>
         ))}
       </div>
@@ -188,7 +189,7 @@ export default function Pedidos() {
               <span className={`tnum grid h-6 min-w-6 place-items-center rounded-full px-2 text-[12.5px] ${c.list.length && c.key === "novo" ? "bg-brand text-white" : "bg-white ring-1 ring-black/10"}`}>{c.list.length}</span>
             </h2>
             <div className="space-y-3">
-              {c.list.length === 0 && <p className="rounded-2xl border border-dashed border-black/15 px-3 py-8 text-center text-[14px] text-black/45">{c.empty}</p>}
+              {c.list.length === 0 && <p className="rounded-2xl border border-dashed border-black/15 px-3 py-8 text-center text-[14px] text-black/60">{c.empty}</p>}
               {c.list.map((o) => (
                 <OrderCard key={o.id} o={o} onMove={move} onPrint={() => setTicket(o)} onRefuse={() => setRefuse(o)} onReward={() => giveReward(o)} />
               ))}
@@ -196,6 +197,9 @@ export default function Pedidos() {
           </section>
         ))}
       </div>
+
+      {/* dicas depois dos pedidos: no celular, o que importa (os pedidos) aparece primeiro */}
+      {!firstRun && <Tips />}
 
       {done.length > 0 && (
         <section className="mt-9">
@@ -215,20 +219,7 @@ export default function Pedidos() {
         </section>
       )}
 
-      {refuse && (
-        <div className="fixed inset-0 z-50 grid place-items-end bg-black/45 sm:place-items-center" onClick={() => setRefuse(null)}>
-          <div role="alertdialog" aria-modal="true" aria-label="Recusar pedido" onClick={(e) => e.stopPropagation()} className="animate-sheet w-full max-w-sm rounded-t-3xl bg-white p-6 sm:rounded-3xl">
-            <h3 className="text-[21px] font-extrabold">Recusar o pedido #{refuse.number}?</h3>
-            <p className="mt-2 text-[14.5px] text-black/65">
-              {refuse.channel === "mesa" ? `A mesa ${refuse.table_label}` : refuse.customer_name || "O cliente"} vai ver na tela que o restaurante não pôde aceitar o pedido.
-            </p>
-            <div className="mt-5 flex gap-2">
-              <button className="btn-ghost h-12 flex-1" onClick={() => setRefuse(null)}>Manter pedido</button>
-              <button className="btn h-12 flex-1 bg-red-700 text-white hover:bg-red-800" onClick={() => { move(refuse, "cancelado"); setRefuse(null); }}>Recusar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {refuse && <RefuseDialog o={refuse} onCancel={() => setRefuse(null)} onConfirm={() => { move(refuse, "cancelado"); setRefuse(null); }} />}
 
       {ticket && <Ticket o={ticket} name={r.name} />}
       {kitchen && <Cozinha orders={orders} onMove={move} onClose={() => setKitchen(false)} />}
@@ -338,12 +329,12 @@ function Tips() {
   }
   if (!tips.length) return null;
   return (
-    <section className="mt-5" aria-label="Para vender mais">
+    <section className="mt-9" aria-label="Para vender mais">
       <h2 className="mb-2.5 flex items-center gap-2 text-[16px] font-bold"><Icon name="sparkle" size={17} /> Para vender mais</h2>
       <div className="grid gap-2.5 md:grid-cols-3">
         {tips.map((t) => (
           <article key={t.id} className="animate-fade relative flex flex-col rounded-2xl bg-white p-4 ring-1 ring-black/[0.07]">
-            <button onClick={() => dismiss(t.id)} aria-label={`Dispensar: ${t.title}`} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full text-black/40 hover:bg-black/5"><Icon name="close" size={15} /></button>
+            <button onClick={() => dismiss(t.id)} aria-label={`Dispensar: ${t.title}`} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full text-black/60 hover:bg-black/5"><Icon name="close" size={15} /></button>
             <h3 className="pr-7 text-[15px] font-bold leading-snug">{t.title}</h3>
             <p className="mt-1 flex-1 text-[13.5px] leading-relaxed text-black/60">{t.text}</p>
             <Link href={t.href} className="btn-dark mt-3 h-10 self-start px-3.5 text-[13.5px]">{t.action}</Link>
@@ -418,6 +409,31 @@ function Ticket({ o, name }: { o: Order; name: string }) {
         </p>
       )}
       <p style={{ fontSize: 16, fontWeight: 800 }}>Total: {brl(o.total_cents)}</p>
+    </div>
+  );
+}
+
+/** Confirmação para recusar um pedido (o foco fica na janela e Esc cancela). */
+function RefuseDialog({ o, onCancel, onConfirm }: { o: Order; onCancel: () => void; onConfirm: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  useFocusTrap(box);
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onCancel]);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/45 sm:place-items-center" onClick={onCancel}>
+      <div ref={box} tabIndex={-1} role="alertdialog" aria-modal="true" aria-label="Recusar pedido" onClick={(e) => e.stopPropagation()} className="animate-sheet w-full max-w-sm rounded-t-3xl bg-white p-6 outline-none sm:rounded-3xl">
+        <h3 className="text-[21px] font-extrabold">Recusar o pedido #{o.number}?</h3>
+        <p className="mt-2 text-[14.5px] text-black/65">
+          {o.channel === "mesa" ? `A mesa ${o.table_label}` : o.customer_name || "O cliente"} vai ver na tela que o restaurante não pôde aceitar o pedido.
+        </p>
+        <div className="mt-5 flex gap-2">
+          <button className="btn-ghost h-12 flex-1" onClick={onCancel}>Manter pedido</button>
+          <button className="btn h-12 flex-1 bg-red-700 text-white hover:bg-red-800" onClick={onConfirm}>Recusar</button>
+        </div>
+      </div>
     </div>
   );
 }

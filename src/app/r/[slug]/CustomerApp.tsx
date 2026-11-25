@@ -1,6 +1,7 @@
 "use client";
 // Cardápio do cliente: abre pelo QR da mesa ou pelo link do delivery.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { readable } from "@/lib/color";
 import { searchMenu } from "@/lib/search";
 import Stamps from "./Stamps";
 import { useRouter } from "next/navigation";
@@ -63,6 +64,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const router = useRouter();
   const [data, setData] = useState<MenuData>(initial);
   const [cart, setCart] = useState<CartLine[]>([]);
+  // item do carrinho sendo editado (troca de opções, quantidade ou observação sem apagar e começar de novo)
+  const [editLine, setEditLine] = useState<{ idx: number; line: CartLine } | null>(null);
   const [channel, setChannel] = useState<"mesa" | "delivery">(() => {
     const r = initial.restaurant;
     if (modo === "delivery" && r.delivery_enabled) return "delivery";
@@ -150,12 +153,16 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
 
   const { restaurant: r, categories, items } = data;
   const t = useMemo(() => makeT(lang), [lang]);
+  // leitor de tela fala no idioma escolhido
+  useEffect(() => {
+    document.documentElement.lang = lang === "en" ? "en" : lang === "es" ? "es" : "pt-BR";
+  }, [lang]);
   const langs = r.languages ?? [];
   const setLang = (l: Lang) => {
     setLangState(l);
     save("gia:lang", l);
   };
-  const color = r.primary_color || "#E4572E";
+  const color = readable(r.primary_color);
   const paused = r.accepting_orders === false;
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const catName = useMemo(() => new Map(categories.map((c) => [c.id, tr(c, lang).name])), [categories, lang]);
@@ -385,7 +392,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
         {searching ? (
           <div className="flex items-center gap-2 px-5 py-2.5">
             <label className="flex h-11 flex-1 items-center gap-2 rounded-full bg-[#efefeb] px-4">
-              <Icon name="search" size={18} className="text-black/50" />
+              <Icon name="search" size={18} className="text-black/60" />
               <span className="sr-only">{t("search")}</span>
               <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPh")} className="h-full flex-1 bg-transparent text-base outline-none" enterKeyHint="search" />
             </label>
@@ -416,7 +423,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
 
       {dietOpts.length > 0 && !results && (
         <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-5 pt-4" role="group" aria-label={t("onlyShow")}>
-          <span className="shrink-0 text-[13px] font-semibold text-black/50">{t("onlyShow")}</span>
+          <span className="shrink-0 text-[13px] font-semibold text-black/60">{t("onlyShow")}</span>
           {dietOpts.map((d) => (
             <button
               key={d.id}
@@ -436,7 +443,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
         <section className="animate-enter mx-5 mt-5 rounded-3xl p-4 ring-1 ring-black/[0.07]" style={{ background: `${color}12` }} aria-label={round.kind === "sobremesa" ? t("secondRound") : t("secondRoundDrink")}>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-bold">{round.kind === "sobremesa" ? t("secondRound") : t("secondRoundDrink")}</h2>
-            <button onClick={() => { setRoundOff(true); save(`gia:${slug}:round`, lastOrder?.id ?? ""); }} className="shrink-0 text-[13px] font-semibold text-black/50">{t("dismiss")}</button>
+            <button onClick={() => { setRoundOff(true); save(`gia:${slug}:round`, lastOrder?.id ?? ""); }} className="shrink-0 text-[13px] font-semibold text-black/60">{t("dismiss")}</button>
           </div>
           <div className="mt-3 space-y-2">
             {round.list.map((i) => (
@@ -486,7 +493,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                     <button onClick={() => setDetail(i)} className="block w-full text-left">
                       <span className="mt-2 line-clamp-2 block pr-1 text-[14.5px] font-bold leading-tight">{name(i)}</span>
                       <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(basePrice(i))}</span>
-                      {hist[i.id] > 0 && <span className="block text-[12.5px] text-black/45">{t("orderedTimes", { n: hist[i.id] })}</span>}
+                      {hist[i.id] > 0 && <span className="block text-[12.5px] text-black/60">{t("orderedTimes", { n: hist[i.id] })}</span>}
                     </button>
                   </div>
                 ))}
@@ -543,7 +550,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
         </>
       )}
 
-      <p className="px-5 pb-2 pt-12 text-center text-[12px] text-black/40">
+      <p className="px-5 pb-2 pt-12 text-center text-[12px] text-black/60">
         {t("by")} <a href="/" className="font-semibold underline">Visatto</a> · <a href="/privacidade" className="underline-offset-2 hover:underline">{t("privacy")}</a>
       </p>
 
@@ -598,10 +605,26 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           onTrack={(type) => track(type, detail.id)}
           fav={favs.includes(detail.id)}
           onFav={() => toggleFav(detail.id)}
-          onClose={() => setDetail(null)}
-          onOpen={(x) => setDetail(x)}
+          initial={editLine && editLine.line.itemId === detail.id ? { qty: editLine.line.qty, notes: editLine.line.notes, picks: editLine.line.opts } : undefined}
+          onClose={() => {
+            setDetail(null);
+            if (editLine) {
+              setEditLine(null);
+              setCartOpen(true);
+            }
+          }}
+          onOpen={(x) => { setEditLine(null); setDetail(x); }}
           onAddPair={(id) => addToCart(id, 1, "", false, true)}
           onAdd={(qty, notes, opts) => {
+            if (editLine && editLine.line.itemId === detail.id) {
+              const o = opts && Object.keys(opts).length ? opts : undefined;
+              setCart((c) => c.map((l, i) => (i === editLine.idx ? { ...l, qty, notes, opts: o } : l)));
+              setEditLine(null);
+              setDetail(null);
+              setCartOpen(true);
+              flash(t("saveChange"));
+              return;
+            }
             addToCart(detail.id, qty, notes, false, false, null, opts ?? {});
             setDetail(null);
           }}
@@ -659,6 +682,14 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           suggestions={suggestFor(lines.map((l) => l.itemId), 3)}
           onAddSuggestion={(id) => addToCart(id, 1, "", false, true)}
           onOpenItem={(x) => { setCartOpen(false); setDetail(x); }}
+          onEdit={(idx) => {
+            const l = cart[idx];
+            const it = l && byId.get(l.itemId);
+            if (!it) return;
+            setCartOpen(false);
+            setEditLine({ idx, line: l });
+            setDetail(it);
+          }}
           channel={channel}
           setChannel={setChannel}
           table={table}
@@ -706,7 +737,7 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
           <button
             key={qty}
             onClick={(e) => onAdd(e.currentTarget)}
-            aria-label={t("addAria", { name })}
+            aria-label={qty ? `${qty} · ${t("addAria", { name })}` : t("addAria", { name })}
             className={`absolute bottom-[-6px] right-[-6px] grid h-10 min-w-10 place-items-center rounded-full px-2 text-white shadow-md ring-2 ring-white transition-transform active:scale-90 ${qty ? "animate-bump" : ""}`}
             style={{ background: qty ? "#172033" : color }}
           >
@@ -756,6 +787,7 @@ function ItemSheet({
   onTrack,
   fav,
   onFav,
+  initial,
 }: {
   item: MenuItem;
   lang: Lang;
@@ -771,10 +803,12 @@ function ItemSheet({
   onTrack: (type: "view3d" | "ar") => void;
   fav: boolean;
   onFav: () => void;
+  /** editando um item do carrinho: começa com o que a pessoa já tinha escolhido */
+  initial?: { qty: number; notes: string; picks?: Picks };
 }) {
-  const [qty, setQty] = useState(1);
-  const [notes, setNotes] = useState("");
-  const [picks, setPicks] = useState<Picks>({});
+  const [qty, setQty] = useState(initial?.qty ?? 1);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [picks, setPicks] = useState<Picks>(initial?.picks ?? {});
   const [tried, setTried] = useState(false);
   const groups = item.options ?? [];
   const priced = priceWith(item, picks);
@@ -850,7 +884,7 @@ function ItemSheet({
               <h3 className="text-[24px] font-extrabold leading-tight">{name}</h3>
               <div className="shrink-0 pt-1 text-right">
                 <p className="tnum font-display text-[20px] font-bold" style={{ color }}>{brl(basePrice(item))}</p>
-                {basePrice(item) < item.price_cents && <p className="tnum text-[13px] text-black/45 line-through">{brl(item.price_cents)}</p>}
+                {basePrice(item) < item.price_cents && <p className="tnum text-[13px] text-black/60 line-through">{brl(item.price_cents)}</p>}
               </div>
             </div>
             {(promoActive(item.promo ?? null, item.price_cents) || item.popular) && (
@@ -911,10 +945,10 @@ function ItemSheet({
                         aria-checked={on}
                         disabled={full}
                         onClick={() => toggle(g.id, c.id, g.max)}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] ring-1 transition-colors disabled:opacity-40 ${on ? "bg-white ring-2" : "bg-white ring-black/10"}`}
-                        style={on ? { boxShadow: `inset 0 0 0 2px ${color}`, outline: "none" } : undefined}
+                        className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] transition-colors disabled:opacity-40 ${on ? "bg-white" : "bg-white ring-1 ring-black/10 hover:ring-black/20"}`}
+                        style={on ? { boxShadow: `inset 0 0 0 2px ${color}` } : undefined}
                       >
-                        <span className={`grid h-5 w-5 shrink-0 place-items-center ${g.max === 1 ? "rounded-full" : "rounded-md"} ring-2`} style={{ background: on ? color : "white", boxShadow: on ? `0 0 0 2px ${color}` : undefined, borderColor: color }}>
+                        <span className={`grid h-[22px] w-[22px] shrink-0 place-items-center border-2 ${g.max === 1 ? "rounded-full" : "rounded-md"} ${on ? "" : "border-black/30 bg-white"}`} style={on ? { background: color, borderColor: color } : undefined}>
                           {on && <Icon name="check" size={13} stroke={3} className="text-white" />}
                         </span>
                         <span className="flex-1 font-medium">{c.name}</span>
@@ -958,8 +992,8 @@ function ItemSheet({
         ) : item.available ? (
           <>
             <Stepper qty={qty} min={1} onChange={(q) => setQty(Math.min(50, q))} size="lg" />
-            <button onClick={add} className={`btn h-12 flex-1 justify-between px-5 text-[15.5px] text-white ${missing ? "opacity-60" : ""}`} style={{ background: color }}>
-              <span className="truncate">{missing && tried ? t("missingChoice", { g: missing.name.toLowerCase() }) : t("add")}</span>
+            <button onClick={add} className="btn h-12 flex-1 justify-between px-5 text-[15.5px] text-white" style={{ background: color }}>
+              <span className="truncate">{missing && tried ? t("missingChoice", { g: missing.name.toLowerCase() }) : initial ? t("saveChange") : t("add")}</span>
               <span className="tnum">{brl(unit * qty)}</span>
             </button>
           </>
@@ -1029,6 +1063,7 @@ function CartSheet(props: {
   suggestions: MenuItem[];
   onAddSuggestion: (id: string) => void;
   onOpenItem: (x: MenuItem) => void;
+  onEdit: (idx: number) => void;
   channel: "mesa" | "delivery";
   setChannel: (c: "mesa" | "delivery") => void;
   table: string;
@@ -1099,7 +1134,12 @@ function CartSheet(props: {
                   <p className="font-semibold leading-tight">{tr(it!, lang).name}</p>
                   {optSummary(it!, l.opts) && <p className="mt-0.5 text-[13px] text-black/65">{optSummary(it!, l.opts)}</p>}
                   {l.notes && <p className="mt-0.5 text-[13px] text-black/55">{l.notes}</p>}
-                  <p className="tnum mt-0.5 text-[14px] text-black/65">{brl(unitOf(it!, l.opts) * l.qty)}</p>
+                  <p className="mt-0.5 flex items-center gap-3 text-[14px]">
+                    <span className="tnum text-black/65">{brl(unitOf(it!, l.opts) * l.qty)}</span>
+                    <button type="button" onClick={() => props.onEdit(idx)} aria-label={t("editAria", { name: tr(it!, lang).name })} className="-my-2 inline-flex min-h-[36px] items-center gap-1 px-1 font-semibold underline decoration-black/25 underline-offset-2" style={{ color }}>
+                      <Icon name="edit" size={14} /> {t("edit")}
+                    </button>
+                  </p>
                 </div>
                 <Stepper qty={l.qty} onChange={(q) => setQty(idx, q)} />
               </div>
@@ -1233,9 +1273,9 @@ function PriceTag({ item, color, t }: { item: MenuItem; color: string; t: T }) {
   const minAdd = (item.options ?? []).filter((g) => g.min > 0).reduce((s, g) => s + Math.min(...g.choices.map((c) => c.price_cents)) * g.min, 0);
   return (
     <span className="mr-1 inline-flex items-baseline gap-1.5">
-      {from && <span className="text-[12.5px] text-black/50">{t("fromPrice")}</span>}
+      {from && <span className="text-[12.5px] text-black/60">{t("fromPrice")}</span>}
       <span className="tnum text-[15.5px] font-bold" style={{ color }}>{brl(now + minAdd)}</span>
-      {now < item.price_cents && <span className="tnum text-[13px] text-black/40 line-through">{brl(item.price_cents + minAdd)}</span>}
+      {now < item.price_cents && <span className="tnum text-[13px] text-black/60 line-through">{brl(item.price_cents + minAdd)}</span>}
     </span>
   );
 }

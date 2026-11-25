@@ -19,7 +19,7 @@ export default function LegalPage({ title, updated, children }: { title: string;
         </div>
       </header>
       <article className="legal mx-auto max-w-3xl px-5 py-10 text-[16px] leading-relaxed text-black/80">{children}</article>
-      <footer className="mx-auto max-w-3xl border-t border-line px-5 py-8 text-[14px] text-black/50">
+      <footer className="mx-auto max-w-3xl border-t border-line px-5 py-8 text-[14px] text-black/60">
         © {new Date().getFullYear()} Visatto · <Link href="/privacidade" className="underline">Política de Privacidade</Link> · <Link href="/termos" className="underline">Termos de Uso</Link>
       </footer>
     </main>

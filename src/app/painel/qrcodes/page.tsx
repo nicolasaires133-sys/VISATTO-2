@@ -65,7 +65,7 @@ export default function QRCodes() {
             <Icon name="printer" size={17} /> Imprimir os QR codes
           </button>
         </div>
-        <p className="mt-2 text-[13px] text-black/50">Dica: imprima em papel mais grosso ou plastifique. Cada cartão sai com cerca de 6 × 8 cm.</p>
+        <p className="mt-2 text-[13px] text-black/60">Dica: imprima em papel mais grosso ou plastifique. Cada cartão sai com cerca de 6 × 8 cm.</p>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 print:grid-cols-3 print:gap-3">
@@ -77,7 +77,7 @@ export default function QRCodes() {
             <p className="mt-1.5 text-[12.5px] leading-snug text-black/65">
               {waiter ? "Aponte a câmera, veja o cardápio e peça ajuda ao nosso garçom virtual" : "Aponte a câmera do celular e veja os pratos na sua mesa, em tamanho real"}
             </p>
-            <p className="mt-2 flex items-center justify-center gap-1 text-[10px] text-black/40"><LogoMark size={11} /> Visatto</p>
+            <p className="mt-2 flex items-center justify-center gap-1 text-[10px] text-black/60"><LogoMark size={11} /> Visatto</p>
           </div>
         ))}
       </div>

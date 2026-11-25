@@ -88,7 +88,7 @@ export default function Insights() {
         <div className="card p-5">
           <h2 className="text-[17px] font-bold">Últimos 14 dias</h2>
           {d.daily.length === 0 ? (
-            <p className="py-10 text-center text-[14px] text-black/45">Os pedidos dos últimos 14 dias aparecem aqui.</p>
+            <p className="py-10 text-center text-[14px] text-black/60">Os pedidos dos últimos 14 dias aparecem aqui.</p>
           ) : (
             <div className="mt-4 flex h-48 items-end gap-1 sm:gap-1.5">
               {timeline(d.daily).map((x, i) => (
@@ -102,7 +102,7 @@ export default function Insights() {
                       <div className="h-[3px] w-full rounded-full bg-black/10" />
                     )}
                   </div>
-                  <span className={`tnum text-[10px] text-black/45 ${i % 2 ? "hidden sm:inline" : ""}`}>{x.day}</span>
+                  <span className={`tnum text-[10px] text-black/60 ${i % 2 ? "hidden sm:inline" : ""}`}>{x.day}</span>
                 </div>
               ))}
             </div>
@@ -115,7 +115,7 @@ export default function Insights() {
 
         <div className="card p-5">
           <h2 className="text-[17px] font-bold">Mais vendidos</h2>
-          {d.topItems.length === 0 && <p className="py-10 text-center text-[14px] text-black/45">Sem vendas no período.</p>}
+          {d.topItems.length === 0 && <p className="py-10 text-center text-[14px] text-black/60">Sem vendas no período.</p>}
           <ul className="mt-3 space-y-2.5 text-[14.5px]">
             {d.topItems.map((x: any) => (
               <li key={x.name} className="flex items-center justify-between gap-2">
@@ -150,7 +150,7 @@ export default function Insights() {
         </div>
         <div className="card p-5">
           <h2 className="font-bold">Perguntas recentes</h2>
-          {d.recentQuestions.length === 0 && <p className="py-6 text-center text-sm text-black/40">Ninguém conversou com o garçom ainda.</p>}
+          {d.recentQuestions.length === 0 && <p className="py-6 text-center text-sm text-black/60">Ninguém conversou com o garçom ainda.</p>}
           <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto text-sm">
             {d.recentQuestions.map((q: any, i: number) => (
               <li key={i} className="rounded-lg bg-black/[0.03] px-3 py-2">“{q.question}”</li>
@@ -217,7 +217,7 @@ function ArCard({ a, items }: { a: any; items: { name: string; ar_opens: number 
       <div>
         <h3 className="text-sm font-bold text-black/60">Mais vistos na mesa</h3>
         {items.length === 0 ? (
-          <p className="mt-3 text-[14px] text-black/50">Ninguém abriu a câmera ainda. Escaneie em 3D os pratos mais pedidos, na tela Cardápio.</p>
+          <p className="mt-3 text-[14px] text-black/60">Ninguém abriu a câmera ainda. Escaneie em 3D os pratos mais pedidos, na tela Cardápio.</p>
         ) : (
           <ul className="mt-2 space-y-1.5 text-sm">
             {items.map((x) => (
@@ -270,7 +270,7 @@ function Engineering({ e }: { e: any }) {
                 <section key={k} className={`rounded-2xl p-4 ring-1 ${m.cls}`}>
                   <h3 className="flex items-center gap-2 text-[15px] font-bold"><span className={`h-2.5 w-2.5 rounded-full ${m.dot}`} />{m.title} <span className="font-normal text-black/55">· {m.text}</span></h3>
                   {list.length === 0 ? (
-                    <p className="mt-2 text-[13.5px] text-black/45">Nenhum prato aqui.</p>
+                    <p className="mt-2 text-[13.5px] text-black/60">Nenhum prato aqui.</p>
                   ) : (
                     <ul className="mt-2 space-y-2.5">
                       {list.map((x: any) => (
@@ -285,7 +285,7 @@ function Engineering({ e }: { e: any }) {
               );
             })}
           </div>
-          {e.missingCost > 0 && <p className="mt-3 text-[13px] text-black/50">{e.missingCost} {e.missingCost === 1 ? "prato ficou" : "pratos ficaram"} de fora por não ter custo cadastrado.</p>}
+          {e.missingCost > 0 && <p className="mt-3 text-[13px] text-black/60">{e.missingCost} {e.missingCost === 1 ? "prato ficou" : "pratos ficaram"} de fora por não ter custo cadastrado.</p>}
         </>
       )}
     </div>
@@ -302,7 +302,7 @@ function Feedback({ f, optins }: { f: any; optins: number }) {
           <p className="mt-2 text-[14px] text-black/55">Depois de cada pedido, o cliente dá uma nota. Quem gostou é levado para avaliar no Google (cadastre o link em Configurações); quem não gostou fala só com você.</p>
         ) : (
           <>
-            <p className="tnum mt-2 font-display text-[34px] font-extrabold leading-none">{Number(f.avg).toFixed(1).replace(".", ",")}<span className="text-[16px] font-semibold text-black/45"> de 5</span></p>
+            <p className="tnum mt-2 font-display text-[34px] font-extrabold leading-none">{Number(f.avg).toFixed(1).replace(".", ",")}<span className="text-[16px] font-semibold text-black/60"> de 5</span></p>
             <p className="mt-1 text-[13.5px] text-black/55">{f.n} {f.n === 1 ? "avaliação" : "avaliações"} no período · {f.low} com nota 3 ou menos</p>
           </>
         )}
@@ -314,7 +314,7 @@ function Feedback({ f, optins }: { f: any; optins: number }) {
       <div className="card p-5">
         <h2 className="text-[17px] font-bold">O que os clientes disseram</h2>
         {f.comments.length === 0 ? (
-          <p className="py-6 text-center text-[14px] text-black/45">Os comentários das avaliações aparecem aqui. Só você vê.</p>
+          <p className="py-6 text-center text-[14px] text-black/60">Os comentários das avaliações aparecem aqui. Só você vê.</p>
         ) : (
           <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto text-[14px]">
             {f.comments.map((c: any, i: number) => (

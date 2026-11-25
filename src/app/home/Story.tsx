@@ -40,7 +40,7 @@ export default function Story({ steps, dark = false }: { steps: StoryStep[]; dar
             <span aria-hidden className={`absolute left-0 top-1/2 hidden h-[23px] w-[23px] -translate-y-1/2 rounded-full border-2 transition-colors duration-500 lg:block ${dark ? "bg-[#07090d]" : "bg-white"} ${i <= active ? "border-brand" : dark ? "border-white/20" : "border-line"}`}>
               <span className={`absolute inset-[4px] rounded-full transition-colors duration-500 ${i <= active ? "bg-brand" : "bg-transparent"}`} />
             </span>
-            <p className="tnum text-[13.5px] font-semibold text-brand">Passo {i + 1} de {steps.length}</p>
+            <p className={`tnum text-[13.5px] font-semibold ${dark ? "text-[#ff8a5c]" : "text-brand"}`}>Passo {i + 1} de {steps.length}</p>
             <h3 className={`font-wide mt-2 text-[30px] font-bold leading-[1.08] tracking-[-0.03em] md:text-[40px] ${dark ? "text-white" : ""}`}>{s.title}</h3>
             <p className={`mt-4 max-w-[34rem] text-[17px] leading-relaxed ${dark ? "text-white/60" : "text-slate"}`}>{s.text}</p>
             <ul className={`mt-6 max-w-[34rem] divide-y border-y ${dark ? "divide-white/10 border-white/10 text-white/85" : "divide-line border-line"}`}>

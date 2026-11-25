@@ -2,6 +2,7 @@
 // Peças compartilhadas do painel.
 import { useEffect, useRef } from "react";
 import Icon from "@/components/Icon";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { DishArt } from "@/components/DishArt";
 
 export function PageHead({ title, sub, children }: { title: string; sub?: React.ReactNode; children?: React.ReactNode }) {
@@ -22,6 +23,8 @@ const openDialogs: object[] = []; // só a janela de cima responde ao Esc
 export function Dialog({ children, onClose, label, wide = false }: { children: React.ReactNode; onClose: () => void; label: string; wide?: boolean }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const box = useRef<HTMLDivElement>(null);
+  useFocusTrap(box);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -37,7 +40,7 @@ export function Dialog({ children, onClose, label, wide = false }: { children: R
   }, []);
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/45 sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label={label} className={`animate-sheet flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white sm:rounded-[28px] ${wide ? "sm:max-w-xl" : "sm:max-w-md"}`}>
+      <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className={`animate-sheet flex max-h-[94dvh] w-full outline-none flex-col overflow-hidden rounded-t-[28px] bg-white sm:rounded-[28px] ${wide ? "sm:max-w-xl" : "sm:max-w-md"}`}>
         {children}
       </div>
     </div>
@@ -120,7 +123,7 @@ export function Thumb({ src, name, className = "" }: { src?: string; name?: stri
 
 export function IconButton({ icon, label, onClick, className = "", danger = false }: { icon: string; label: string; onClick: () => void; className?: string; danger?: boolean }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label} title={label} className={`grid h-9 w-9 place-items-center rounded-lg text-black/50 hover:bg-black/5 ${danger ? "hover:text-red-700" : "hover:text-ink"} ${className}`}>
+    <button type="button" onClick={onClick} aria-label={label} title={label} className={`grid h-9 w-9 place-items-center rounded-lg text-black/60 hover:bg-black/5 ${danger ? "hover:text-red-700" : "hover:text-ink"} ${className}`}>
       <Icon name={icon} size={17} />
     </button>
   );

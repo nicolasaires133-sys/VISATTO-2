@@ -51,7 +51,7 @@ export default function PasswordField({
           onClick={() => setShow((x) => !x)}
           aria-label={show ? "Esconder a senha" : "Mostrar a senha"}
           aria-pressed={show}
-          className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-black/50 transition-colors hover:bg-black/5 hover:text-ink"
+          className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-black/60 transition-colors hover:bg-black/5 hover:text-ink"
         >
           <Icon name={show ? "eyeOff" : "eye"} size={19} />
         </button>
@@ -63,7 +63,7 @@ export default function PasswordField({
               <span key={n} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${s >= n ? (s === 1 ? "bg-amber-500" : "bg-leaf") : "bg-black/10"}`} />
             ))}
           </div>
-          <p className={`mt-1 text-[12.5px] ${value && s === 0 ? "text-red-700" : "text-black/50"}`}>{LABEL[s]}</p>
+          <p className={`mt-1 text-[12.5px] ${value && s === 0 ? "text-red-700" : "text-black/60"}`}>{LABEL[s]}</p>
         </div>
       )}
     </div>

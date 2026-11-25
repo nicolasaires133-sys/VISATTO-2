@@ -90,8 +90,8 @@ export default function PanelShowcase({ dark = false }: { dark?: boolean }) {
             <button
               key={`${t.id}-${i}`}
               onClick={() => setSpot(i)}
-              aria-label={`${i + 1}: ${s.title}`}
-              aria-pressed={spot === i}
+              aria-hidden="true"
+              tabIndex={-1}
               className="spot absolute grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full text-[12.5px] font-bold text-white sm:h-8 sm:w-8"
               style={{ left: `${s.x}%`, top: `${s.y}%`, animationDelay: `${120 + i * 90}ms` }}
               data-on={spot === i || undefined}

@@ -341,7 +341,7 @@ export default function ModelStudio({ itemId, itemName, image, onChanged }: { it
                     <p className="font-display text-[16.5px] font-bold">Aponte a câmera do celular para o QR</p>
                     <p className="mt-1 text-black/65">O escâner abre no navegador do celular, sem senha. O link vale 3 horas. Quando você salvar, o 3D aparece aqui sozinho.</p>
                     <a href={scan.url} target="_blank" className="mt-2 inline-block text-[13.5px] font-semibold underline">Abrir neste aparelho</a>
-                    <p className="mt-2 flex items-center gap-1.5 text-[13px] text-black/50">
+                    <p className="mt-2 flex items-center gap-1.5 text-[13px] text-black/60">
                       <span className="h-2 w-2 animate-pulse rounded-full bg-brand" /> Aguardando o escaneamento...
                     </p>
                   </div>

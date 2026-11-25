@@ -1,6 +1,7 @@
 "use client";
 // Acompanhamento do pedido: o cliente vê em que etapa está, sem precisar perguntar ao garçom.
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
+import { readable } from "@/lib/color";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
@@ -44,6 +45,29 @@ const HEADLINE: Record<string, { mesa: string; delivery: string; sub: { mesa: st
   },
 };
 
+/** Aviso de "pedido pronto": vibra o celular e toca dois toques curtos (se o navegador deixar). */
+function readyAlert() {
+  try {
+    navigator.vibrate?.([220, 120, 220]);
+  } catch {}
+  try {
+    const A = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new A();
+    [0, 0.22].forEach((t, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = i ? 1046 : 784;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.2);
+      o.connect(g).connect(ctx.destination);
+      o.start(ctx.currentTime + t);
+      o.stop(ctx.currentTime + t + 0.22);
+    });
+    setTimeout(() => ctx.close().catch(() => {}), 800);
+  } catch {}
+}
+
 const hhmm = (d: string) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 export default function Pedido({ params }: { params: Promise<{ slug: string; id: string }> }) {
@@ -51,6 +75,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
   const [d, setD] = useState<any>(null);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
+  const lastStatus = useRef("");
 
   useEffect(() => {
     let stop = false;
@@ -61,6 +86,10 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
           if (stop) return;
           setD(x);
           setErr("");
+          const st = x.order.status;
+          if (lastStatus.current && lastStatus.current !== st && (st === "pronto" || st === "saiu")) readyAlert();
+          lastStatus.current = st;
+          document.title = st === "pronto" || st === "saiu" ? `✓ Pedido #${x.order.number} pronto` : `Pedido #${x.order.number}`;
           if (["entregue", "cancelado"].includes(x.order.status)) clearInterval(t);
         })
         .catch((e) => !stop && setErr(e.status === 404 ? "Pedido não encontrado." : "sem-conexao"));
@@ -97,7 +126,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
   const ch: "mesa" | "delivery" = o.channel === "delivery" ? "delivery" : "mesa";
   const steps = STEPS[ch];
   const current = steps.findIndex((s) => s.key === o.status);
-  const color = r.primary_color || "#E4572E";
+  const color = readable(r.primary_color);
   const cancelled = o.status === "cancelado";
   const done = o.status === "entregue";
   const h = HEADLINE[o.status] ?? HEADLINE.novo;
@@ -118,7 +147,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
       </p>
       <div className="mt-1 flex items-baseline justify-between gap-3">
         <h1 className="text-[15px] font-bold text-black/70">Pedido #{o.number}</h1>
-        <span className="tnum text-[13.5px] text-black/50">enviado às {hhmm(o.created_at)}</span>
+        <span className="tnum text-[13.5px] text-black/60">enviado às {hhmm(o.created_at)}</span>
       </div>
 
       <section aria-live="polite" className="mt-5">
@@ -135,7 +164,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
             <Icon name="clock" size={16} />
             <span>
               {ch === "delivery" ? "Chega" : "Fica pronto"} por volta das <b className="tnum">{hhmm(new Date(new Date(o.created_at).getTime() + eta.minutes * 60000).toISOString())}</b>
-              <span className="text-black/50"> · previsão</span>
+              <span className="text-black/60"> · previsão</span>
             </span>
           </p>
         )}
@@ -154,7 +183,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
                 >
                   {i < current || done ? <Icon name="check" size={13} stroke={3} /> : i === current ? <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> : null}
                 </span>
-                <span className={`mt-2 text-[12.5px] font-semibold ${reached ? "text-ink" : "text-black/40"}`}>{s.label}</span>
+                <span className={`mt-2 text-[12.5px] font-semibold ${reached ? "text-ink" : "text-black/60"}`}>{s.label}</span>
               </li>
             );
           })}
@@ -239,7 +268,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
           </a>
         )}
       </div>
-      {!done && !cancelled && <p className="mt-5 text-center text-[12.5px] text-black/45">Esta tela se atualiza sozinha. Pode deixar aberta.</p>}
+      {!done && !cancelled && <p className="mt-5 text-center text-[12.5px] text-black/60">Esta tela se atualiza sozinha. Pode deixar aberta.</p>}
     </main>
   );
 }

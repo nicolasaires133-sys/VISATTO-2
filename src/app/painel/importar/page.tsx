@@ -87,7 +87,7 @@ export default function Importar() {
               </div>
             ))}
             {photos.length < 4 && (
-              <label className="grid aspect-[3/4] cursor-pointer place-items-center rounded-xl border-2 border-dashed border-black/15 text-center text-sm text-black/50 hover:border-ink">
+              <label className="grid aspect-[3/4] cursor-pointer place-items-center rounded-xl border-2 border-dashed border-black/15 text-center text-sm text-black/60 hover:border-ink">
                 <span><Icon name="camera" size={22} className="mx-auto mb-1" />Adicionar foto</span>
                 <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => add(e.target.files)} />
               </label>
@@ -138,7 +138,7 @@ export default function Importar() {
                         onBlur={(e) => edit(ci, ii, { price_cents: Math.round(Number(e.target.value.replace(",", ".")) * 100) || 0 })}
                         title={brl(it.price_cents)}
                       />
-                      <button onClick={() => removeItem(ci, ii)} className="text-sm text-black/40 hover:text-red-700">remover</button>
+                      <button onClick={() => removeItem(ci, ii)} className="text-sm text-black/60 hover:text-red-700">remover</button>
                     </div>
                   ))}
                 </div>

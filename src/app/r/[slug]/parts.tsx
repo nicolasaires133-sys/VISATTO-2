@@ -4,6 +4,7 @@ import { DishArt } from "@/components/DishArt";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import type { PublicItem as MenuItem } from "@/lib/format";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 export function store<T>(key: string, fallback: T): T {
   try {
@@ -26,45 +27,72 @@ export function leavingPage() {
   setTimeout(() => (leaving = false), 3000);
 }
 
+// O botão "voltar" do celular fecha a folha de cima. Todas as folhas abertas dividem UMA entrada no
+// histórico: assim, trocar de folha (ex.: carrinho -> editar prato) não mexe no histórico e nada fecha sozinho.
+const openSheets: { current: () => void }[] = [];
+let hasEntry = false;
+let ignoreNextPop = false;
+function ensureEntry() {
+  if (hasEntry || leaving) return;
+  try {
+    history.pushState({ ...(history.state || {}), visattoSheet: 1 }, "");
+    hasEntry = true;
+  } catch {}
+}
+if (typeof window !== "undefined")
+  window.addEventListener("popstate", () => {
+    if (ignoreNextPop) {
+      ignoreNextPop = false;
+      return;
+    }
+    if (!hasEntry) return;
+    hasEntry = false;
+    openSheets[openSheets.length - 1]?.current();
+    // ainda tem folha aberta por baixo: ela ganha a entrada de volta
+    setTimeout(() => openSheets.length && ensureEntry(), 0);
+  });
+
 /** Folha que sobe de baixo. O botão "voltar" do celular fecha a folha em vez de sair do cardápio. */
 export function Sheet({ children, onClose, full = false, label }: { children: React.ReactNode; onClose: () => void; full?: boolean; label: string }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const box = useRef<HTMLDivElement>(null);
+  useFocusTrap(box);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const id = Math.random().toString(36).slice(2);
-    let popped = false;
-    try {
-      history.pushState({ ...(history.state || {}), visattoSheet: id }, "");
-    } catch {}
-    const onPop = () => {
-      popped = true;
-      closeRef.current();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeRef.current();
-    window.addEventListener("popstate", onPop);
+    const me = { current: () => closeRef.current() };
+    openSheets.push(me);
+    ensureEntry();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && openSheets[openSheets.length - 1] === me && closeRef.current();
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
-      window.removeEventListener("popstate", onPop);
       window.removeEventListener("keydown", onKey);
-      // fechada pelo X ou por uma ação: tira a entrada que a folha colocou no histórico
-      if (!popped && !leaving && history.state?.visattoSheet === id) {
+      openSheets.splice(openSheets.indexOf(me), 1);
+      // fechou pelo X ou por uma ação e nenhuma outra folha abriu: tira a entrada do histórico
+      setTimeout(() => {
+        if (openSheets.length || !hasEntry || leaving) return;
+        hasEntry = false;
+        ignoreNextPop = true;
         try {
           history.back();
-        } catch {}
-      }
+        } catch {
+          ignoreNextPop = false;
+        }
+      }, 0);
     };
   }, []);
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/45 sm:items-center" onClick={onClose}>
       <div
+        ref={box}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         onClick={(e) => e.stopPropagation()}
-        className={`animate-sheet flex w-full max-w-2xl flex-col overflow-hidden bg-white sm:rounded-[28px] ${full ? "h-[100dvh] sm:h-[90dvh]" : "max-h-[94dvh] rounded-t-[28px]"}`}
+        className={`animate-sheet flex outline-none w-full max-w-2xl flex-col overflow-hidden bg-white sm:rounded-[28px] ${full ? "h-[100dvh] sm:h-[90dvh]" : "max-h-[94dvh] rounded-t-[28px]"}`}
       >
         {children}
       </div>
@@ -125,10 +153,10 @@ export function Dims({ dims, label = "Ver o tamanho", sizeLabel = "Tamanho", not
   const size = `${Math.round(Math.max(dims.w, dims.d || 0))} cm`;
   return open ? (
     <button type="button" onClick={() => setOpen(false)} className="animate-enter flex w-full items-center gap-3 rounded-2xl bg-[#efefeb] px-4 py-3 text-left">
-      <Icon name="ruler" size={20} className="shrink-0 text-black/50" />
+      <Icon name="ruler" size={20} className="shrink-0 text-black/60" />
       <span className="flex-1">
         <b className="tnum text-[17px]">{sizeLabel}: {size}</b>
-        <span className="block text-[12.5px] text-black/50">{note}</span>
+        <span className="block text-[12.5px] text-black/60">{note}</span>
       </span>
       <Icon name="close" size={16} className="text-black/35" />
     </button>

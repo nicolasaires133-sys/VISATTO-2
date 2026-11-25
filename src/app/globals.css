@@ -15,8 +15,8 @@
   --color-porcelain: #f6f7f4;
   --color-cream: #eff0ec;
   --color-line: #e2e4e1;
-  --color-brand: #e4572e;
-  --color-brand-dark: #c2431f;
+  --color-brand: #cc4a24;
+  --color-brand-dark: #a93a1a;
   --color-ember: #ff9a5c;
   --color-leaf: #2f7d4f;
   --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -66,7 +66,7 @@ select:focus-visible {
   @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-[background-color,box-shadow,transform,color] duration-150 select-none active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none;
 }
 @utility btn-primary {
-  @apply btn bg-brand text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_20px_-10px_rgba(228,87,46,0.9)] hover:bg-brand-dark hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_-10px_rgba(228,87,46,1)];
+  @apply btn bg-brand text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_20px_-10px_rgba(204,74,36,0.9)] hover:bg-brand-dark hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_-10px_rgba(204,74,36,1)];
 }
 @utility btn-ghost {
   @apply btn bg-white text-ink ring-1 ring-black/10 shadow-[0_1px_2px_rgba(23,32,51,0.06)] hover:bg-black/[0.04] hover:ring-black/20;
@@ -304,7 +304,7 @@ details.faq[open]::details-content { block-size: auto; }
 .cine-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: 52px; padding: 0 26px; border-radius: 999px;
-  background: var(--cine-accent); color: #fff; font-weight: 650; font-size: 16px;
+  background: var(--cine-accent-btn, #cf4520); color: #fff; font-weight: 650; font-size: 16px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 12px 40px -10px rgba(255, 90, 46, 0.7);
   transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, background-color 0.2s;
 }

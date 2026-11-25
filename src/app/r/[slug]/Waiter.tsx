@@ -80,7 +80,7 @@ export default function Waiter(props: {
           <p className="text-xs text-leaf">{busy ? "digitando..." : "online"}</p>
         </div>
         {chat.length > 0 && (
-          <button onClick={() => setChat([])} className="text-xs font-semibold text-black/40">Limpar</button>
+          <button onClick={() => setChat([])} className="text-xs font-semibold text-black/60">Limpar</button>
         )}
         <CloseButton onClick={props.onClose} />
       </div>
@@ -103,7 +103,7 @@ export default function Waiter(props: {
                       <Thumb item={it} className="h-24 w-full" />
                       <div className="p-2.5">
                         <p className="line-clamp-2 text-sm font-bold leading-tight">{it.name}</p>
-                        <p className="text-xs text-black/50">
+                        <p className="text-xs text-black/60">
                           serve {it.serves}
                           {it.model && (
                             <button onClick={() => props.onOpenItem(id)} className="ml-1 font-bold text-ink underline">

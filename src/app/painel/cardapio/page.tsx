@@ -15,7 +15,7 @@ type Draft = Partial<MenuItem> & { price?: string; cost?: string; tab?: "info" |
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export default function Cardapio() {
-  const { aiEnabled, waiter, reload } = usePainel();
+  const { aiEnabled, waiter, reload, toast } = usePainel();
   const [menu, setMenu] = useState<{ categories: Category[]; items: MenuItem[] } | null>(null);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [newCat, setNewCat] = useState("");
@@ -100,7 +100,10 @@ export default function Cardapio() {
 
   async function quick(i: MenuItem, patch: Partial<MenuItem>) {
     setMenu((m) => m && { ...m, items: m.items.map((x) => (x.id === i.id ? { ...x, ...patch } : x)) });
-    await api(`/api/painel/items/${i.id}`, { method: "PUT", body: { quick: true, ...patch } }).catch(load);
+    await api(`/api/painel/items/${i.id}`, { method: "PUT", body: { quick: true, ...patch } }).then(
+      () => toast(patch.available === false ? `${i.name}: esgotado` : patch.available ? `${i.name}: disponível de novo` : patch.featured ? `${i.name} está nos destaques` : patch.featured === false ? `${i.name} saiu dos destaques` : "Salvo"),
+      load
+    );
   }
 
   const sections = [
@@ -145,7 +148,7 @@ export default function Cardapio() {
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {items.length > 6 && (
           <label className="flex h-11 w-full items-center gap-2 rounded-xl bg-white px-3.5 ring-1 ring-black/12 sm:w-auto sm:min-w-0 sm:max-w-xs sm:flex-1">
-            <Icon name="search" size={17} className="text-black/45" />
+            <Icon name="search" size={17} className="text-black/60" />
             <span className="sr-only">Buscar prato</span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar prato" className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none" />
             {query && <button type="button" aria-label="Limpar busca" onClick={() => setQuery("")}><Icon name="close" size={15} /></button>}
@@ -199,7 +202,7 @@ export default function Cardapio() {
                 </>
               )}
             </div>
-            {list.length === 0 && <p className="rounded-2xl border border-dashed border-black/15 px-4 py-6 text-center text-[14px] text-black/45">Nenhum prato nesta categoria ainda.</p>}
+            {list.length === 0 && <p className="rounded-2xl border border-dashed border-black/15 px-4 py-6 text-center text-[14px] text-black/60">Nenhum prato nesta categoria ainda.</p>}
             <div className="grid gap-3 md:grid-cols-2">
               {list.map((i) => (
                 <article key={i.id} className="card flex gap-3.5 p-3.5">
@@ -266,7 +269,8 @@ export default function Cardapio() {
           categories={categories}
           items={items}
           onClose={() => setEditing(null)}
-          onSaved={async (createdId) => {
+          onSaved={async (createdId, msg) => {
+            toast(msg ?? (createdId ? "Prato criado" : "Prato salvo"));
             const m = await api<{ categories: Category[]; items: MenuItem[] }>("/api/painel/items");
             setMenu(m);
             reload();
@@ -313,7 +317,7 @@ function ItemForm({
   categories: Category[];
   items: MenuItem[];
   onClose: () => void;
-  onSaved: (createdId?: string) => void;
+  onSaved: (createdId?: string, msg?: string) => void;
   onChangedModel?: () => void;
 }) {
   const [f, setF] = useState<Draft>({ name: "", description: "", price: "", image: "", ...draft });
@@ -396,7 +400,7 @@ function ItemForm({
 
   async function remove() {
     await api(`/api/painel/items/${draft.id}`, { method: "DELETE" });
-    onSaved();
+    onSaved(undefined, "Prato excluído");
   }
 
   const tags = f.tags ?? [];
@@ -498,7 +502,7 @@ function ItemForm({
             </div>
             </div>
             {err && <Notice tone="error">{err}</Notice>}
-            {isNew && <p className="text-[13px] text-black/50">Depois de salvar, você já pode escanear o prato em 3D.</p>}
+            {isNew && <p className="text-[13px] text-black/60">Depois de salvar, você já pode escanear o prato em 3D.</p>}
           </div>
           <div className="flex gap-2 border-t border-line p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {!isNew && (
@@ -596,7 +600,7 @@ function SellFields({ f, setF, others }: { f: Draft; setF: React.Dispatch<React.
         <div>
           <label className="label" htmlFor="it-custo">Custo para fazer (R$)</label>
           <input id="it-custo" className="input" inputMode="decimal" value={f.cost ?? ""} onChange={(e) => setF({ ...f, cost: e.target.value })} placeholder="Ex.: 14,50" />
-          <p className="mt-1 text-[12.5px] text-black/50">Só você vê. Mostra o lucro de cada prato em Resultados.</p>
+          <p className="mt-1 text-[12.5px] text-black/60">Só você vê. Mostra o lucro de cada prato em Resultados.</p>
         </div>
       </div>
     </div>

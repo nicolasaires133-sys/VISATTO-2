@@ -67,10 +67,10 @@ export function OptionsEditor({ groups, onChange }: { groups: EditGroup[]; onCha
                 <div key={c.id} className="flex items-center gap-2">
                   <input aria-label="Opção" className="input h-10 flex-1" maxLength={50} value={c.name} onChange={(e) => setChoice(i, j, { name: e.target.value })} placeholder="Ex.: Grande" />
                   <div className="relative w-28 shrink-0">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-black/45">+ R$</span>
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-black/60">+ R$</span>
                     <input aria-label={`Preço a mais de ${c.name || "opção"}`} className="input h-10 pl-11" inputMode="decimal" value={c.price} onChange={(e) => setChoice(i, j, { price: e.target.value })} placeholder="0" />
                   </div>
-                  <button type="button" aria-label={`Tirar ${c.name || "opção"}`} onClick={() => set(i, { choices: g.choices.filter((_, k) => k !== j), max: Math.min(g.max, Math.max(1, g.choices.length - 1)) })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-black/50 hover:bg-black/5">
+                  <button type="button" aria-label={`Tirar ${c.name || "opção"}`} onClick={() => set(i, { choices: g.choices.filter((_, k) => k !== j), max: Math.min(g.max, Math.max(1, g.choices.length - 1)) })} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-black/60 hover:bg-black/5">
                     <Icon name="close" size={15} />
                   </button>
                 </div>

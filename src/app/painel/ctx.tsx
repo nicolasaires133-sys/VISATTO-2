@@ -41,6 +41,8 @@ export type PainelState = {
   setCalls: React.Dispatch<React.SetStateAction<Call[]>>;
   sound: boolean;
   setSound: (on: boolean) => void;
+  /** aviso rápido embaixo da tela ("Prato salvo") */
+  toast: (msg: string) => void;
 };
 export const PainelCtx = createContext<PainelState | null>(null);
 export const usePainel = () => useContext(PainelCtx)!;

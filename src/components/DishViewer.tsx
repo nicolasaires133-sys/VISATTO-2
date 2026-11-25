@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatDims } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { isIOS, prepareIosXr, type IosXr } from "@/lib/iosAr";
+import { readable } from "@/lib/color";
 
 declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -81,6 +82,7 @@ export default function DishViewer({
   /** tenta abrir a câmera sozinho assim que o prato carrega (página do App Clip) */
   autoOpen?: boolean;
 }) {
+  color = readable(color);
   const ref = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -316,7 +318,7 @@ export default function DishViewer({
             <div className={`h-1.5 overflow-hidden rounded-full ${dark ? "bg-white/15" : "bg-black/10"}`}>
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(8, progress)}%`, background: color }} />
             </div>
-            <p className={`mt-1 text-center text-[11px] ${dark ? "text-white/55" : "text-black/50"}`}>Carregando 3D...</p>
+            <p className={`mt-1 text-center text-[11px] ${dark ? "text-white/55" : "text-black/60"}`}>Carregando 3D...</p>
           </div>
         )}
         {failed && (
@@ -394,7 +396,7 @@ export default function DishViewer({
             <button type="button" onClick={openAR} className="btn mt-5 h-[52px] w-full text-[16px] text-white" style={{ background: color }}>
               Abrir a câmera
             </button>
-            <button type="button" onClick={() => setTips(false)} className="mt-2 w-full py-2 text-sm text-black/50">Agora não</button>
+            <button type="button" onClick={() => setTips(false)} className="mt-2 w-full py-2 text-sm text-black/60">Agora não</button>
           </div>
         </div>
       )}
