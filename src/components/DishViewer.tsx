@@ -115,7 +115,7 @@ export default function DishViewer({
     };
     const onProgress = (e: any) => setProgress(Math.round((e.detail?.totalProgress ?? 0) * 100));
     const onError = () => setFailed(true);
-    // Esconde o prato (transparente) até ele pousar na mesa, e depois faz ele aparecer devagar.
+    // Esconde o prato (transparente) até ele pousar na mesa; o carregamento de bolinhas fica na tela nesse tempo.
     // Sem isso, o prato fica "voando" e apagado na frente da câmera enquanto o celular procura a superfície.
     const fades: ReturnType<typeof setTimeout>[] = [];
     const setAlpha = (k: number) => {
@@ -133,10 +133,11 @@ export default function DishViewer({
         }
       }
     };
+    // Mostra o prato inteiro de uma vez (tamanho real, sem ficar apagado), só depois que ele assentou na mesa.
     const reveal = (delay: number) => {
       fades.forEach(clearTimeout);
       fades.length = 0;
-      for (let i = 1; i <= 10; i++) fades.push(setTimeout(() => setAlpha(i / 10), delay + i * 45));
+      fades.push(setTimeout(() => { setAlpha(1); setArSearching(false); }, delay));
     };
     const onAr = (e: any) => {
       const s = e.detail?.status;
@@ -155,8 +156,7 @@ export default function DishViewer({
         }
       }
       if (s === "object-placed") {
-        setArSearching(false);
-        try { reveal(450); } catch {}
+        try { reveal(400); } catch { setArSearching(false); }
       }
       if (s === "not-presenting") {
         setArSearching(false);
@@ -185,27 +185,11 @@ export default function DishViewer({
     };
   }, [ready, onEvent]);
 
-  const [opening, setOpening] = useState(false);
-  useEffect(() => {
-    if (!opening) return;
-    // a câmera do iPhone cobre a página; ao voltar (ou depois de alguns segundos) a engrenagem some
-    const t = setTimeout(() => setOpening(false), 6000);
-    const back = () => document.visibilityState === "visible" && setTimeout(() => setOpening(false), 400);
-    document.addEventListener("visibilitychange", back);
-    window.addEventListener("focus", back);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener("visibilitychange", back);
-      window.removeEventListener("focus", back);
-    };
-  }, [opening]);
-
   function openAR() {
     const el = ref.current;
     if (!el?.canActivateAR) return;
     setTips(false);
     onEvent?.("ar");
-    if (ios) setOpening(true);
     try {
       const r = el.activateAR();
       if (r && typeof r.catch === "function") r.catch(() => setArMsg("Não foi possível abrir a câmera."));
@@ -278,13 +262,12 @@ export default function DishViewer({
             <div slot="ar-button" style={{ display: "none" }} />
             {arSearching && (
               <div className="ar-searching" role="status" aria-live="polite">
-                <svg viewBox="0 0 48 48" width="64" height="64" aria-hidden="true" className="ar-gear">
-                  <path
-                    fill="#fff"
-                    d="M27.6 3.6l1.1 5.3c1.3.4 2.5.9 3.6 1.6l4.6-2.9 5.1 5.1-2.9 4.6c.7 1.1 1.2 2.3 1.6 3.6l5.3 1.1v7.2l-5.3 1.1c-.4 1.3-.9 2.5-1.6 3.6l2.9 4.6-5.1 5.1-4.6-2.9c-1.1.7-2.3 1.2-3.6 1.6l-1.1 5.3h-7.2l-1.1-5.3c-1.3-.4-2.5-.9-3.6-1.6l-4.6 2.9-5.1-5.1 2.9-4.6c-.7-1.1-1.2-2.3-1.6-3.6L3.6 27.6v-7.2l5.3-1.1c.4-1.3.9-2.5 1.6-3.6l-2.9-4.6 5.1-5.1 4.6 2.9c1.1-.7 2.3-1.2 3.6-1.6l1.1-5.3h7.2zM24 16a8 8 0 100 16 8 8 0 000-16z"
-                  />
-                </svg>
-                <p className="ar-searching-t">Preparando o prato...</p>
+                <span className="ar-dots" aria-hidden="true">
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <i key={i} style={{ transform: `rotate(${i * 36}deg) translateY(-26px)`, animationDelay: `${(i - 10) * 0.1}s` }} />
+                  ))}
+                </span>
+                <p className="ar-searching-t">Carregando...</p>
                 <p className="ar-searching-s">Aponte para a mesa e mova o celular devagar</p>
               </div>
             )}
@@ -340,16 +323,6 @@ export default function DishViewer({
             </div>
           )}
           {arMsg && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{arMsg}</p>}
-        </div>
-      )}
-
-      {opening && (
-        <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-2 bg-[#0b0e14]/92 text-center text-white" role="status" aria-live="polite">
-          <svg viewBox="0 0 48 48" width="64" height="64" aria-hidden="true" className="ar-gear">
-            <path fill="#fff" d="M27.6 3.6l1.1 5.3c1.3.4 2.5.9 3.6 1.6l4.6-2.9 5.1 5.1-2.9 4.6c.7 1.1 1.2 2.3 1.6 3.6l5.3 1.1v7.2l-5.3 1.1c-.4 1.3-.9 2.5-1.6 3.6l2.9 4.6-5.1 5.1-4.6-2.9c-1.1.7-2.3 1.2-3.6 1.6l-1.1 5.3h-7.2l-1.1-5.3c-1.3-.4-2.5-.9-3.6-1.6l-4.6 2.9-5.1-5.1 2.9-4.6c-.7-1.1-1.2-2.3-1.6-3.6L3.6 27.6v-7.2l5.3-1.1c.4-1.3.9-2.5 1.6-3.6l-2.9-4.6 5.1-5.1 4.6 2.9c1.1-.7 2.3-1.2 3.6-1.6l1.1-5.3h7.2zM24 16a8 8 0 100 16 8 8 0 000-16z" />
-          </svg>
-          <p className="mt-3 text-[18px] font-bold">Abrindo a câmera...</p>
-          <p className="px-8 text-[14.5px] text-white/75">Aponte para a mesa e mova o celular devagar. O prato aparece quando a mesa for encontrada.</p>
         </div>
       )}
 
