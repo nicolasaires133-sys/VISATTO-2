@@ -143,7 +143,20 @@ export async function glbToUsdz(glbUrl: string): Promise<Blob> {
     includeAnchoringProperties: true,
     ar: { anchoring: { type: "plane" }, planeAnchoring: { alignment: "horizontal" } },
   } as any));
-  return new Blob([arr as any], { type: "model/vnd.usdz+zip" });
+  // ancoragem na mesa (sem o prato voando antes) + texturas JPEG, menores
+  const { fixUsdz } = await import("./usdz");
+  const toJpeg = async (png: Uint8Array) => {
+    const bmp = await createImageBitmap(new Blob([png as any], { type: "image/png" }));
+    const c = document.createElement("canvas");
+    c.width = bmp.width;
+    c.height = bmp.height;
+    c.getContext("2d")!.drawImage(bmp, 0, 0);
+    const b: Blob = await new Promise((ok, no) => c.toBlob((x) => (x ? ok(x) : no(new Error("jpeg"))), "image/jpeg", 0.86));
+    return new Uint8Array(await b.arrayBuffer());
+  };
+  const raw = arr instanceof Uint8Array ? arr : new Uint8Array(arr as unknown as ArrayBuffer);
+  const fixed = await fixUsdz(raw, toJpeg).catch(() => raw);
+  return new Blob([fixed as any], { type: "model/vnd.usdz+zip" });
 }
 
 /** Tamanho simples para o cliente: só a maior medida, arredondada ("40 cm"). */

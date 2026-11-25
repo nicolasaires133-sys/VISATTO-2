@@ -185,11 +185,27 @@ export default function DishViewer({
     };
   }, [ready, onEvent]);
 
+  const [opening, setOpening] = useState(false);
+  useEffect(() => {
+    if (!opening) return;
+    // a câmera do iPhone cobre a página; ao voltar (ou depois de alguns segundos) a engrenagem some
+    const t = setTimeout(() => setOpening(false), 6000);
+    const back = () => document.visibilityState === "visible" && setTimeout(() => setOpening(false), 400);
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("visibilitychange", back);
+      window.removeEventListener("focus", back);
+    };
+  }, [opening]);
+
   function openAR() {
     const el = ref.current;
     if (!el?.canActivateAR) return;
     setTips(false);
     onEvent?.("ar");
+    if (ios) setOpening(true);
     try {
       const r = el.activateAR();
       if (r && typeof r.catch === "function") r.catch(() => setArMsg("Não foi possível abrir a câmera."));
@@ -327,6 +343,16 @@ export default function DishViewer({
         </div>
       )}
 
+      {opening && (
+        <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-2 bg-[#0b0e14]/92 text-center text-white" role="status" aria-live="polite">
+          <svg viewBox="0 0 48 48" width="64" height="64" aria-hidden="true" className="ar-gear">
+            <path fill="#fff" d="M27.6 3.6l1.1 5.3c1.3.4 2.5.9 3.6 1.6l4.6-2.9 5.1 5.1-2.9 4.6c.7 1.1 1.2 2.3 1.6 3.6l5.3 1.1v7.2l-5.3 1.1c-.4 1.3-.9 2.5-1.6 3.6l2.9 4.6-5.1 5.1-4.6-2.9c-1.1.7-2.3 1.2-3.6 1.6l-1.1 5.3h-7.2l-1.1-5.3c-1.3-.4-2.5-.9-3.6-1.6l-4.6 2.9-5.1-5.1 2.9-4.6c-.7-1.1-1.2-2.3-1.6-3.6L3.6 27.6v-7.2l5.3-1.1c.4-1.3.9-2.5 1.6-3.6l-2.9-4.6 5.1-5.1 4.6 2.9c1.1-.7 2.3-1.2 3.6-1.6l1.1-5.3h7.2zM24 16a8 8 0 100 16 8 8 0 000-16z" />
+          </svg>
+          <p className="mt-3 text-[18px] font-bold">Abrindo a câmera...</p>
+          <p className="px-8 text-[14.5px] text-white/75">Aponte para a mesa e mova o celular devagar. O prato aparece quando a mesa for encontrada.</p>
+        </div>
+      )}
+
       {tips && (
         <div className="fixed inset-0 z-[60] grid place-items-end bg-black/50 sm:place-items-center" onClick={() => setTips(false)}>
           <div onClick={(e) => e.stopPropagation()} className="animate-pop w-full max-w-md rounded-t-3xl bg-white p-6 sm:rounded-3xl">
@@ -336,7 +362,7 @@ export default function DishViewer({
               {(ios
                 ? [
                     "Antes de abrir, aponte o celular para o lugar da mesa onde o prato vai ficar.",
-                    "O prato aparece meio transparente por um instante, enquanto o iPhone reconhece a mesa. Mova o celular devagar até ele ficar firme.",
+                    "Mova o celular devagar enquanto o iPhone reconhece a mesa. O prato aparece quando ela for encontrada.",
                     "Ficou no lugar errado? Arraste o prato com um dedo. Com dois dedos, você gira. O tamanho é o real.",
                   ]
                 : [
