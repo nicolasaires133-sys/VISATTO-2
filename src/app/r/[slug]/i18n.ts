@@ -104,6 +104,7 @@ const D = {
   unfav: { pt: "Tirar dos favoritos", en: "Remove from favorites", es: "Quitar de favoritos" },
   favSaved: { pt: "Guardado nos seus favoritos", en: "Saved to your favorites", es: "Guardado en tus favoritos" },
   orderedTimes: { pt: "você pediu {n}x", en: "you ordered {n}x", es: "pediste {n}x" },
+  addToOrder: { pt: "Adicionar ao pedido", en: "Add to order", es: "Agregar al pedido" },
   seeSize: { pt: "Ver o tamanho", en: "See the size", es: "Ver el tamaño" },
   size: { pt: "Tamanho", en: "Size", es: "Tamaño" },
   sizeNote: { pt: "medido no restaurante", en: "measured at the restaurant", es: "medido en el restaurante" },

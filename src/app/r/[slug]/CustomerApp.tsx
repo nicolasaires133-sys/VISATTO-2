@@ -774,7 +774,19 @@ function ItemSheet({
         <div className="relative">
           {item.model && view === "3d" ? (
             <div className="p-3 pb-0">
-              <DishViewer model={item.model} poster={item.image || undefined} alt={name} color={color} height={300} onEvent={onTrack} hideDims />
+              <DishViewer
+                model={item.model}
+                poster={item.image || undefined}
+                alt={name}
+                color={color}
+                height={300}
+                onEvent={onTrack}
+                hideDims
+                arTitle={name}
+                arSubtitle={brl(item.price_cents)}
+                arAction={!paused && item.available ? t("addToOrder") : undefined}
+                onArAction={!paused && item.available ? () => onAdd(1, "") : undefined}
+              />
             </div>
           ) : (
             <Thumb item={item} art={0.62} className="h-72 w-full" />

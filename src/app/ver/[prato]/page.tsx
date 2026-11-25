@@ -2,6 +2,7 @@
 // Página para experimentar o "Ver na mesa" com os pratos de exemplo, aberta pelo QR ou pelo botão da página inicial.
 import Link from "next/link";
 import { use } from "react";
+import { useRouter } from "next/navigation";
 import DishViewer from "@/components/DishViewer";
 import Logo from "@/components/Logo";
 import { Dims } from "@/app/r/[slug]/parts";
@@ -14,6 +15,7 @@ const PRATOS: Record<string, { name: string; desc: string; glb: string; usdz: st
 
 export default function Ver({ params }: { params: Promise<{ prato: string }> }) {
   const { prato } = use(params);
+  const router = useRouter();
   const p = PRATOS[prato] ?? PRATOS.pizza;
   const outros = Object.entries(PRATOS).filter(([k]) => k !== (PRATOS[prato] ? prato : "pizza"));
   return (
@@ -22,7 +24,7 @@ export default function Ver({ params }: { params: Promise<{ prato: string }> }) 
       <h1 className="mt-5 text-[28px] font-bold leading-tight">{p.name}</h1>
       <p className="mt-1 text-[15px] text-slate">{p.desc}</p>
       <div className="mt-4">
-        <DishViewer model={{ glb: p.glb, usdz: p.usdz, dims: p.dims }} alt={`${p.name} em 3D`} height={340} hideDims color="#E4572E" />
+        <DishViewer model={{ glb: p.glb, usdz: p.usdz, dims: p.dims }} alt={`${p.name} em 3D`} height={340} hideDims color="#E4572E" arTitle={p.name} arSubtitle="Cardápio de exemplo do Visatto" arAction="Quero no meu restaurante" onArAction={() => router.push("/cadastro")} />
       </div>
       <div className="mt-3"><Dims dims={p.dims} /></div>
       <p className="mt-6 text-[14px] font-semibold text-slate">Ver outro prato</p>

@@ -47,6 +47,10 @@ export default function DishViewer({
   background,
   dark = false,
   orbit = "25deg 62deg 94%",
+  arTitle,
+  arSubtitle,
+  arAction,
+  onArAction,
 }: {
   model: DishModel;
   poster?: string;
@@ -63,6 +67,11 @@ export default function DishViewer({
   dark?: boolean;
   /** enquadramento inicial da câmera */
   orbit?: string;
+  /** faixa embaixo da câmera do iPhone: nome, preço e um botão (ex.: "Adicionar ao pedido") */
+  arTitle?: string;
+  arSubtitle?: string;
+  arAction?: string;
+  onArAction?: () => void;
 }) {
   const ref = useRef<any>(null);
   const [ready, setReady] = useState(false);
@@ -77,6 +86,8 @@ export default function DishViewer({
   // câmera aberta (WebXR): enquanto procura a mesa, o prato fica escondido e aparece uma engrenagem girando
   const [arSearching, setArSearching] = useState(false);
   const logged = useRef(false);
+  const onArActionRef = useRef(onArAction);
+  onArActionRef.current = onArAction;
 
   useEffect(() => {
     let alive = true;
@@ -159,6 +170,8 @@ export default function DishViewer({
     el.addEventListener("ar-status", onAr);
     const onCam = (e: any) => e.detail?.source === "user-interaction" && setTouched(true);
     el.addEventListener("camera-change", onCam);
+    const onQL = () => onArActionRef.current?.();
+    el.addEventListener("quick-look-button-tapped", onQL);
     if (el.loaded) onLoad();
     return () => {
       timers.forEach(clearTimeout);
@@ -168,6 +181,7 @@ export default function DishViewer({
       el.removeEventListener("error", onError);
       el.removeEventListener("ar-status", onAr);
       el.removeEventListener("camera-change", onCam);
+      el.removeEventListener("quick-look-button-tapped", onQL);
     };
   }, [ready, onEvent]);
 
@@ -200,6 +214,17 @@ export default function DishViewer({
   }, [showArButton]);
   const inApp = inAppBrowser();
   const mobile = isMobile();
+  const ios = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
+  // No iPhone a câmera é a do próprio iOS (Quick Look). Dá para pôr uma faixa com o nome, o preço e um botão.
+  const iosSrc = model.usdz
+    ? arTitle
+      ? `${model.usdz}#${new URLSearchParams({
+          checkoutTitle: arTitle.slice(0, 60),
+          checkoutSubtitle: (arSubtitle || "").slice(0, 60),
+          ...(arAction ? { callToAction: arAction.slice(0, 30) } : {}),
+        }).toString().replace(/\+/g, "%20")}`
+      : model.usdz
+    : undefined;
 
   return (
     <div>
@@ -208,7 +233,7 @@ export default function DishViewer({
           <model-viewer
             ref={ref}
             src={model.glb}
-            ios-src={model.usdz || undefined}
+            ios-src={iosSrc}
             alt={alt}
             poster={poster || undefined}
             ar={true}
@@ -308,9 +333,20 @@ export default function DishViewer({
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-ink text-white"><Icon name="scan" size={30} stroke={1.8} /></span>
             <h3 className="mt-3 text-center text-[21px] font-extrabold">Como ver o prato na mesa</h3>
             <ol className="mt-4 space-y-3 text-[14.5px]">
-              <li className="flex gap-3"><b className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-white" style={{ background: color }}>1</b>Aponte a câmera para a mesa, em um lugar livre e bem iluminado.</li>
-              <li className="flex gap-3"><b className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-white" style={{ background: color }}>2</b>Mova o celular devagar de um lado para o outro até o prato aparecer.</li>
-              <li className="flex gap-3"><b className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-white" style={{ background: color }}>3</b>Arraste para mudar de lugar e gire com dois dedos. O tamanho é o real.</li>
+              {(ios
+                ? [
+                    "Antes de abrir, aponte o celular para o lugar da mesa onde o prato vai ficar.",
+                    "O prato aparece meio transparente por um instante, enquanto o iPhone reconhece a mesa. Mova o celular devagar até ele ficar firme.",
+                    "Ficou no lugar errado? Arraste o prato com um dedo. Com dois dedos, você gira. O tamanho é o real.",
+                  ]
+                : [
+                    "Aponte a câmera para a mesa, em um lugar livre e bem iluminado.",
+                    "Mova o celular devagar enquanto a engrenagem gira: o prato aparece quando a mesa for encontrada.",
+                    "Arraste para mudar de lugar e gire com dois dedos. O tamanho é o real.",
+                  ]
+              ).map((t, i) => (
+                <li key={i} className="flex gap-3"><b className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-white" style={{ background: color }}>{i + 1}</b>{t}</li>
+              ))}
             </ol>
             <button type="button" onClick={openAR} className="btn mt-5 h-[52px] w-full text-[16px] text-white" style={{ background: color }}>
               Abrir a câmera
