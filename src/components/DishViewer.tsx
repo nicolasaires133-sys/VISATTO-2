@@ -1,12 +1,13 @@
 "use client";
 // Visualizador 3D + "ver na mesa" (realidade aumentada) usando o <model-viewer> do Google.
 // - Android: WebXR no Chrome (dentro do navegador) ou Google Scene Viewer
-// - iPhone/iPad: AR Quick Look com arquivo USDZ
+// - iPhone/iPad: câmera própria pelo Variant Launch (App Clip), se houver a chave; senão AR Quick Look com USDZ
 // - ar-scale="fixed": o prato aparece no TAMANHO REAL e o cliente não consegue aumentar/diminuir
 // - ar-placement="floor": apoia em superfícies horizontais (a mesa)
 import { useEffect, useRef, useState } from "react";
 import { formatDims } from "@/lib/client";
 import Icon from "@/components/Icon";
+import { isIOS, prepareIosXr, type IosXr } from "@/lib/iosAr";
 
 declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -30,7 +31,8 @@ function isMobile() {
 
 let loader: Promise<unknown> | null = null;
 export function loadModelViewer() {
-  if (!loader) loader = import("@google/model-viewer").catch((e) => ((loader = null), Promise.reject(e)));
+  // no iPhone, o SDK do Variant Launch precisa entrar antes do model-viewer (ele vê a câmera na hora em que carrega)
+  if (!loader) loader = prepareIosXr().then(() => import("@google/model-viewer")).catch((e) => ((loader = null), Promise.reject(e)));
   return loader;
 }
 
@@ -51,6 +53,8 @@ export default function DishViewer({
   arSubtitle,
   arAction,
   onArAction,
+  quickOpen = false,
+  autoOpen = false,
 }: {
   model: DishModel;
   poster?: string;
@@ -72,6 +76,10 @@ export default function DishViewer({
   arSubtitle?: string;
   arAction?: string;
   onArAction?: () => void;
+  /** o botão abre a câmera direto, sem a janela de dicas */
+  quickOpen?: boolean;
+  /** tenta abrir a câmera sozinho assim que o prato carrega (página do App Clip) */
+  autoOpen?: boolean;
 }) {
   const ref = useRef<any>(null);
   const [ready, setReady] = useState(false);
@@ -83,14 +91,17 @@ export default function DishViewer({
   const [tips, setTips] = useState(false);
   const [touched, setTouched] = useState(false);
   const [qr, setQr] = useState("");
-  // câmera aberta (WebXR): enquanto procura a mesa, o prato fica escondido e aparece uma engrenagem girando
+  // câmera aberta (WebXR): enquanto procura a mesa, o prato fica escondido e aparece um círculo de bolinhas
   const [arSearching, setArSearching] = useState(false);
+  const [iosXr, setIosXr] = useState<IosXr | null>(null);
+  const autoTried = useRef(false);
   const logged = useRef(false);
   const onArActionRef = useRef(onArAction);
   onArActionRef.current = onArAction;
 
   useEffect(() => {
     let alive = true;
+    prepareIosXr().then((r) => alive && setIosXr(r));
     loadModelViewer()
       .then(() => alive && setReady(true))
       .catch(() => alive && setFailed(true));
@@ -185,8 +196,22 @@ export default function DishViewer({
     };
   }, [ready, onEvent]);
 
+  // iPhone no Safari: abre o App Clip do Variant Launch numa página só do prato, com a câmera própria
+  const launchIos = iosXr?.status === "launch-required" && Boolean(iosXr.getLaunchUrl);
   function openAR() {
     const el = ref.current;
+    if (launchIos) {
+      setTips(false);
+      onEvent?.("ar");
+      const q = new URLSearchParams({ glb: model.glb, n: (arTitle || alt).slice(0, 80) });
+      if (model.usdz) q.set("usdz", model.usdz);
+      if (model.dims) q.set("d", `${model.dims.w},${model.dims.d},${model.dims.h}`);
+      const target = `${window.location.origin}/ar?${q.toString()}`;
+      try {
+        window.location.href = iosXr!.getLaunchUrl!(target);
+        return;
+      } catch {}
+    }
     if (!el?.canActivateAR) return;
     setTips(false);
     onEvent?.("ar");
@@ -199,6 +224,19 @@ export default function DishViewer({
   }
 
   const dims = formatDims(model.dims);
+  const arOk = Boolean(canAR) || (launchIos && loaded);
+  const askAR = () => (quickOpen ? openAR() : setTips(true));
+
+  // página do App Clip: tenta abrir a câmera sozinho (se o navegador pedir um toque, o botão continua lá)
+  useEffect(() => {
+    if (!autoOpen || autoTried.current || !loaded || !canAR || launchIos) return;
+    autoTried.current = true;
+    const el = ref.current;
+    try {
+      const r = el?.activateAR?.();
+      if (r && typeof r.catch === "function") r.catch(() => {});
+    } catch {}
+  }, [autoOpen, loaded, canAR, launchIos]);
 
   // no computador: um QR para abrir esta mesma página no celular e ver o prato na mesa
   useEffect(() => {
@@ -214,7 +252,7 @@ export default function DishViewer({
   }, [showArButton]);
   const inApp = inAppBrowser();
   const mobile = isMobile();
-  const ios = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
+  const ios = isIOS();
   // No iPhone a câmera é a do próprio iOS (Quick Look). Dá para pôr uma faixa com o nome, o preço e um botão.
   const iosSrc = model.usdz
     ? arTitle
@@ -286,12 +324,12 @@ export default function DishViewer({
             Não foi possível carregar o 3D deste prato.
           </div>
         )}
-        {showArButton && loaded && canAR && (
-          <button type="button" onClick={() => setTips(true)} className="absolute bottom-3 right-3 z-[1] flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold text-white shadow-lg" style={{ background: color }}>
+        {showArButton && loaded && arOk && (
+          <button type="button" onClick={askAR} className="absolute bottom-3 right-3 z-[1] flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-bold text-white shadow-lg" style={{ background: color }}>
             <Icon name="scan" size={16} stroke={2.2} /> Ver na mesa
           </button>
         )}
-        {loaded && !touched && !dark && !hideHint && !(showArButton && canAR) && (
+        {loaded && !touched && !dark && !hideHint && !(showArButton && arOk) && (
           <span className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-black/70">
             <Icon name="rotate" size={14} />
             Gire com o dedo
@@ -303,8 +341,8 @@ export default function DishViewer({
 
       {showArButton && loaded && (
         <div className="mt-3">
-          {canAR ? (
-            <button type="button" onClick={() => setTips(true)} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: "#172033" }}>
+          {arOk ? (
+            <button type="button" onClick={askAR} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: "#172033" }}>
               <Icon name="scan" size={20} stroke={2} />
               Ver na minha mesa, em tamanho real
             </button>
@@ -332,7 +370,13 @@ export default function DishViewer({
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-ink text-white"><Icon name="scan" size={30} stroke={1.8} /></span>
             <h3 className="mt-3 text-center text-[21px] font-extrabold">Como ver o prato na mesa</h3>
             <ol className="mt-4 space-y-3 text-[14.5px]">
-              {(ios
+              {(launchIos
+                ? [
+                    "Vai aparecer um cartão da Apple embaixo da tela. Toque em Abrir (não instala nada).",
+                    "Aponte a câmera para a mesa e mova o celular devagar enquanto as bolinhas giram.",
+                    "O prato aparece pronto, no tamanho real, em cima da mesa. Arraste com o dedo para mudar de lugar.",
+                  ]
+                : ios && iosXr?.status !== "supported"
                 ? [
                     "Antes de abrir, aponte o celular para o lugar da mesa onde o prato vai ficar.",
                     "Mova o celular devagar enquanto o iPhone reconhece a mesa. O prato aparece quando ela for encontrada.",
@@ -340,7 +384,7 @@ export default function DishViewer({
                   ]
                 : [
                     "Aponte a câmera para a mesa, em um lugar livre e bem iluminado.",
-                    "Mova o celular devagar enquanto a engrenagem gira: o prato aparece quando a mesa for encontrada.",
+                    "Mova o celular devagar enquanto as bolinhas giram: o prato aparece pronto, no tamanho real, quando a mesa for encontrada.",
                     "Arraste para mudar de lugar e gire com dois dedos. O tamanho é o real.",
                   ]
               ).map((t, i) => (
