@@ -1,9 +1,8 @@
-// Marca Visatto: o prato dentro da moldura de escaneamento da câmera — 3D e realidade aumentada à primeira vista.
-// (As outras opções de ícone estão no quadro "Ícone do Visatto".)
+// Marca Visatto: o "V" em 3D pousado no anel da realidade aumentada — o prato aparecendo na mesa.
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <rect width="512" height="512" rx="112" fill="#172033" /><path d="M92 172V124Q92 92 124 92H172M340 92H388Q420 92 420 124V172M420 340V388Q420 420 388 420H340M172 420H124Q92 420 92 388V340" fill="none" stroke="#E4572E" strokeWidth="28" strokeLinecap="round" /><ellipse cx="256" cy="330" rx="132" ry="40" fill="#FFFFFF" /><ellipse cx="256" cy="326" rx="92" ry="25" fill="#EFE6DD" /><path d="M164 322C164 250 206 206 256 206S348 250 348 322Z" fill="#E4572E" /><ellipse cx="256" cy="322" rx="92" ry="16" fill="#C9461F" /><path d="M204 262Q218 232 248 222" fill="none" stroke="#FFFFFF" strokeWidth="12" strokeLinecap="round" opacity="0.75" />
+      <rect width="512" height="512" rx="116" fill="#141B2D" /><ellipse cx="256" cy="388" rx="158" ry="42" fill="none" stroke="#E4572E" strokeWidth="12" strokeLinecap="round" strokeDasharray="126 40" strokeDashoffset="63"/><ellipse cx="256" cy="384" rx="62" ry="13" fill="#05080F" opacity=".5"/><path d="M124 98H214L204 118H114Z" fill="#FFB08E"/><path d="M318 98H408L398 118H308Z" fill="#F47A4E"/><path d="M408 98 398 118 256 372 266 352Z" fill="#7A250C"/><path d="M114 118H204L256 266V372Z" fill="#FF6A3B"/><path d="M256 266 308 118H398L256 372Z" fill="#C93F17"/>
     </svg>
   );
 }
@@ -12,7 +11,7 @@ export default function Logo({ size = 32, className = "" }: { size?: number; cla
   return (
     <span className={`inline-flex items-center gap-2 font-extrabold tracking-tight ${className}`}>
       <LogoMark size={size} />
-      <span style={{ fontSize: size * 0.62 }}>Visatto</span>
+      <span style={{ fontSize: size * 0.62, letterSpacing: "-0.02em" }}>Visatto</span>
     </span>
   );
 }

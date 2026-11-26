@@ -4,7 +4,7 @@ import path from "node:path";
 import { ok, fail } from "@/lib/http";
 import { actor } from "@/lib/actor";
 import { getItemModel, processAndStore } from "@/lib/modelPipeline";
-import { TEMPLATES, templateScale, type TemplateKind } from "@/lib/templates";
+import { TEMPLATES, templateFile, templateScale, type TemplateKind } from "@/lib/templates";
 
 export const maxDuration = 60;
 
@@ -26,11 +26,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   try {
     // arquivo base: do disco (no computador) ou do próprio site (na Vercel)
+    const file = templateFile(kind, b);
     let buf: Uint8Array;
     try {
-      buf = await fs.readFile(path.join(process.cwd(), "public", t.file));
+      buf = await fs.readFile(path.join(process.cwd(), "public", file));
     } catch {
-      const r = await fetch(new URL(t.file, req.url));
+      const r = await fetch(new URL(file, req.url));
       if (!r.ok) throw new Error("Não foi possível abrir o modelo pronto.");
       buf = new Uint8Array(await r.arrayBuffer());
     }

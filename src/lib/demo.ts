@@ -10,6 +10,20 @@ const MENU: [string, [string, string, number, number, string[], boolean][]][] = 
     ["Pizza Calabresa Grande", "Calabresa artesanal fatiada, cebola roxa, muçarela e orégano. 35 cm, 8 fatias.", 74.9, 3, [], false],
     ["Pizza Quatro Queijos Grande", "Muçarela, gorgonzola, parmesão e catupiry. 35 cm, 8 fatias.", 84.9, 3, ["vegetariano"], false],
     ["Pizza Broto Margherita", "A clássica em tamanho individual. 25 cm, 4 fatias.", 44.9, 1, ["vegetariano"], false],
+    ["Pizza Mussarela Grande", "Muçarela, rodelas de tomate, azeitona preta e orégano. 35 cm, 8 fatias.", 64.9, 3, ["vegetariano"], false],
+    ["Pizza Frango com Catupiry Grande", "Frango desfiado temperado, Catupiry original e orégano. 35 cm, 8 fatias.", 76.9, 3, ["mais pedido"], false],
+    ["Pizza Frango com Bacon Grande", "Frango desfiado, bacon em cubos crocante e muçarela. 35 cm, 8 fatias.", 79.9, 3, [], false],
+    ["Pizza Bacon com Cheddar Grande", "Muçarela, bacon crocante e fios de cheddar cremoso. 35 cm, 8 fatias.", 79.9, 3, [], false],
+    ["Pizza Portuguesa Grande", "Presunto, ovo, cebola, ervilha, azeitona e muçarela. 35 cm, 8 fatias.", 76.9, 3, [], false],
+    ["Pizza Pepperoni Grande", "Pepperoni fatiado, muçarela e molho de tomate. 35 cm, 8 fatias.", 82.9, 3, [], false],
+    ["Pizza de Brigadeiro Grande", "Chocolate cremoso, granulado e brigadeiros. Pizza doce, 35 cm, 8 fatias.", 69.9, 3, [], false],
+  ]],
+  ["Hambúrgueres", [
+    ["X-Burger", "Pão com gergelim, hambúrguer de 150 g e queijo cheddar derretido.", 26.9, 1, [], false],
+    ["X-Salada", "Hambúrguer de 150 g, queijo, alface, tomate e maionese da casa.", 29.9, 1, ["mais pedido"], false],
+    ["X-Egg", "Hambúrguer de 150 g, queijo e ovo frito com gema mole.", 30.9, 1, [], false],
+    ["X-Bacon", "Hambúrguer de 150 g, queijo e tiras de bacon crocante.", 33.9, 1, [], false],
+    ["X-Tudo", "Hambúrguer de 150 g, queijo, presunto, ovo, bacon, alface e tomate.", 39.9, 1, [], true],
   ]],
   ["Massas", [
     ["Lasanha à Bolonhesa", "Massa fresca, ragu de carne cozido por 6 horas, bechamel e parmesão gratinado.", 62.0, 1, ["mais pedido"], true],
@@ -60,10 +74,10 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
   if (exists.length) {
     // demonstração criada antes da inteligência de venda: completa uma vez
     const [k] = await db.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM items WHERE restaurant_id=$1 AND allergens_known`, [exists[0].id]);
-    if (!k?.n) await applySell(db, exists[0].id);
+    await ensureItems(db, exists[0].id);
+    await applySell(db, exists[0].id, Boolean(k?.n)); // pratos novos (pizzas e hambúrgueres) ganham combinações e alergênicos
     await applyLoyalty(db, exists[0].id);
     await applyOptions(db, exists[0].id);
-    await ensureItems(db, exists[0].id);
     await applyModels(db, exists[0].id, true);
     return { created: false, password: null };
   }
@@ -104,10 +118,28 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
   return { created: true, password };
 }
 
+// medidas dos hambúrgueres (pão de 11 cm), tiradas dos arquivos
+const BURGER_DIMS: [string, string, { w: number; d: number; h: number }][] = [
+  ["X-Burger", "burger-x-burger", { w: 12.1, d: 12.1, h: 7.7 }],
+  ["X-Salada", "burger-x-salada", { w: 13.3, d: 13.3, h: 8.7 }],
+  ["X-Egg", "burger-x-egg", { w: 12.2, d: 12.2, h: 8.1 }],
+  ["X-Bacon", "burger-x-bacon", { w: 13.2, d: 12.1, h: 8.1 }],
+  ["X-Tudo", "burger-x-tudo", { w: 13.5, d: 13.3, h: 9.8 }],
+];
 // Pratos com 3D (modelos de demonstração em tamanho real, em /public/demo). Trocou um arquivo? Aumente DEMO_V.
 const DEMO_V = 6;
 const MODELS: [string, string, number, { w: number; d: number; h: number }][] = [
   ["Pizza Calabresa Grande", "pizza", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Margherita Grande", "pizza-margherita", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Quatro Queijos Grande", "pizza-quatro-queijos", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Mussarela Grande", "pizza-mussarela", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Frango com Catupiry Grande", "pizza-frango-catupiry", 43.2, { w: 43.2, d: 43.2, h: 4.1 }],
+  ["Pizza Frango com Bacon Grande", "pizza-frango-bacon", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Bacon com Cheddar Grande", "pizza-bacon-cheddar", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Portuguesa Grande", "pizza-portuguesa", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza Pepperoni Grande", "pizza-pepperoni", 43.2, { w: 43.2, d: 43.2, h: 4 }],
+  ["Pizza de Brigadeiro Grande", "pizza-brigadeiro", 43.2, { w: 43.2, d: 43.2, h: 4.7 }],
+  ...BURGER_DIMS.map(([name, file, dims]) => [name, file, dims.w, dims] as [string, string, number, { w: number; d: number; h: number }]),
   ["Lasanha à Bolonhesa", "lasanha", 26, { w: 26, d: 26, h: 7.6 }],
   ["Tiramisù da Casa", "tiramisu", 22, { w: 22, d: 22, h: 7.8 }],
   ["Panna Cotta com Frutas Vermelhas", "pannacotta", 18, { w: 18, d: 18, h: 6.8 }],
@@ -117,9 +149,14 @@ const MODELS: [string, string, number, { w: number; d: number; h: number }][] = 
 
 /** Demonstração antiga: acrescenta os pratos novos do cardápio que ainda não existem nela. */
 async function ensureItems(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
-  for (const [cat, items] of MENU) {
-    const [c] = await db.query<{ id: string }>(`SELECT id FROM categories WHERE restaurant_id=$1 AND name=$2`, [rid, cat]);
-    if (!c) continue;
+  for (const [ci, [cat, items]] of MENU.entries()) {
+    let [c] = await db.query<{ id: string }>(`SELECT id FROM categories WHERE restaurant_id=$1 AND name=$2`, [rid, cat]);
+    if (!c) {
+      // categoria nova (ex.: Hambúrgueres): entra na mesma posição do cardápio de exemplo
+      await db.query(`UPDATE categories SET position = position + 1 WHERE restaurant_id=$1 AND position >= $2`, [rid, ci]);
+      c = { id: newId() };
+      await db.query(`INSERT INTO categories (id, restaurant_id, name, position) VALUES ($1,$2,$3,$4)`, [c.id, rid, cat, ci]);
+    }
     for (const [name, description, price, serves, tags, featured] of items) {
       const [has] = await db.query(`SELECT 1 FROM items WHERE restaurant_id=$1 AND name=$2`, [rid, name]);
       if (has) continue;
@@ -183,7 +220,7 @@ async function applyLoyalty(db: Awaited<ReturnType<typeof getDB>>, rid: string) 
   );
 }
 
-async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
+async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string, onlyNew = false) {
   const ids = new Map((await db.query<{ id: string; name: string }>(`SELECT id, name FROM items WHERE restaurant_id=$1`, [rid])).map((r) => [r.name, r.id]));
   const id = (n: string) => ids.get(n) ?? "";
   const sell: [string, { allergens: string[]; pairs?: string[]; promote?: boolean; dayparts?: string[]; cost: number; sub?: string }][] = [
@@ -191,6 +228,18 @@ async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
     ["Pizza Calabresa Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L", "Tiramisù da Casa"], dayparts: ["noite"], cost: 21 }],
     ["Pizza Quatro Queijos Grande", { allergens: ["gluten", "leite"], pairs: ["Vinho Tinto da Casa (taça)"], cost: 27, sub: "Pizza Margherita Grande" }],
     ["Pizza Broto Margherita", { allergens: ["gluten", "leite"], pairs: ["Suco de Laranja Natural 500ml"], cost: 12 }],
+    ["Pizza Mussarela Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L"], dayparts: ["noite"], cost: 18 }],
+    ["Pizza Frango com Catupiry Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L", "Pizza de Brigadeiro Grande"], dayparts: ["noite"], cost: 22 }],
+    ["Pizza Frango com Bacon Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L"], dayparts: ["noite"], cost: 24 }],
+    ["Pizza Bacon com Cheddar Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L"], dayparts: ["noite"], cost: 24 }],
+    ["Pizza Portuguesa Grande", { allergens: ["gluten", "leite", "ovo"], pairs: ["Coca-Cola 2L"], dayparts: ["noite"], cost: 22 }],
+    ["Pizza Pepperoni Grande", { allergens: ["gluten", "leite"], pairs: ["Coca-Cola 2L"], dayparts: ["noite"], cost: 26 }],
+    ["Pizza de Brigadeiro Grande", { allergens: ["gluten", "leite"], cost: 19 }],
+    ["X-Burger", { allergens: ["gluten", "leite", "gergelim"], pairs: ["Coca-Cola 2L"], cost: 9 }],
+    ["X-Salada", { allergens: ["gluten", "leite", "ovo", "gergelim"], pairs: ["Coca-Cola 2L"], cost: 10 }],
+    ["X-Egg", { allergens: ["gluten", "leite", "ovo", "gergelim"], pairs: ["Coca-Cola 2L"], cost: 10 }],
+    ["X-Bacon", { allergens: ["gluten", "leite", "gergelim"], pairs: ["Coca-Cola 2L"], cost: 12 }],
+    ["X-Tudo", { allergens: ["gluten", "leite", "ovo", "gergelim"], pairs: ["Coca-Cola 2L", "Brownie com Sorvete"], cost: 15, promote: true }],
     ["Lasanha à Bolonhesa", { allergens: ["gluten", "leite", "ovo"], pairs: ["Vinho Tinto da Casa (taça)", "Panna Cotta com Frutas Vermelhas"], dayparts: ["almoco"], cost: 17, promote: true }],
     ["Espaguete ao Pomodoro", { allergens: ["gluten", "leite"], dayparts: ["almoco"], cost: 9 }],
     ["Nhoque da Nonna (para 2)", { allergens: ["gluten", "leite", "ovo"], pairs: ["Burrata com Tomates"], cost: 20 }],
@@ -209,7 +258,7 @@ async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
   for (const [n, v] of sell) {
     if (!id(n)) continue;
     await db.query(
-      `UPDATE items SET allergens=$2::jsonb, allergens_known=TRUE, pairs=$3::jsonb, promote=$4, dayparts=$5::jsonb, cost_cents=$6, substitute_id=$7 WHERE id=$1`,
+      `UPDATE items SET allergens=$2::jsonb, allergens_known=TRUE, pairs=$3::jsonb, promote=$4, dayparts=$5::jsonb, cost_cents=$6, substitute_id=$7 WHERE id=$1${onlyNew ? " AND NOT allergens_known" : ""}`,
       [id(n), JSON.stringify(v.allergens), JSON.stringify((v.pairs ?? []).map(id).filter(Boolean)), Boolean(v.promote), JSON.stringify(v.dayparts ?? []), Math.round(v.cost * 100), v.sub ? id(v.sub) : ""]
     );
   }

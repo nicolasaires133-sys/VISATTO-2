@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { api, formatDims, glbToUsdz, resizeImage, uploadFile } from "@/lib/client";
-import { ACAI_SIZES, TEMPLATES, type TemplateKind } from "@/lib/templates";
+import { ACAI_SIZES, BURGER_TYPES, PIZZA_FLAVORS, TEMPLATES, guessVariant, variantImage, type TemplateKind } from "@/lib/templates";
 import QRCode from "qrcode";
 import { usePainel } from "../ctx";
 import Icon from "@/components/Icon";
@@ -450,6 +450,7 @@ function guessTemplate(name: string): TemplateKind | null {
   if (/\bacai\b/.test(n)) return "acai";
   if (/marmit|quentinha|prato feito|\bpf\b/.test(n)) return "marmita";
   if (/pizza/.test(n) && !/broto|fatia/.test(n)) return "pizza-caixa";
+  if (/hamb|burg|\bx[- ]?(salada|egg|bacon|tudo|burger|queijo|frango|calabresa)\b|lanche/.test(n)) return "hamburguer";
   return null;
 }
 
@@ -460,6 +461,8 @@ function TemplatePicker({ itemId, itemName, onDone }: { itemId: string; itemName
   const [d, setD] = useState("");
   const [h, setH] = useState("");
   const [ml, setMl] = useState("500");
+  const [sabor, setSabor] = useState(() => guessVariant(guessTemplate(itemName) ?? "pizza-caixa", itemName));
+  const pick = (k: TemplateKind) => { setKind(k); setSabor(guessVariant(k, itemName)); };
   const [other, setOther] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -467,7 +470,7 @@ function TemplatePicker({ itemId, itemName, onDone }: { itemId: string; itemName
     setErr("");
     setBusy(true);
     try {
-      const body = kind === "acai" ? { kind, ml } : kind === "pizza-caixa" ? { kind, w, d: d || w } : { kind, w, d, h };
+      const body = kind === "acai" ? { kind, ml } : kind === "pizza-caixa" ? { kind, sabor, w, d: d || w } : kind === "hamburguer" ? { kind, sabor, w: w || "11" } : { kind, w, d, h };
       await api(`/api/painel/items/${itemId}/model/template`, { body });
       await onDone();
     } catch (e: any) {
@@ -487,9 +490,9 @@ function TemplatePicker({ itemId, itemName, onDone }: { itemId: string; itemName
   return (
     <div className="space-y-4">
       <p className="text-[14px] text-black/65">Sem escanear: escolha o modelo e informe a medida da embalagem. O 3D sai no tamanho certo em poucos segundos.</p>
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Modelo pronto">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Modelo pronto">
         {(Object.keys(TEMPLATES) as TemplateKind[]).map((k) => (
-          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`overflow-hidden rounded-2xl bg-white text-left ring-1 transition-shadow ${kind === k ? "ring-2 ring-ink" : "ring-black/10 hover:ring-black/25"}`}>
+          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => pick(k)} className={`overflow-hidden rounded-2xl bg-white text-left ring-1 transition-shadow ${kind === k ? "ring-2 ring-ink" : "ring-black/10 hover:ring-black/25"}`}>
             <img src={TEMPLATES[k].image} alt="" className="aspect-square w-full bg-[#efe9e0] object-cover" />
             <span className="block px-2.5 py-2 text-[13.5px] font-bold leading-tight">{TEMPLATES[k].label}</span>
           </button>
@@ -497,6 +500,24 @@ function TemplatePicker({ itemId, itemName, onDone }: { itemId: string; itemName
       </div>
       <p className="text-[13.5px] text-black/60">{TEMPLATES[kind].desc}</p>
 
+      {(kind === "pizza-caixa" || kind === "hamburguer") && (
+        <div>
+          <p className="label">{kind === "pizza-caixa" ? "Sabor" : "Lanche"}</p>
+          <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={kind === "pizza-caixa" ? "Sabor da pizza" : "Tipo de lanche"}>
+            {(kind === "pizza-caixa" ? PIZZA_FLAVORS : BURGER_TYPES).map((f) => (
+              <button key={f.id} type="button" role="radio" aria-checked={sabor === f.id} onClick={() => setSabor(f.id)} className={`w-[92px] shrink-0 snap-start overflow-hidden rounded-xl bg-white text-left ring-1 ${sabor === f.id ? "ring-2 ring-ink" : "ring-black/10"}`}>
+                <img src={variantImage(kind, f.id)} alt="" loading="lazy" className="aspect-square w-full bg-[#efe9e0] object-cover" />
+                <span className="block px-2 py-1.5 text-[12.5px] font-semibold leading-tight">{f.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {kind === "hamburguer" && (
+        <div className="flex max-w-56 gap-3">
+          {field("tpl-w", "Largura do pão", w, setW, "11")}
+        </div>
+      )}
       {kind === "pizza-caixa" && (
         <div className="flex gap-3">
           {field("tpl-w", "Largura da caixa", w, setW, "35")}
@@ -529,7 +550,7 @@ function TemplatePicker({ itemId, itemName, onDone }: { itemId: string; itemName
           )}
         </div>
       )}
-      {kind !== "acai" && <p className="text-[13px] text-black/55">Meça a embalagem por fora, com uma régua ou fita métrica.</p>}
+      {kind !== "acai" && <p className="text-[13px] text-black/55">{kind === "hamburguer" ? "Meça o pão de um lado ao outro, com uma régua. Se não souber, deixe 11 cm (o tamanho mais comum)." : "Meça a embalagem por fora, com uma régua ou fita métrica."}</p>}
       {err && <Notice tone="error">{err}</Notice>}
       <button type="button" onClick={create} disabled={busy} className="btn-primary h-12 w-full">
         {busy ? "Criando o 3D..." : "Criar o 3D"}

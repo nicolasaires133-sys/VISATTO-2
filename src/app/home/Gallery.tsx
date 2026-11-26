@@ -10,6 +10,8 @@ import { useScrollScene } from "./useScroll";
 
 const DISHES = [
   { id: "pizza", src: "/demo/pizza.glb?v=6", name: "Pizza Calabresa Grande", price: "R$ 74,90", size: "40 cm", orbit: "0deg 58deg 105%" },
+  { id: "x-tudo", src: "/demo/burger-x-tudo.glb?v=6", name: "X-Tudo", price: "R$ 39,90", size: "11 cm", orbit: "20deg 72deg 115%" },
+  { id: "frango-catupiry", src: "/demo/pizza-frango-catupiry.glb?v=6", name: "Pizza Frango com Catupiry", price: "R$ 76,90", size: "40 cm", orbit: "0deg 58deg 105%" },
   { id: "lasanha", src: "/demo/lasanha.glb?v=6", name: "Lasanha à Bolonhesa", price: "R$ 62,00", size: "26 cm", orbit: "0deg 62deg 110%" },
   { id: "shawarma", src: "/demo/shawarma.glb?v=6", name: "Shawarma de Frango", price: "R$ 34,00", size: "19 cm", orbit: "0deg 60deg 105%" },
   { id: "acai", src: "/demo/acai.glb?v=6", name: "Açaí 500 ml", price: "R$ 22,00", size: "500 ml", orbit: "0deg 72deg 115%" },
