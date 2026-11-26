@@ -16,7 +16,7 @@ export default function FinalDish() {
           <Link href="/cadastro" className="cine-btn">Criar meu cardápio grátis</Link>
           <Link href="/r/cantina-da-nonna?mesa=7" className="cine-btn-ghost">Ver o exemplo antes</Link>
         </div>
-        <p className="relative mt-5 text-[14px] text-white/45">14 dias grátis, sem cartão de crédito.</p>
+        <p className="relative mt-5 text-[14px] text-white/45">7 dias grátis, sem cartão de crédito.</p>
       </div>
     </section>
   );

@@ -27,7 +27,7 @@ export default function Termos() {
 
       <h2>Teste grátis, planos e cancelamento</h2>
       <ul>
-        <li>Toda conta nova tem 14 dias grátis, sem cartão.</li>
+        <li>Toda conta nova tem 7 dias grátis, sem cartão.</li>
         <li>Depois do teste, o uso continua mediante assinatura mensal do plano escolhido, pelo preço mostrado no momento da contratação.</li>
         <li>O restaurante pode cancelar quando quiser. A exclusão da conta apaga os dados, como explicado na Política de Privacidade.</li>
       </ul>

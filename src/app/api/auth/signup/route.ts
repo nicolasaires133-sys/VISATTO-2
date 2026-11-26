@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const hash = await bcrypt.hash(password, 10);
   await db.query(
     `INSERT INTO restaurants (id, slug, name, email, password_hash, whatsapp, trial_ends_at, terms_accepted_at)
-     VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '14 days', NOW())`,
+     VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '7 days', NOW())`,
     [id, slug, name, email, hash, whatsapp]
   );
   await createSession(id);

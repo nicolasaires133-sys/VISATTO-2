@@ -169,7 +169,7 @@ export default function Home() {
         <div className="relative mx-auto max-w-[1200px] px-5 md:px-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h2 className="cine-title text-[clamp(40px,6vw,88px)] leading-[0.95]">Preços</h2>
-            <p className="text-[16.5px] text-white/55">14 dias grátis em qualquer plano. Sem fidelidade e sem comissão.</p>
+            <p className="text-[16.5px] text-white/55">7 dias grátis em qualquer plano. Sem fidelidade e sem comissão.</p>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {plans.map((pl) => (
@@ -197,7 +197,7 @@ export default function Home() {
                   ))}
                 </ul>
                 <Link href="/cadastro" className={`mt-8 ${pl.hl ? "cine-btn" : "cine-btn-ghost"} w-full`}>
-                  {pl.p ? "Começar os 14 dias grátis" : "Criar conta e falar com a gente"}
+                  {pl.p ? "Começar os 7 dias grátis" : "Criar conta e falar com a gente"}
                 </Link>
               </div>
             ))}

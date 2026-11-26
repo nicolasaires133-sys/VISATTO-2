@@ -26,7 +26,7 @@ export default function Cadastro() {
   }
 
   return (
-    <AuthShell title="Crie o cardápio do seu restaurante" sub="14 dias grátis, sem cartão. Leva um minuto." side="Seu primeiro prato em 3D começa aqui.">
+    <AuthShell title="Crie o cardápio do seu restaurante" sub="7 dias grátis, sem cartão. Leva um minuto." side="Seu primeiro prato em 3D começa aqui.">
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="label" htmlFor="nome">Nome do restaurante</label>
