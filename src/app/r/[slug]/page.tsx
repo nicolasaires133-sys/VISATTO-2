@@ -12,8 +12,9 @@ type Props = {
 };
 
 // Título e descrição que aparecem quando o link do cardápio é colado no WhatsApp ou no Instagram
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const { prato } = await searchParams;
   const menu = await publicMenu(slug).catch(() => null);
   if (!menu) return { title: "Cardápio não encontrado" };
   const r = menu.restaurant;
@@ -21,6 +22,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = with3d
     ? `Veja os pratos do ${r.name} na sua mesa, em tamanho real, pela câmera do celular. Peça direto pelo cardápio.`
     : `Cardápio do ${r.name}. Veja os pratos e peça direto pelo celular.`;
+  // link de um prato (botão Compartilhar): a prévia mostra o prato, a foto e o preço
+  const dish = prato ? menu.items.find((i) => i.id === prato) : null;
+  if (dish) {
+    const t = `${dish.name} · ${r.name}`;
+    const d = `${(dish.price_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}${dish.model ? " · veja na sua mesa, em tamanho real, pela câmera do celular" : ""}. ${dish.description || ""}`.trim();
+    const img = typeof dish.image === "string" && dish.image && !dish.image.startsWith("data:") ? [{ url: dish.image, width: 800, height: 800, alt: dish.name }] : undefined;
+    return { title: t, description: d, openGraph: { title: t, description: d, type: "website", locale: "pt_BR", images: img }, twitter: { card: img ? "summary_large_image" : "summary", title: t, description: d } };
+  }
   return {
     title: `${r.name} · Cardápio`,
     description,

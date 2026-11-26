@@ -4,6 +4,7 @@ import { BRAND, TAGLINE } from "@/lib/format";
 import InstallCatcher from "@/components/InstallCatcher";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")),
   title: `${BRAND} — ${TAGLINE}`,
   appleWebApp: { capable: true, title: "Visatto", statusBarStyle: "default" },
   icons: { apple: "/icones/apple-touch-icon.png" },

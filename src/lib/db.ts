@@ -229,6 +229,9 @@ ALTER TABLE items ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS promo JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS options TEXT DEFAULT '';
 
+-- v9: horário de funcionamento
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS hours JSONB DEFAULT '{}'::jsonb;
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;

@@ -15,7 +15,8 @@ export async function GET() {
             (SELECT COUNT(*)::int FROM orders WHERE restaurant_id=$1) AS orders`,
     [r.id]
   );
-  return ok({ restaurant: { ...r, loyalty: readLoyalty(r.loyalty) }, aiEnabled: aiEnabled(), waiter: waiterEnabled(), counts: c });
+  const { readHours } = await import("@/lib/hours");
+  return ok({ restaurant: { ...r, loyalty: readLoyalty(r.loyalty), hours: readHours(r.hours) }, aiEnabled: aiEnabled(), waiter: waiterEnabled(), counts: c });
 }
 
 export async function PUT(req: Request) {
@@ -33,12 +34,14 @@ export async function PUT(req: Request) {
   const loyalty = bl
     ? readLoyalty({ on: Boolean(bl.on), goal: bl.goal, min_cents: bl.min_cents != null ? toCents(bl.min_cents) : prevL.min_cents, reward: bl.reward })
     : prevL;
+  const { readHours } = await import("@/lib/hours");
+  const hours = b.hours && typeof b.hours === "object" ? readHours(b.hours) : readHours(r.hours);
   const service = b.service_pct != null ? Math.min(20, Math.max(0, Math.round(Number(b.service_pct) || 0))) : (r.service_pct ?? 10);
   const db = await getDB();
   await db.query(
     `UPDATE restaurants SET service_pct=$16, loyalty=$17::jsonb, name=$2, whatsapp=$3, address=$4, primary_color=$5, delivery_enabled=$6,
        dine_in_enabled=$7, delivery_fee_cents=$8, min_order_cents=$9, ai_name=$10, ai_tone=$11, ai_instructions=$12,
-       accepting_orders=$13, pix_key=$14, google_review_url=$15
+       accepting_orders=$13, pix_key=$14, google_review_url=$15, hours=$18::jsonb
      WHERE id=$1`,
     [
       r.id,
@@ -58,6 +61,7 @@ export async function PUT(req: Request) {
       reviewUrl(b.google_review_url ?? r.google_review_url),
       service,
       JSON.stringify(loyalty),
+      JSON.stringify(hours),
     ]
   );
   return ok({ ok: true });

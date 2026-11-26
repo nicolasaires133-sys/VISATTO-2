@@ -50,6 +50,9 @@ export default function Insights() {
     <div>
       <PageHead title="Resultados" sub={waiter ? "Quanto o garçom de IA está trazendo para o seu caixa." : "Seus pedidos e quantos clientes viram os pratos na mesa."}>
         <ComoUsar tela="resultados" />
+        <a href={`/api/painel/pedidos-planilha?dias=${days}`} download className="btn-ghost h-10 px-3.5 text-[14px]">
+          <Icon name="download" size={17} /> Planilha de pedidos
+        </a>
         <div className="flex rounded-xl bg-black/[0.05] p-1 text-[14px] font-semibold" role="tablist" aria-label="Período">
           {[7, 30, 90].map((n) => (
             <button key={n} role="tab" aria-selected={days === n} onClick={() => setDays(n)} className={`rounded-lg px-3.5 py-2 ${days === n ? "bg-white shadow-sm" : "text-black/55"}`}>
@@ -65,6 +68,8 @@ export default function Insights() {
         <Stat label="Vendido por sugestões" value={brl(t.suggest_revenue)} hint={t.orders_with_suggest ? `${t.orders_with_suggest} ${t.orders_with_suggest === 1 ? "pedido aceitou" : "pedidos aceitaram"} um “combina com”` : "o que o cliente adicionou pelo “combina com”"} />
         {waiter && <Stat label="Vendido pela IA" value={brl(t.ai_revenue)} hint={`${aiShare}% do faturamento · ${d.chats.conversations} conversas`} />}
       </div>
+
+      <DayClose />
 
       {d.week?.length > 0 && (
         <div className="card mt-6 p-5">
@@ -325,6 +330,94 @@ function Feedback({ f, optins }: { f: any; optins: number }) {
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+const PAY_NAME: Record<string, string> = { pix: "Pix", cartao: "Cartão", dinheiro: "Dinheiro", mesa: "Na mesa (conta)", outro: "Outro" };
+
+/** Fechamento do dia: o resumo que o dono confere ao fechar o caixa (e manda no WhatsApp para o sócio). */
+function DayClose() {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const [day, setDay] = useState(today);
+  const [c, setC] = useState<any>(null);
+  useEffect(() => {
+    setC(null);
+    api(`/api/painel/fechamento?dia=${day}`).then(setC).catch(() => setC({ error: true }));
+  }, [day]);
+  const label = new Date(`${day}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const text = c && !c.error
+    ? [
+        `*Fechamento do dia · ${c.name}*`,
+        label.charAt(0).toUpperCase() + label.slice(1),
+        "",
+        `Pedidos: ${c.orders} (${c.mesa} na mesa, ${c.entrega} entrega)${c.canceled ? ` · ${c.canceled} cancelado${c.canceled > 1 ? "s" : ""}` : ""}`,
+        `Faturamento: ${brl(c.revenue)}`,
+        `Ticket médio: ${brl(c.avg)}`,
+        ...(c.payments.length ? ["", "*Pagamentos*", ...c.payments.map((p: any) => `${PAY_NAME[p.payment] ?? p.payment}: ${brl(p.total)} (${p.n})`)] : []),
+        ...(c.top.length ? ["", "*Mais vendidos*", ...c.top.map((t: any) => `${t.qty}x ${t.name}`)] : []),
+      ].join("\n")
+    : "";
+  return (
+    <section className="card mt-6 p-5" aria-label="Fechamento do dia">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[17px] font-bold"><Icon name="receipt" size={18} className="text-brand" /> Fechamento do dia</h2>
+        <label className="flex items-center gap-2 text-[14px] text-black/60">
+          <span className="sr-only">Dia</span>
+          <input type="date" value={day} max={today} onChange={(e) => e.target.value && setDay(e.target.value)} className="h-10 rounded-xl bg-black/[0.05] px-3 text-[14px] font-semibold text-ink" />
+        </label>
+      </div>
+      {!c ? (
+        <div className="skeleton mt-4 h-24 rounded-xl" aria-busy="true" />
+      ) : c.error ? (
+        <p className="mt-3 text-[14.5px] text-black/60">Não deu para carregar o fechamento agora. Tente de novo em instantes.</p>
+      ) : c.orders === 0 ? (
+        <p className="mt-3 text-[14.5px] text-black/60">Nenhum pedido pelo celular {day === today ? "hoje ainda" : "neste dia"}.</p>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 [&>*]:min-w-0">
+            <Mini label="Pedidos" value={String(c.orders)} hint={`${c.mesa} mesa · ${c.entrega} entrega`} />
+            <Mini label="Faturamento" value={brl(c.revenue)} hint={c.fees ? `${brl(c.fees)} de entrega` : "sem taxas de entrega"} />
+            <Mini label="Ticket médio" value={brl(c.avg)} hint="por pedido" />
+            <Mini label="Pico" value={c.peak ? `${c.peak.h}h` : "–"} hint={c.peak ? `${c.peak.n} ${c.peak.n === 1 ? "pedido" : "pedidos"} nessa hora` : ""} />
+          </div>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div className="min-w-0">
+              <h3 className="text-[14px] font-bold text-black/70">Pagamentos</h3>
+              <ul className="mt-2 space-y-1.5 text-[14.5px]">
+                {c.payments.map((p: any) => (
+                  <li key={p.payment} className="flex justify-between gap-3"><span>{PAY_NAME[p.payment] ?? p.payment} <span className="text-black/60">({p.n})</span></span><span className="tnum font-semibold">{brl(p.total)}</span></li>
+                ))}
+              </ul>
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[14px] font-bold text-black/70">Mais vendidos</h3>
+              <ol className="mt-2 space-y-1.5 text-[14.5px]">
+                {c.top.map((t: any) => (
+                  <li key={t.name} className="flex justify-between gap-3"><span className="truncate">{t.name}</span><span className="tnum shrink-0 text-black/60">{t.qty}x</span></li>
+                ))}
+              </ol>
+            </div>
+          </div>
+          {c.canceled > 0 && <p className="mt-4 text-[13.5px] text-black/55">{c.canceled} {c.canceled === 1 ? "pedido cancelado não entrou" : "pedidos cancelados não entraram"} na conta.</p>}
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener" className="btn h-11 px-4 text-[14.5px] text-white" style={{ background: "#17723e" }}>
+              <Icon name="send" size={17} /> Enviar no WhatsApp
+            </a>
+            <button onClick={() => navigator.clipboard?.writeText(text.replace(/\*/g, ""))} className="btn-ghost h-11 px-4 text-[14.5px]">Copiar resumo</button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function Mini({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="rounded-xl bg-black/[0.04] p-3">
+      <div className="text-[13px] text-black/60">{label}</div>
+      <div className="tnum mt-0.5 truncate font-display text-[20px] font-bold">{value}</div>
+      <div className="mt-0.5 truncate text-[12.5px] text-black/55">{hint}</div>
     </div>
   );
 }

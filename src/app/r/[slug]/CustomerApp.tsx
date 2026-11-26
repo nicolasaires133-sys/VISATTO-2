@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { basePrice, hasRequired, picksKey, priceWith, promoActive, type Picks } from "@/lib/options";
+import { openState, readHours } from "@/lib/hours";
 import { brl, PAYMENT_LABEL, type CartLine, type Category, type PublicItem as MenuItem, type PublicRestaurant } from "@/lib/format";
 import { ArBadge, CloseButton, Dims, leavingPage, Pill, save, Sheet, Stepper, store, Thumb } from "./parts";
 import type { ChatEntry } from "./Waiter";
@@ -98,7 +99,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
 
   // estado salvo no aparelho + cardápio atualizado (preço e disponibilidade mudam durante o serviço)
   useEffect(() => {
-    setCart(store<CartLine[]>(`gia:${slug}:cart`, []));
+    const savedCart = store<CartLine[]>(`gia:${slug}:cart`, []).filter((l) => initial.items.some((i) => i.id === l.itemId));
+    setCart(savedCart);
+    // veio do "Pedir de novo": abre a sacola já com os pratos
+    if (savedCart.length && new URLSearchParams(window.location.search).get("sacola") === "1") setTimeout(() => setCartOpen(true), 300);
     setChat(store<ChatEntry[]>(`gia:${slug}:chat`, []));
     const lo = store<LastOrder | null>(`gia:${slug}:last`, null);
     if (lo && Date.now() - lo.at < 3 * 3600_000) setLastOrder(lo);
@@ -163,7 +167,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     save("gia:lang", l);
   };
   const color = readable(r.primary_color);
-  const paused = r.accepting_orders === false;
+  // horário de funcionamento (recalcula a cada minuto junto com "now")
+  const hoursNow = useMemo(() => openState(readHours(r.hours), new Date(now)), [r.hours, now]);
+  const closed = !hoursNow.open;
+  const paused = r.accepting_orders === false || closed;
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const catName = useMemo(() => new Map(categories.map((c) => [c.id, tr(c, lang).name])), [categories, lang]);
   const kinds = useMemo(() => new Map(categories.map((c) => [c.id, categoryKind(c.name)])), [categories]);
@@ -311,7 +318,15 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
       <header className="relative overflow-hidden rounded-b-[30px] bg-ink px-5 pb-6 pt-8 text-white">
         <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60" style={{ background: `radial-gradient(70% 90% at 100% 0%, ${color}55, transparent 70%)` }} />
         <div className="relative flex items-start justify-between gap-3">
-          <h1 className="text-[32px] font-extrabold leading-[1.02]">{r.name}</h1>
+          <div>
+            <h1 className="text-[32px] font-extrabold leading-[1.02]">{r.name}</h1>
+            {hoursNow.label && (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[13px] font-semibold ring-1 ring-white/10">
+                <span className={`h-2 w-2 rounded-full ${hoursNow.open ? "bg-emerald-400" : "bg-red-400"}`} aria-hidden />
+                {hoursNow.label}
+              </p>
+            )}
+          </div>
           {langs.length > 0 && (
             <div className="mt-1 flex shrink-0 rounded-full bg-white/10 p-0.5 text-[12px] font-bold ring-1 ring-white/10" role="group" aria-label={t("language")}>
               {LANGS.filter((l) => l.id === "pt" || langs.includes(l.id)).map((l) => (
@@ -346,7 +361,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
         {paused && (
           <p className="relative mt-4 flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-[14px] text-amber-950">
             <Icon name="pause" size={18} className="mt-0.5" />
-            {t("paused")}
+            {closed ? t("closedNow", { when: hoursNow.label.replace(/^Fechado agora · /, "") }) : t("paused")}
           </p>
         )}
 
@@ -605,6 +620,15 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           onTrack={(type) => track(type, detail.id)}
           fav={favs.includes(detail.id)}
           onFav={() => toggleFav(detail.id)}
+          onShare={async () => {
+            // link direto do prato (abre o cardápio já com o prato e o 3D), sem a mesa
+            const url = `${window.location.origin}/r/${slug}?prato=${detail.id}`;
+            const title = `${name(detail)} · ${r.name}`;
+            try {
+              if (navigator.share) await navigator.share({ title, text: t("shareText", { name: name(detail) }), url });
+              else { await navigator.clipboard.writeText(url); flash(t("linkCopied")); }
+            } catch {}
+          }}
           initial={editLine && editLine.line.itemId === detail.id ? { qty: editLine.line.qty, notes: editLine.line.notes, picks: editLine.line.opts } : undefined}
           onClose={() => {
             setDetail(null);
@@ -787,6 +811,7 @@ function ItemSheet({
   onTrack,
   fav,
   onFav,
+  onShare,
   initial,
 }: {
   item: MenuItem;
@@ -803,6 +828,7 @@ function ItemSheet({
   onTrack: (type: "view3d" | "ar") => void;
   fav: boolean;
   onFav: () => void;
+  onShare: () => void;
   /** editando um item do carrinho: começa com o que a pessoa já tinha escolhido */
   initial?: { qty: number; notes: string; picks?: Picks };
 }) {
@@ -870,6 +896,9 @@ function ItemSheet({
             style={fav ? { color } : undefined}
           >
             <Icon name="heart" size={20} filled={fav} />
+          </button>
+          <button onClick={onShare} aria-label={t("share")} className="absolute right-[8.5rem] top-5 z-10 grid h-11 w-11 place-items-center rounded-full bg-white shadow-sm ring-1 ring-black/10 active:scale-90">
+            <Icon name="share" size={19} />
           </button>
           {item.model && item.image && (
             <div className="absolute left-5 top-5 z-10 flex rounded-full bg-white p-0.5 text-[13px] font-semibold ring-1 ring-black/10">

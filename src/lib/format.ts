@@ -91,6 +91,7 @@ export type PublicRestaurant = {
   languages?: string[];
   service_pct?: number;
   loyalty?: import("./loyalty").Loyalty;
+  hours?: import("./hours").Hours;
 };
 
 export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };

@@ -16,7 +16,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string; 
     [id, r.id]
   );
   if (!order) return fail("Pedido não encontrado.", 404);
-  const items = await db.query(`SELECT name, qty, notes, price_cents FROM order_items WHERE order_id=$1`, [id]);
+  const items = await db.query(`SELECT item_id, name, qty, notes, options, price_cents FROM order_items WHERE order_id=$1`, [id]);
   const [fb] = await db.query<{ stars: number }>(`SELECT stars FROM feedback WHERE order_id=$1`, [id]);
   const { customer_phone: phone, ...pub } = order;
   const eta = ["novo", "preparo"].includes(order.status) ? await estimateMinutes(r.id, order.channel === "delivery" ? "delivery" : "mesa", order.created_at) : null;

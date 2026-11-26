@@ -8,6 +8,7 @@ import Icon from "@/components/Icon";
 import { brl, PAYMENT_LABEL } from "@/lib/format";
 import Rate from "../../Rate";
 import Stamps from "../../Stamps";
+import { save } from "../../parts";
 
 const STEPS = {
   mesa: [
@@ -254,8 +255,29 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
       {(o.status === "pronto" || o.status === "saiu" || done) && <Rate slug={slug} id={id} initial={o.stars} color={color} name={r.name} />}
 
       <div className="mt-8 flex flex-col gap-2.5">
-        <Link href={back} className="btn h-[52px] w-full text-[16px] text-white" style={{ background: color }}>
-          {done || cancelled ? "Fazer outro pedido" : "Pedir mais alguma coisa"}
+        {(done || cancelled) && o.items.some((it: any) => it.item_id) ? (
+          <button
+            onClick={() => {
+              // "Pedir de novo": põe os mesmos pratos na sacola (escolhas obrigatórias são pedidas de novo no cardápio)
+              const lines = o.items
+                .filter((it: any) => it.item_id)
+                .map((it: any) => ({
+                  itemId: it.item_id,
+                  qty: it.qty,
+                  notes: it.options ? (String(it.notes || "").match(/Obs: (.*)$/)?.[1] ?? "") : String(it.notes || ""),
+                  viaAi: false,
+                }));
+              save(`gia:${slug}:cart`, lines);
+              window.location.href = `${back}${back.includes("?") ? "&" : "?"}sacola=1`;
+            }}
+            className="btn h-[52px] w-full text-[16px] text-white"
+            style={{ background: color }}
+          >
+            <Icon name="bag" size={19} /> Pedir de novo
+          </button>
+        ) : null}
+        <Link href={back} className={done || cancelled ? "btn-ghost h-12" : "btn h-[52px] w-full text-[16px] text-white"} style={done || cancelled ? undefined : { background: color }}>
+          {done || cancelled ? "Ver o cardápio" : "Pedir mais alguma coisa"}
         </Link>
         {ch === "mesa" && o.table_label && !cancelled && (
           <Link href={`/r/${slug}/conta?mesa=${encodeURIComponent(o.table_label)}`} className="btn-ghost h-12">

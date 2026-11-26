@@ -12,6 +12,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   const b = await req.json().catch(() => ({}));
 
   if (r.accepting_orders === false) return fail("O restaurante não está recebendo pedidos pelo celular agora. Chame um atendente.");
+  {
+    const { readHours, openState } = await import("@/lib/hours");
+    const st = openState(readHours(r.hours));
+    if (!st.open) return fail(`${st.label}. Os pedidos pelo celular entram só no horário de funcionamento.`);
+  }
   // freio contra envio em massa (o limite é folgado: o Wi-Fi do salão é compartilhado por todas as mesas)
   if (!(await allow(`order:${r.id}:${clientIp(req)}`, 60, 600))) return fail("Muitos pedidos seguidos deste aparelho. Aguarde um pouco e tente de novo.", 429);
 

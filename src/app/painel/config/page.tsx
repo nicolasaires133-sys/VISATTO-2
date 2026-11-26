@@ -2,6 +2,7 @@
 import { ComoUsar } from "../ajuda-ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { DAY_NAMES, DEFAULT_HOURS, openState, readHours, type Hours } from "@/lib/hours";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import PasswordField from "@/components/PasswordField";
@@ -136,6 +137,8 @@ export default function Config() {
           <p className="mt-1.5 text-[13px] text-black/60">Aparece como opcional, e o cliente pode tirar. Coloque 0 se o restaurante não cobra.</p>
         </div>
       </section>
+
+      <HoursEditor h={(f as any).hours ?? DEFAULT_HOURS} onChange={(hours) => set({ hours })} />
 
       <section className="card space-y-4 p-5">
         <h2 className="text-[18px] font-extrabold">Cartão fidelidade</h2>
@@ -378,6 +381,52 @@ function Account({ email }: { email: string }) {
           </form>
         )}
       </div>
+    </section>
+  );
+}
+
+/** Horário de funcionamento: um horário por dia (pode passar da meia-noite) e a chave para usar. */
+function HoursEditor({ h, onChange }: { h: Hours; onChange: (h: Hours) => void }) {
+  const hours = readHours(h);
+  const on = Boolean(h.on);
+  const setDay = (i: number, d: Hours["days"][number]) => onChange({ on, days: hours.days.map((x, k) => (k === i ? d : x)) });
+  const st = openState({ on: true, days: hours.days });
+  return (
+    <section className="card space-y-4 p-5">
+      <h2 className="text-[18px] font-extrabold">Horário de funcionamento</h2>
+      <SwitchRow
+        on={on}
+        onChange={(v) => onChange({ on: v, days: hours.days })}
+        title="Usar horário de funcionamento"
+        text="O cardápio mostra “Aberto até 23h” ou “Fechado, abre às 18h”. Fora do horário, o cliente vê o cardápio e os pratos em 3D, mas não envia pedidos pelo celular."
+      />
+      {on && (
+        <>
+          <ul className="divide-y divide-black/[0.07] rounded-2xl ring-1 ring-black/10">
+            {[1, 2, 3, 4, 5, 6, 0].map((i) => {
+              const d = hours.days[i];
+              return (
+                <li key={i} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
+                  <label className="flex w-28 items-center gap-2.5 text-[15px] font-semibold capitalize">
+                    <input type="checkbox" className="h-5 w-5 accent-[#172033]" checked={!!d} onChange={(e) => setDay(i, e.target.checked ? { from: "11:00", to: "23:00" } : null)} />
+                    {DAY_NAMES[i]}
+                  </label>
+                  {d ? (
+                    <span className="flex items-center gap-2 text-[14px]">
+                      <input aria-label={`Abre ${DAY_NAMES[i]}`} type="time" className="input h-10 w-auto" value={d.from} onChange={(e) => setDay(i, { ...d, from: e.target.value })} />
+                      às
+                      <input aria-label={`Fecha ${DAY_NAMES[i]}`} type="time" className="input h-10 w-auto" value={d.to} onChange={(e) => setDay(i, { ...d, to: e.target.value })} />
+                    </span>
+                  ) : (
+                    <span className="text-[14px] text-black/55">Fechado</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[13.5px] text-black/60">Agora: <b>{st.label || "—"}</b>. Se fecha depois da meia-noite, é só pôr, por exemplo, 18:00 às 02:00.</p>
+        </>
+      )}
     </section>
   );
 }
