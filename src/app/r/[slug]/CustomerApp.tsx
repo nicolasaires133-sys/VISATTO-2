@@ -10,6 +10,7 @@ import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { basePrice, hasRequired, picksKey, priceWith, promoActive, type Picks } from "@/lib/options";
 import { openState, readHours } from "@/lib/hours";
+import { addressProblem, deliveryQuote, EMPTY_ADDRESS, formatAddress, readAddress, zoneKey, type Address } from "@/lib/delivery";
 import { brl, PAYMENT_LABEL, type CartLine, type Category, type PublicItem as MenuItem, type PublicRestaurant } from "@/lib/format";
 import { ArBadge, CloseButton, Dims, leavingPage, Pill, save, Sheet, Stepper, store, Thumb } from "./parts";
 import type { ChatEntry } from "./Waiter";
@@ -69,9 +70,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const [editLine, setEditLine] = useState<{ idx: number; line: CartLine } | null>(null);
   const [channel, setChannel] = useState<"mesa" | "delivery">(() => {
     const r = initial.restaurant;
-    if (modo === "delivery" && r.delivery_enabled) return "delivery";
+    const remote = r.delivery_enabled || r.pickup_enabled; // entrega e/ou retirada no balcão
+    if (modo === "delivery" && remote) return "delivery";
     if (mesa && r.dine_in_enabled) return "mesa";
-    return r.delivery_enabled && !mesa ? "delivery" : r.dine_in_enabled ? "mesa" : "delivery";
+    return remote && !mesa ? "delivery" : r.dine_in_enabled ? "mesa" : "delivery";
   });
   const [table, setTable] = useState(mesa);
   const [activeCat, setActiveCat] = useState("");
@@ -315,10 +317,20 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
 
   return (
     <main className="mx-auto min-h-dvh max-w-2xl bg-white pb-32 sm:my-0" style={{ ["--color-brand" as any]: color }}>
-      <header className="relative overflow-hidden rounded-b-[30px] bg-ink px-5 pb-6 pt-8 text-white">
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60" style={{ background: `radial-gradient(70% 90% at 100% 0%, ${color}55, transparent 70%)` }} />
+      <header className={`relative overflow-hidden rounded-b-[30px] bg-ink px-5 pb-6 text-white ${r.cover_url ? "pt-36" : "pt-8"}`}>
+        {r.cover_url ? (
+          <>
+            {/* foto da loja (capa): escurece embaixo para o nome continuar legível */}
+            <img src={r.cover_url} alt="" className="absolute inset-x-0 top-0 h-56 w-full object-cover" />
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-black/10 via-black/30 to-ink" />
+          </>
+        ) : (
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60" style={{ background: `radial-gradient(70% 90% at 100% 0%, ${color}55, transparent 70%)` }} />
+        )}
         <div className="relative flex items-start justify-between gap-3">
-          <div>
+          <div className="flex min-w-0 items-start gap-3.5">
+            {r.logo_url && <img src={r.logo_url} alt={`Logo ${r.name}`} className="h-16 w-16 shrink-0 rounded-2xl bg-white object-cover ring-2 ring-white/80" />}
+            <div className="min-w-0">
             <h1 className="text-[32px] font-extrabold leading-[1.02]">{r.name}</h1>
             {hoursNow.label && (
               <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[13px] font-semibold ring-1 ring-white/10">
@@ -326,6 +338,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                 {hoursNow.label}
               </p>
             )}
+            </div>
           </div>
           {langs.length > 0 && (
             <div className="mt-1 flex shrink-0 rounded-full bg-white/10 p-0.5 text-[12px] font-bold ring-1 ring-white/10" role="group" aria-label={t("language")}>
@@ -341,7 +354,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
             {r.address}
           </p>
         )}
-        {(r.dine_in_enabled || r.delivery_enabled) && (
+        {(r.dine_in_enabled || r.delivery_enabled || r.pickup_enabled) && (
           <div className="relative mt-5 inline-flex rounded-full bg-white/10 p-1 text-[13.5px] font-semibold ring-1 ring-white/10" role="tablist" aria-label={t("howOrder")}>
             {r.dine_in_enabled && (
               <button role="tab" aria-selected={channel === "mesa"} onClick={() => setChannel("mesa")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "mesa" ? "bg-white text-ink" : "text-white/65"}`}>
@@ -349,10 +362,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                 {table ? `${t("table")} ${table}` : t("atTable")}
               </button>
             )}
-            {r.delivery_enabled && (
+            {(r.delivery_enabled || r.pickup_enabled) && (
               <button role="tab" aria-selected={channel === "delivery"} onClick={() => setChannel("delivery")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "delivery" ? "bg-white text-ink" : "text-white/65"}`}>
-                <Icon name="bike" size={16} />
-                {t("delivery")}
+                <Icon name={r.delivery_enabled ? "bike" : "bag"} size={16} />
+                {r.delivery_enabled ? t("delivery") : t("pickupShort")}
               </button>
             )}
           </div>
@@ -1103,14 +1116,55 @@ function CartSheet(props: {
 }) {
   const { slug, r, t, lang, color, cart, setCart, byId, channel, table, subtotal } = props;
   const [f, setF] = useState(() => store("gia:customer", { name: "", phone: "", address: "" }));
+  // endereço separado (rua, número, bairro...): fica guardado neste celular para o próximo pedido
+  const [addr, setAddr] = useState<Address>(() => ({ ...EMPTY_ADDRESS, ...store<Partial<Address>>("gia:addr", {}) }));
+  const [cepState, setCepState] = useState<"" | "busy" | "notfound">("");
+  const [pickup, setPickup] = useState<boolean>(() => Boolean((r.pickup_enabled && !r.delivery_enabled) || (r.pickup_enabled && store<string>(`gia:${slug}:modo`, "") === "retirada")));
+  const zones = r.delivery_mode === "bairro" ? r.delivery_zones ?? [] : [];
+  const [zone, setZone] = useState(() => zones.find((z) => zoneKey(z.name) === zoneKey(addr.district))?.name ?? "");
   const [notes, setNotes] = useState("");
-  const [payment, setPayment] = useState<"pix" | "cartao" | "dinheiro" | "">("");
+  const methods = r.pay_methods?.length ? r.pay_methods : (["pix", "cartao", "dinheiro"] as const);
+  const [payment, setPayment] = useState<"pix" | "cartao" | "dinheiro" | "">(() => (methods.length === 1 ? methods[0] : ""));
   const [changeFor, setChangeFor] = useState("");
   const [optin, setOptin] = useState(false);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const fee = channel === "delivery" ? r.delivery_fee_cents : 0;
-  const missing = channel === "delivery" && r.min_order_cents > subtotal ? r.min_order_cents - subtotal : 0;
+  const [err, setErr] = useState<{ msg: string; reload?: boolean } | null>(null);
+  const [busy, setBusy] = useState<"" | "sending" | "retrying">("");
+  // valor novo confirmado pelo cliente quando o preço mudou no meio do caminho
+  const [confirmed, setConfirmed] = useState<number | null>(null);
+  const isRemote = channel === "delivery";
+  const quote = isRemote ? deliveryQuote(r, { pickup, zone: zones.length ? zone : addr.district, subtotal }) : { ok: true as const, fee: 0, free: false };
+  const fee = quote.ok ? quote.fee : 0;
+  const total = subtotal + fee;
+  const missing = isRemote && !pickup && r.min_order_cents > subtotal ? r.min_order_cents - subtotal : 0;
+  const toFree = isRemote && !pickup && (r.free_delivery_cents ?? 0) > 0 && subtotal < r.free_delivery_cents! ? r.free_delivery_cents! - subtotal : 0;
+  const shownTotal = confirmed ?? total;
+  useEffect(() => setConfirmed(null), [total]);
+
+  function setMode(p: boolean) {
+    setPickup(p);
+    save(`gia:${slug}:modo`, p ? "retirada" : "entrega");
+  }
+  /** CEP → rua, bairro e cidade (consulta pública dos Correios via ViaCEP, direto do celular). */
+  async function lookupCep(raw: string) {
+    const cep = raw.replace(/\D/g, "").slice(0, 8);
+    setAddr((a) => ({ ...a, cep }));
+    if (cep.length !== 8) return setCepState("");
+    setCepState("busy");
+    try {
+      const ctl = new AbortController();
+      const tm = setTimeout(() => ctl.abort(), 6000);
+      const j = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal: ctl.signal }).then((x) => x.json());
+      clearTimeout(tm);
+      if (j?.erro) return setCepState("notfound");
+      setAddr((a) => ({ ...a, cep, street: j.logradouro || a.street, district: j.bairro || a.district, city: [j.localidade, j.uf].filter(Boolean).join(" - ") || a.city }));
+      const z = zones.find((x) => zoneKey(x.name) === zoneKey(j.bairro || ""));
+      if (z) setZone(z.name);
+      setCepState("");
+      setTimeout(() => document.getElementById("end-num")?.focus(), 50);
+    } catch {
+      setCepState(""); // sem internet ou ViaCEP fora: a pessoa digita o endereço normalmente
+    }
+  }
   const visible = cart.map((l, idx) => ({ l, idx, it: byId.get(l.itemId) })).filter((x) => x.it?.available);
 
   function setQty(idx: number, q: number) {
@@ -1120,32 +1174,68 @@ function CartSheet(props: {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
-    setErr("");
-    if (channel === "delivery" && !payment) return setErr(t("choosePay"));
+    setErr(null);
+    if (isRemote) {
+      if (!f.name.trim()) return setErr({ msg: t("needName") });
+      if (f.phone.replace(/\D/g, "").length < 10) return setErr({ msg: t("needPhone") });
+      if (!pickup) {
+        const p = addressProblem(readAddress(addr));
+        if (p) return setErr({ msg: p });
+        if (zones.length && !zone) return setErr({ msg: t("chooseZone") });
+      }
+      if (!quote.ok) return setErr({ msg: quote.error });
+      if (!payment) return setErr({ msg: t("choosePay") });
+    }
     // item guardado antes de o prato ganhar uma escolha obrigatória (ex.: tamanho): abre para escolher
     const pend = visible.find((x) => !priceWith(x.it!, x.l.opts).ok);
     if (pend) return props.onEdit(pend.idx);
-    setBusy(true);
-    try {
-      if (channel === "delivery" || f.phone.trim()) save("gia:customer", f);
-      const res = await api<{ id: string; number: number }>(`/api/r/${slug}/orders`, {
-        body: {
-          channel,
-          table,
-          notes,
-          ...f,
-          payment,
-          changeFor: payment === "dinheiro" ? changeFor : "",
-          items: visible.map((x) => x.l),
-          sessionId: store<string>("gia:sid", ""),
-          lang,
-          marketingOptin: channel === "delivery" && optin,
-        },
-      });
-      props.onDone(res.id, res.number);
-    } catch (e: any) {
-      setErr(e.message);
-      setBusy(false);
+    const body = {
+      channel,
+      pickup: isRemote && pickup,
+      table,
+      notes,
+      name: f.name,
+      phone: f.phone,
+      ...(isRemote && !pickup ? { addr: readAddress(addr), zone: zones.length ? zone : "" } : {}),
+      payment: isRemote ? payment : "",
+      changeFor: isRemote && payment === "dinheiro" ? changeFor : "",
+      items: visible.map((x) => x.l),
+      sessionId: store<string>("gia:sid", ""),
+      lang,
+      marketingOptin: isRemote && optin,
+      expectedTotal: shownTotal,
+    };
+    // chave do envio: igual enquanto o pedido for o mesmo. Se a internet cair e a pessoa (ou o reenvio
+    // automático) mandar de novo, o restaurante recebe UM pedido só.
+    const sig = JSON.stringify([body.channel, body.pickup, body.table, body.items, body.addr, body.payment, body.changeFor, body.expectedTotal]);
+    const pendKey = `gia:${slug}:envio`;
+    const prev = store<{ key: string; sig: string } | null>(pendKey, null);
+    const clientKey = prev && prev.sig === sig ? prev.key : crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    save(pendKey, { key: clientKey, sig });
+    if (isRemote || f.phone.trim()) save("gia:customer", f);
+    if (isRemote && !pickup) save("gia:addr", readAddress(addr));
+    setBusy("sending");
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await api<{ id: string; number: number }>(`/api/r/${slug}/orders`, { body: { ...body, clientKey }, timeoutMs: 25000 });
+        save(pendKey, null);
+        props.onDone(res.id, res.number);
+        return;
+      } catch (e: any) {
+        // sem internet / servidor ocupado: tenta de novo sozinho (com a MESMA chave, então não duplica)
+        const transient = e.status === 0 || e.status >= 500;
+        if (transient && attempt < 3) {
+          setBusy("retrying");
+          await new Promise((res) => setTimeout(res, [1200, 2500, 5000][attempt]));
+          continue;
+        }
+        setBusy("");
+        if (e.data?.code === "price_changed" && typeof e.data.total === "number") {
+          setConfirmed(e.data.total);
+          setErr({ msg: e.message, reload: true });
+        } else setErr({ msg: transient ? t("sendFailed") : e.message, reload: e.data?.code === "menu_changed" || e.data?.code === "sold_out" });
+        return;
+      }
     }
   }
 
@@ -1189,10 +1279,10 @@ function CartSheet(props: {
             </div>
           )}
 
-          {r.dine_in_enabled && r.delivery_enabled && (
+          {r.dine_in_enabled && (r.delivery_enabled || r.pickup_enabled) && (
             <div className="flex rounded-xl bg-[#efefeb] p-1 text-[14px] font-semibold">
               <button type="button" onClick={() => props.setChannel("mesa")} className={`flex-1 rounded-lg py-2.5 transition-colors ${channel === "mesa" ? "bg-white shadow-sm" : "text-black/55"}`}>{t("imAtTable")}</button>
-              <button type="button" onClick={() => props.setChannel("delivery")} className={`flex-1 rounded-lg py-2.5 transition-colors ${channel === "delivery" ? "bg-white shadow-sm" : "text-black/55"}`}>{t("delivery")}</button>
+              <button type="button" onClick={() => props.setChannel("delivery")} className={`flex-1 rounded-lg py-2.5 transition-colors ${channel === "delivery" ? "bg-white shadow-sm" : "text-black/55"}`}>{r.delivery_enabled && r.pickup_enabled ? t("remote") : r.delivery_enabled ? t("delivery") : t("pickupShort")}</button>
             </div>
           )}
 
@@ -1211,23 +1301,89 @@ function CartSheet(props: {
               )}
             </div>
           ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="label" htmlFor="nome">{t("yourName")}</label>
-                <input id="nome" className="input" required autoComplete="name" maxLength={80} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            <div className="space-y-4">
+              {r.delivery_enabled && r.pickup_enabled && (
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("howReceive")}>
+                  {([false, true] as const).map((p) => (
+                    <button key={String(p)} type="button" role="radio" aria-checked={pickup === p} onClick={() => setMode(p)} className={`flex items-center justify-center gap-2 rounded-xl px-2 py-3 text-[14.5px] font-semibold ring-1 transition-colors ${pickup === p ? "bg-ink text-white ring-ink" : "bg-white ring-black/15"}`}>
+                      <Icon name={p ? "bag" : "bike"} size={18} /> {p ? t("pickupShort") : t("delivery")}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {pickup ? (
+                <div className="flex gap-3 rounded-2xl bg-[#efefeb] p-3.5 text-[14px]">
+                  <Icon name="pin" size={18} className="mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold">{t("pickupAt")}</p>
+                    <p className="text-black/70">{r.address || r.name}</p>
+                    {r.pickup_eta && <p className="mt-0.5 text-black/60">{t("readyIn", { eta: r.pickup_eta })}</p>}
+                  </div>
+                </div>
+              ) : (
+                r.delivery_eta && <p className="flex items-center gap-1.5 text-[14px] text-black/65"><Icon name="clock" size={16} /> {t("deliveryIn", { eta: r.delivery_eta })}</p>
+              )}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="label" htmlFor="nome">{t("yourName")}</label>
+                  <input id="nome" className="input" required autoComplete="name" maxLength={80} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label" htmlFor="fone">{t("phone")}</label>
+                  <input id="fone" className="input" required inputMode="tel" autoComplete="tel" maxLength={20} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="(11) 99999-9999" />
+                </div>
               </div>
-              <div>
-                <label className="label" htmlFor="fone">{t("phone")}</label>
-                <input id="fone" className="input" required inputMode="tel" autoComplete="tel" maxLength={20} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="(11) 99999-9999" />
-              </div>
-              <div>
-                <label className="label" htmlFor="end">{t("address")}</label>
-                <textarea id="end" className="input" required rows={2} autoComplete="street-address" maxLength={300} value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder={t("addressPh")} />
-              </div>
+              {!pickup && (
+                <fieldset className="space-y-3">
+                  <legend className="label">{t("addressTitle")}</legend>
+                  <div className="flex items-end gap-2">
+                    <div className="w-36">
+                      <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-cep">CEP</label>
+                      <input id="end-cep" className="input tnum" inputMode="numeric" autoComplete="postal-code" maxLength={9} value={addr.cep.length > 5 ? `${addr.cep.slice(0, 5)}-${addr.cep.slice(5)}` : addr.cep} onChange={(e) => lookupCep(e.target.value)} placeholder="00000-000" />
+                    </div>
+                    <p className="pb-3 text-[13px] text-black/55" aria-live="polite">{cepState === "busy" ? t("cepBusy") : cepState === "notfound" ? t("cepNotFound") : t("cepHint")}</p>
+                  </div>
+                  <div className="grid grid-cols-[1fr_6.5rem] gap-2">
+                    <div>
+                      <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-rua">{t("street")}</label>
+                      <input id="end-rua" className="input" required autoComplete="address-line1" maxLength={120} value={addr.street} onChange={(e) => setAddr({ ...addr, street: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-num">{t("number")}</label>
+                      <input id="end-num" className="input" required maxLength={12} value={addr.number} onChange={(e) => setAddr({ ...addr, number: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-comp">{t("complement")}</label>
+                    <input id="end-comp" className="input" autoComplete="address-line2" maxLength={60} value={addr.complement} onChange={(e) => setAddr({ ...addr, complement: e.target.value })} placeholder={t("complementPh")} />
+                  </div>
+                  {zones.length ? (
+                    <div>
+                      <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-bairro">{t("district")}</label>
+                      <select id="end-bairro" className="input" required value={zone} onChange={(e) => { setZone(e.target.value); setAddr({ ...addr, district: e.target.value }); }}>
+                        <option value="">{t("chooseZone")}</option>
+                        {zones.map((z) => (
+                          <option key={z.name} value={z.name}>{z.name} · {z.fee_cents ? brl(z.fee_cents) : t("free")}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-[12.5px] text-black/55">{t("zoneHint")}</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-bairro">{t("district")}</label>
+                      <input id="end-bairro" className="input" required maxLength={60} value={addr.district} onChange={(e) => setAddr({ ...addr, district: e.target.value })} />
+                    </div>
+                  )}
+                  <div>
+                    <label className="mb-1 block text-[13px] text-black/60" htmlFor="end-ref">{t("reference")}</label>
+                    <input id="end-ref" className="input" maxLength={120} value={addr.reference} onChange={(e) => setAddr({ ...addr, reference: e.target.value })} placeholder={t("referencePh")} />
+                  </div>
+                </fieldset>
+              )}
               <fieldset>
-                <legend className="label">{t("payOnDelivery")}</legend>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["pix", "cartao", "dinheiro"] as const).map((p) => (
+                <legend className="label">{pickup ? t("payOnPickup") : t("payOnDelivery")}</legend>
+                <div className={`grid gap-2 ${methods.length === 3 ? "grid-cols-3" : methods.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {methods.map((p) => (
                     <button key={p} type="button" aria-pressed={payment === p} onClick={() => setPayment(p)} className={`rounded-xl px-2 py-3 text-[14px] font-semibold ring-1 transition-colors ${payment === p ? "bg-ink text-white ring-ink" : "bg-white ring-black/15"}`}>
                       {p === "cartao" ? t("card") : p === "dinheiro" ? t("cash") : PAYMENT_LABEL[p]}
                     </button>
@@ -1254,26 +1410,40 @@ function CartSheet(props: {
 
           <div className="space-y-1.5 rounded-2xl bg-[#efefeb] p-4 text-[14.5px]">
             <div className="flex justify-between"><span>{t("subtotal")}</span><span className="tnum">{brl(subtotal)}</span></div>
-            {channel === "delivery" && <div className="flex justify-between"><span>{t("deliveryFee")}</span><span className="tnum">{fee ? brl(fee) : t("free")}</span></div>}
-            <div className="flex justify-between pt-1 font-display text-[18px] font-bold"><span>{t("total")}</span><span className="tnum">{brl(subtotal + fee)}</span></div>
+            {isRemote && !pickup && (
+              <div className="flex justify-between">
+                <span>{t("deliveryFee")}{zones.length && zone ? ` (${zone})` : ""}</span>
+                <span className="tnum">{!quote.ok ? "–" : fee ? brl(fee) : t("free")}</span>
+              </div>
+            )}
+            {isRemote && pickup && <div className="flex justify-between"><span>{t("pickupShort")}</span><span>{t("free")}</span></div>}
+            <div className="flex justify-between pt-1 font-display text-[18px] font-bold"><span>{t("total")}</span><span className="tnum">{brl(shownTotal)}</span></div>
           </div>
+          {toFree > 0 && !missing && <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-[14px] text-emerald-950">{t("toFree", { v: brl(toFree) })}</p>}
           {missing > 0 && (
             <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-[14px] text-amber-950">
               {t("minMissing", { v: brl(missing), m: brl(r.min_order_cents) })}
             </p>
           )}
-          {err && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2.5 text-[14px] text-red-800">{err}</p>}
+          {err && (
+            <div role="alert" className="rounded-xl bg-red-50 px-3 py-2.5 text-[14px] text-red-800">
+              {err.msg}
+              {err.reload && (
+                <button type="button" onClick={() => window.location.reload()} className="mt-2 block font-semibold underline underline-offset-2">{t("refreshMenu")}</button>
+              )}
+            </div>
+          )}
         </div>
         <div className="border-t border-line bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <button disabled={busy || !visible.length || missing > 0} className="btn h-[52px] w-full justify-between px-5 text-[16px] text-white disabled:bg-black/30" style={busy || !visible.length || missing > 0 ? undefined : { background: color }}>
-            <span>{busy ? t("sending") : channel === "mesa" ? t("sendKitchen") : t("send")}</span>
-            <span className="tnum">{brl(subtotal + fee)}</span>
+          <button disabled={!!busy || !visible.length || missing > 0} aria-busy={!!busy} className="btn h-[52px] w-full justify-between px-5 text-[16px] text-white disabled:bg-black/30" style={busy || !visible.length || missing > 0 ? undefined : { background: color }}>
+            <span>{busy === "retrying" ? t("retrying") : busy ? t("sending") : confirmed != null ? t("sendNewTotal") : channel === "mesa" ? t("sendKitchen") : t("send")}</span>
+            <span className="tnum">{brl(shownTotal)}</span>
           </button>
-          {channel === "delivery" && r.whatsapp && visible.length > 0 && (
+          {isRemote && r.whatsapp && visible.length > 0 && (
             <a
               className="mt-2 flex h-10 items-center justify-center gap-1.5 text-[14px] font-semibold text-black/60 underline-offset-2 hover:underline"
               href={`https://wa.me/55${r.whatsapp.replace(/^55/, "")}?text=${encodeURIComponent(
-                `${t("yourOrder")} (${r.name}):\n${visible.map(({ l, it }) => `${l.qty}x ${tr(it!, "pt").name}${optSummary(it!, l.opts) ? ` [${optSummary(it!, l.opts)}]` : ""}${l.notes ? ` (${l.notes})` : ""}`).join("\n")}\n${t("total")}: ${brl(subtotal + fee)}${f.address ? `\n${f.address}` : ""}`
+                `${t("yourOrder")} (${r.name}):\n${visible.map(({ l, it }) => `${l.qty}x ${tr(it!, "pt").name}${optSummary(it!, l.opts) ? ` [${optSummary(it!, l.opts)}]` : ""}${l.notes ? ` (${l.notes})` : ""}`).join("\n")}\n${t("total")}: ${brl(total)}${pickup ? `\n${t("pickupShort")}` : addr.street ? `\n${formatAddress(readAddress(addr))}` : ""}`
               )}`}
               target="_blank"
               rel="noopener"

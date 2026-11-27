@@ -92,9 +92,22 @@ export type PublicRestaurant = {
   service_pct?: number;
   loyalty?: import("./loyalty").Loyalty;
   hours?: import("./hours").Hours;
+  logo_url?: string;
+  cover_url?: string;
+  pickup_enabled?: boolean;
+  pickup_eta?: string;
+  delivery_eta?: string;
+  delivery_mode?: import("./delivery").DeliveryMode;
+  delivery_zones?: import("./delivery").Zone[];
+  free_delivery_cents?: number;
+  pix_name?: string;
+  pix_city?: string;
+  pay_methods?: import("./delivery").PayMethod[];
 };
 
 export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };
+
+export type CustomerAddress = import("./delivery").Address;
 
 export type CartLine = { itemId: string; qty: number; notes: string; viaAi: boolean; viaSuggest?: boolean; opts?: import("./options").Picks };
 

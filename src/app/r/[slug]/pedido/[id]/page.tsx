@@ -23,8 +23,23 @@ const STEPS = {
     { key: "saiu", label: "A caminho" },
     { key: "entregue", label: "Entregue" },
   ],
+  retirada: [
+    { key: "novo", label: "Recebido" },
+    { key: "preparo", label: "Em preparo" },
+    { key: "pronto", label: "Pode buscar" },
+    { key: "entregue", label: "Retirado" },
+  ],
 };
 
+type Ch = "mesa" | "delivery" | "retirada";
+const PICKUP: Record<string, { t: string; sub: string }> = {
+  novo: { t: "Pedido enviado", sub: "O restaurante já recebeu. Assim que aceitarem, você vê aqui." },
+  preparo: { t: "Estamos preparando", sub: "Avisamos aqui quando estiver pronto para buscar." },
+  pronto: { t: "Pronto! Pode vir buscar", sub: "Seu pedido está esperando no balcão. Diga o número do pedido ao chegar." },
+  saiu: { t: "Pronto! Pode vir buscar", sub: "Seu pedido está esperando no balcão." },
+  entregue: { t: "Pedido retirado. Bom apetite!", sub: "" },
+  cancelado: { t: "O restaurante não pôde aceitar este pedido", sub: "Fale com o restaurante para saber o que houve ou faça um novo pedido." },
+};
 const HEADLINE: Record<string, { mesa: string; delivery: string; sub: { mesa: string; delivery: string } }> = {
   novo: {
     mesa: "Pedido enviado para a cozinha",
@@ -125,17 +140,20 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
 
   const { order: o, restaurant: r, eta, loyalty } = d;
   const ch: "mesa" | "delivery" = o.channel === "delivery" ? "delivery" : "mesa";
-  const steps = STEPS[ch];
+  const kind: Ch = o.channel === "delivery" ? (o.pickup ? "retirada" : "delivery") : "mesa";
+  const steps = STEPS[kind];
   const current = steps.findIndex((s) => s.key === o.status);
   const color = readable(r.primary_color);
   const cancelled = o.status === "cancelado";
   const done = o.status === "entregue";
-  const h = HEADLINE[o.status] ?? HEADLINE.novo;
+  const h0 = HEADLINE[o.status] ?? HEADLINE.novo;
+  const pk = PICKUP[o.status] ?? PICKUP.novo;
+  const h = kind === "retirada" ? { ...h0, delivery: pk.t, sub: { ...h0.sub, delivery: pk.sub } } : h0;
   const back = `/r/${slug}${ch === "mesa" && o.table_label ? `?mesa=${encodeURIComponent(o.table_label)}` : ch === "delivery" ? "?modo=delivery" : ""}`;
 
   async function copyPix() {
     try {
-      await navigator.clipboard.writeText(r.pix_key);
+      await navigator.clipboard.writeText(r.pix_code || r.pix_key);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {}
@@ -144,7 +162,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
   return (
     <main className="mx-auto min-h-dvh max-w-md bg-white px-5 pb-10 pt-8">
       <p className="text-[13.5px] font-semibold text-black/55">
-        {r.name} · {ch === "mesa" ? `Mesa ${o.table_label}` : "Entrega"}
+        {r.name} · {ch === "mesa" ? `Mesa ${o.table_label}` : o.pickup ? "Retirada no local" : "Entrega"}
       </p>
       <div className="mt-1 flex items-baseline justify-between gap-3">
         <h1 className="text-[15px] font-bold text-black/70">Pedido #{o.number}</h1>
@@ -164,7 +182,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
           <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#efefeb] px-3.5 py-2 text-[14.5px]">
             <Icon name="clock" size={16} />
             <span>
-              {ch === "delivery" ? "Chega" : "Fica pronto"} por volta das <b className="tnum">{hhmm(new Date(new Date(o.created_at).getTime() + eta.minutes * 60000).toISOString())}</b>
+              {kind === "delivery" ? "Chega" : "Fica pronto"} por volta das <b className="tnum">{hhmm(new Date(new Date(o.created_at).getTime() + eta.minutes * 60000).toISOString())}</b>
               <span className="text-black/60"> · previsão</span>
             </span>
           </p>
@@ -198,17 +216,33 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
         </p>
       )}
 
+      {o.pickup && r.address && !cancelled && !done && (
+        <section className="mt-7 flex gap-3 rounded-2xl bg-[#efefeb] p-4">
+          <Icon name="pin" size={20} className="mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <h3 className="text-[16px] font-bold">Onde buscar</h3>
+            <p className="mt-0.5 text-[14.5px] text-black/70">{r.address}</p>
+            <a className="mt-1.5 inline-block text-[14px] font-semibold underline underline-offset-2" style={{ color }} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name} ${r.address}`)}`} target="_blank" rel="noopener">Abrir no mapa</a>
+          </div>
+        </section>
+      )}
+
       {o.payment === "pix" && r.pix_key && !cancelled && (
         <section className="mt-7 rounded-2xl bg-[#efefeb] p-4">
           <h3 className="text-[16px] font-bold">Pague com Pix</h3>
           <p className="mt-1 text-[14px] text-black/65">
-            Copie a chave, pague <b className="tnum text-ink">{brl(o.total_cents)}</b> no app do seu banco e mostre o comprovante na entrega.
+            {r.pix_code ? (
+              <>Copie o código e cole no app do seu banco em <b>Pix copia e cola</b>. O valor de <b className="tnum text-ink">{brl(o.total_cents)}</b> já vem preenchido{r.pix_name ? <> para <b className="text-ink">{r.pix_name}</b></> : null}.</>
+            ) : (
+              <>Copie a chave, pague <b className="tnum text-ink">{brl(o.total_cents)}</b> no app do seu banco e mostre o comprovante {o.pickup ? "na retirada" : "na entrega"}.</>
+            )}
           </p>
+          {r.pix_code && <PixQr code={r.pix_code} />}
           <div className="mt-3 flex items-center gap-2 rounded-xl bg-white p-2 pl-3.5 ring-1 ring-black/10">
-            <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{r.pix_key}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-black/70">{r.pix_code || r.pix_key}</span>
             <button onClick={copyPix} className="btn-dark h-10 shrink-0 px-3.5 text-[14px]">
               <Icon name={copied ? "check" : "copy"} size={16} />
-              {copied ? "Copiada" : "Copiar"}
+              {copied ? "Copiado" : r.pix_code ? "Copiar código" : "Copiar"}
             </button>
           </div>
         </section>
@@ -295,3 +329,14 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
   );
 }
 
+
+/** QR code do Pix (para pagar de outro celular ou no computador). */
+function PixQr({ code }: { code: string }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    let on = true;
+    import("qrcode").then((Q) => Q.toDataURL(code, { margin: 1, width: 440, errorCorrectionLevel: "M" })).then((u) => on && setSrc(u)).catch(() => {});
+    return () => { on = false; };
+  }, [code]);
+  return src ? <img src={src} alt="QR code do Pix com o valor do pedido" width={176} height={176} className="mx-auto mt-3 rounded-xl bg-white p-2" /> : <div className="skeleton mx-auto mt-3 h-44 w-44 rounded-xl" />;
+}

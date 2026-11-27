@@ -100,7 +100,8 @@ export async function currentRestaurant() {
   const rows = await db.query(
     `SELECT id, slug, name, email, whatsapp, address, primary_color, delivery_enabled, dine_in_enabled,
             delivery_fee_cents, min_order_cents, ai_name, ai_tone, ai_instructions, plan, trial_ends_at,
-            accepting_orders, pix_key, google_review_url, languages, ai_preset, service_pct, loyalty, hours
+            accepting_orders, pix_key, google_review_url, languages, ai_preset, service_pct, loyalty, hours,
+            logo_url, cover_url, pickup_enabled, pickup_eta, delivery_eta, delivery_mode, delivery_zones, free_delivery_cents, pix_name, pix_city, pay_methods
        FROM restaurants WHERE id = $1`,
     [rid]
   );

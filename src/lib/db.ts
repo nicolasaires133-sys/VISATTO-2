@@ -4,9 +4,12 @@
 // As duas opções têm a mesma interface: query(sql, params) -> linhas.
 
 type Row = Record<string, any>;
+export type Tx = { query: <T = any>(sql: string, params?: unknown[]) => Promise<T[]> };
 export type DB = {
   query: <T = Row>(sql: string, params?: unknown[]) => Promise<T[]>;
   exec: (sql: string) => Promise<void>;
+  /** Tudo ou nada: se qualquer passo falhar, nada fica gravado. */
+  tx: <R>(fn: (t: Tx) => Promise<R>) => Promise<R>;
 };
 
 const SCHEMA = `
@@ -232,6 +235,25 @@ ALTER TABLE order_items ADD COLUMN IF NOT EXISTS options TEXT DEFAULT '';
 -- v9: horário de funcionamento
 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS hours JSONB DEFAULT '{}'::jsonb;
 
+-- v10: cara de cada loja (logo e capa), retirada no local, taxa por bairro, Pix com nome de quem recebe
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS cover_url TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pickup_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pickup_eta TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_eta TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_mode TEXT DEFAULT 'fixa';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS delivery_zones JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS free_delivery_cents INTEGER DEFAULT 0;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pix_name TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pix_city TEXT DEFAULT '';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS pay_methods JSONB DEFAULT '["pix","cartao","dinheiro"]'::jsonb;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS pickup BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_key TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS address_json JSONB;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS zone TEXT DEFAULT '';
+-- o mesmo envio (clique duplo, internet que caiu e voltou) nunca vira dois pedidos
+CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_client_key ON orders(restaurant_id, client_key) WHERE client_key <> '';
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;
@@ -258,6 +280,20 @@ async function connect(): Promise<DB> {
     const pool = new Pool({ connectionString: url, max: 5 });
     db = {
       query: async (sql, params) => (await pool.query(sql, params as any[])).rows,
+      tx: async (fn) => {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const out = await fn({ query: async (sql, params) => (await client.query(sql, params as any[])).rows });
+          await client.query("COMMIT");
+          return out;
+        } catch (e) {
+          await client.query("ROLLBACK").catch(() => {});
+          throw e;
+        } finally {
+          client.release();
+        }
+      },
       exec: async (sql) => {
         // trava para que duas instâncias não criem/alterem tabelas ao mesmo tempo
         const client = await pool.connect();
@@ -280,6 +316,7 @@ async function connect(): Promise<DB> {
     const lite = new PGlite("./.data/pglite");
     db = {
       query: async (sql, params) => (await lite.query(sql, params as any[])).rows as any[],
+      tx: (fn) => lite.transaction((t) => fn({ query: async (sql, params) => (await t.query(sql, params as any[])).rows as any[] })) as any,
       exec: async (sql) => {
         await lite.exec(sql);
       },

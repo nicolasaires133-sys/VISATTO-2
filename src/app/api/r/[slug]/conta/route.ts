@@ -75,7 +75,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   if (method === "pix") {
     const key = r.pix_key || (slug === DEMO_SLUG ? DEMO_KEY : "");
     if (!key) return fail("Este restaurante ainda não recebe Pix pela mesa. Chame um atendente.");
-    const code = pixPayload({ key, name: r.name, city: cityFrom(r.address || ""), amountCents: amount, txid: `MESA${table}` });
+    const code = pixPayload({ key, name: r.pix_name || r.name, city: r.pix_city || cityFrom(r.address || ""), amountCents: amount, txid: `MESA${table}` });
     return ok({ code, amount_cents: amount });
   }
   const people = Math.min(30, Math.max(1, Number(b.people) || 1));

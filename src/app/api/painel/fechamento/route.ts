@@ -10,9 +10,9 @@ export async function GET(req: Request) {
   const day = /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
   const db = await getDB();
   const where = `restaurant_id=$1 AND status <> 'cancelado' AND (created_at AT TIME ZONE 'America/Sao_Paulo')::date = $2::date`;
-  const [t] = await db.query<{ orders: number; revenue: number; fees: number; mesa: number; entrega: number; canceled: number }>(
+  const [t] = await db.query<{ orders: number; revenue: number; fees: number; mesa: number; entrega: number; retirada: number; canceled: number }>(
     `SELECT COUNT(*)::int AS orders, COALESCE(SUM(total_cents),0)::int AS revenue, COALESCE(SUM(delivery_fee_cents),0)::int AS fees,
-            COUNT(*) FILTER (WHERE channel='mesa')::int AS mesa, COUNT(*) FILTER (WHERE channel<>'mesa')::int AS entrega,
+            COUNT(*) FILTER (WHERE channel='mesa')::int AS mesa, COUNT(*) FILTER (WHERE channel<>'mesa' AND NOT COALESCE(pickup,false))::int AS entrega, COUNT(*) FILTER (WHERE channel<>'mesa' AND COALESCE(pickup,false))::int AS retirada,
             (SELECT COUNT(*)::int FROM orders WHERE restaurant_id=$1 AND status='cancelado' AND (created_at AT TIME ZONE 'America/Sao_Paulo')::date = $2::date) AS canceled
        FROM orders WHERE ${where}`,
     [r.id, day]

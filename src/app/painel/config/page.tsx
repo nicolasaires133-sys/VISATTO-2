@@ -3,7 +3,8 @@ import { ComoUsar } from "../ajuda-ui";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DAY_NAMES, DEFAULT_HOURS, openState, readHours, type Hours } from "@/lib/hours";
-import { api } from "@/lib/client";
+import { api, dataUrlToBlob, resizeImage, uploadFile } from "@/lib/client";
+import { pixPayload, cityFrom, normalizePixKey } from "@/lib/pix";
 import Icon from "@/components/Icon";
 import PasswordField from "@/components/PasswordField";
 import { usePainel } from "../ctx";
@@ -33,6 +34,18 @@ export default function Config() {
     l_goal: String(r.loyalty?.goal ?? 10),
     l_min: ((r.loyalty?.min_cents ?? 0) / 100).toFixed(2).replace(".", ","),
     l_reward: r.loyalty?.reward ?? "",
+    logo_url: r.logo_url || "",
+    cover_url: r.cover_url || "",
+    pickup_enabled: Boolean(r.pickup_enabled),
+    pickup_eta: r.pickup_eta || "",
+    delivery_eta: r.delivery_eta || "",
+    delivery_mode: r.delivery_mode === "bairro" ? "bairro" : "fixa",
+    zones: (r.delivery_zones ?? []).map((z: any) => ({ name: z.name, fee: (z.fee_cents / 100).toFixed(2).replace(".", ",") })) as { name: string; fee: string }[],
+    free_delivery: r.free_delivery_cents ? (r.free_delivery_cents / 100).toFixed(2).replace(".", ",") : "",
+    pay_methods: (r.pay_methods ?? ["pix", "cartao", "dinheiro"]) as string[],
+    pix_key_type: guessPixType(r.pix_key || ""),
+    pix_name: r.pix_name || "",
+    pix_city: r.pix_city || "",
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,7 +58,9 @@ export default function Config() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!f.dine_in_enabled && !f.delivery_enabled) return setMsg({ ok: false, text: "Deixe pelo menos uma forma de atendimento ligada: na mesa ou entrega." });
+    if (!f.dine_in_enabled && !f.delivery_enabled && !f.pickup_enabled) return setMsg({ ok: false, text: "Deixe pelo menos uma forma de atendimento ligada: na mesa, entrega ou retirada." });
+    if (f.delivery_enabled && f.delivery_mode === "bairro" && !f.zones.some((z: { name: string }) => z.name.trim())) return setMsg({ ok: false, text: "Cadastre pelo menos um bairro com a taxa (ou escolha taxa fixa)." });
+    if ((f.delivery_enabled || f.pickup_enabled) && !f.pay_methods.length) return setMsg({ ok: false, text: "Marque pelo menos uma forma de pagamento para entrega e retirada." });
     setBusy(true);
     setMsg(null);
     try {
@@ -56,6 +71,8 @@ export default function Config() {
           delivery_fee_cents: f.delivery_fee,
           min_order_cents: f.min_order,
           service_pct: f.service_pct,
+          delivery_zones: f.zones.filter((z: { name: string }) => z.name.trim()).map((z: { name: string; fee: string }) => ({ name: z.name, fee: z.fee })),
+          free_delivery_cents: f.free_delivery || "0",
           loyalty: { on: f.l_on, goal: f.l_goal, min_cents: f.l_min, reward: f.l_reward },
         },
       });
@@ -101,36 +118,84 @@ export default function Config() {
         </div>
       </section>
 
+      <StorePhotos logo={f.logo_url} cover={f.cover_url} name={f.name} color={f.primary_color} onChange={(patch) => set(patch)} />
+
       <section className="card space-y-4 p-5">
         <h2 className="text-[18px] font-extrabold">Pedidos</h2>
         <SwitchRow on={f.accepting_orders} onChange={(v) => set({ accepting_orders: v })} title="Receber pedidos pelo celular" text="Desligado, o cliente só vê o cardápio e os pratos em 3D (bom para dias de casa cheia)." />
         <hr className="border-line" />
         <SwitchRow on={f.dine_in_enabled} onChange={(v) => set({ dine_in_enabled: v })} title="Pedidos na mesa" text="O cliente lê o QR da mesa, pede e pode chamar o atendente ou a conta." />
-        <SwitchRow on={f.delivery_enabled} onChange={(v) => set({ delivery_enabled: v })} title="Entrega (delivery)" text="Pelo link do cardápio, com endereço e forma de pagamento." />
+        <SwitchRow on={f.delivery_enabled} onChange={(v) => set({ delivery_enabled: v })} title="Entrega (delivery)" text="Pelo link do cardápio: o cliente coloca o endereço (com busca pelo CEP) e escolhe como vai pagar." />
         {f.delivery_enabled && (
           <div className="space-y-4 rounded-2xl bg-cream p-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <fieldset>
+              <legend className="label">Taxa de entrega</legend>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Como cobrar a entrega">
+                {([["fixa", "Valor fixo", "O mesmo para todos"], ["bairro", "Por bairro", "Cada bairro com o seu valor"]] as const).map(([k, t, d]) => (
+                  <button key={k} type="button" role="radio" aria-checked={f.delivery_mode === k} onClick={() => set({ delivery_mode: k })} className={`rounded-xl px-3 py-2.5 text-left ring-1 ${f.delivery_mode === k ? "bg-white ring-2 ring-ink" : "bg-white/60 ring-black/10"}`}>
+                    <span className="block text-[14.5px] font-bold">{t}</span>
+                    <span className="block text-[12.5px] text-black/60">{d}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            {f.delivery_mode === "fixa" ? (
+              <div className="max-w-56">
+                <label className="label" htmlFor="c-taxa">Valor da entrega (R$)</label>
+                <input id="c-taxa" className="input" inputMode="decimal" value={f.delivery_fee} onChange={(e) => set({ delivery_fee: e.target.value })} placeholder="0,00 = grátis" />
+              </div>
+            ) : (
+              <ZonesEditor zones={f.zones} onChange={(zones) => set({ zones })} />
+            )}
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="label" htmlFor="c-taxa">Taxa de entrega (R$)</label>
-                <input id="c-taxa" className="input" inputMode="decimal" value={f.delivery_fee} onChange={(e) => set({ delivery_fee: e.target.value })} />
+                <label className="label" htmlFor="c-gratis">Entrega grátis acima de (R$)</label>
+                <input id="c-gratis" className="input" inputMode="decimal" value={f.free_delivery} onChange={(e) => set({ free_delivery: e.target.value })} placeholder="Deixe vazio se não tiver" />
               </div>
               <div>
                 <label className="label" htmlFor="c-min">Pedido mínimo (R$)</label>
                 <input id="c-min" className="input" inputMode="decimal" value={f.min_order} onChange={(e) => set({ min_order: e.target.value })} />
               </div>
+              <div>
+                <label className="label" htmlFor="c-eta">Tempo de entrega</label>
+                <input id="c-eta" className="input" maxLength={40} value={f.delivery_eta} onChange={(e) => set({ delivery_eta: e.target.value })} placeholder="Ex.: 40 a 60 min" />
+              </div>
             </div>
           </div>
+        )}
+        <SwitchRow on={f.pickup_enabled} onChange={(v) => set({ pickup_enabled: v })} title="Retirada no local" text="O cliente pede pelo celular e busca no balcão, sem taxa de entrega. Ele vê o endereço do restaurante e o aviso de quando estiver pronto." />
+        {f.pickup_enabled && (
+          <div className="rounded-2xl bg-cream p-4">
+            <div className="max-w-64">
+              <label className="label" htmlFor="c-eta-ret">Tempo para ficar pronto</label>
+              <input id="c-eta-ret" className="input" maxLength={40} value={f.pickup_eta} onChange={(e) => set({ pickup_eta: e.target.value })} placeholder="Ex.: 20 a 30 min" />
+            </div>
+            {!f.address?.trim() && <p className="mt-3 text-[13.5px] font-semibold text-amber-900">Preencha o endereço do restaurante (lá em cima) para o cliente saber onde buscar.</p>}
+          </div>
+        )}
+        {(f.delivery_enabled || f.pickup_enabled) && (
+          <fieldset className="rounded-2xl bg-cream p-4">
+            <legend className="sr-only">Formas de pagamento</legend>
+            <p className="label">Formas de pagamento na entrega e na retirada</p>
+            <div className="flex flex-wrap gap-2">
+              {([["pix", "Pix"], ["cartao", "Cartão (maquininha)"], ["dinheiro", "Dinheiro"]] as const).map(([k, t]) => {
+                const on = f.pay_methods.includes(k);
+                return (
+                  <button key={k} type="button" aria-pressed={on} onClick={() => set({ pay_methods: on ? f.pay_methods.filter((m: string) => m !== k) : [...f.pay_methods, k] })} className={`inline-flex h-11 items-center gap-2 rounded-xl px-3.5 text-[14.5px] font-semibold ring-1 ${on ? "bg-ink text-white ring-ink" : "bg-white ring-black/15"}`}>
+                    <Icon name={on ? "check" : "plus"} size={16} /> {t}
+                  </button>
+                );
+              })}
+            </div>
+            {f.pay_methods.includes("pix") && !f.pix_key && <p className="mt-2 text-[13.5px] font-semibold text-amber-900">Coloque a sua chave Pix abaixo para o cliente receber o código com o valor certo.</p>}
+          </fieldset>
         )}
       </section>
 
       <section className="card space-y-4 p-5">
         <h2 className="text-[18px] font-extrabold">Pagamento e conta da mesa</h2>
         <p className="text-[14px] text-black/60">Na mesa, o cliente abre a conta pelo celular, confere tudo o que pediu, divide com os amigos e avisa como vai pagar. Você recebe o aviso aqui em Pedidos.</p>
-        <div>
-          <label className="label" htmlFor="c-pix">Chave Pix (opcional)</label>
-          <input id="c-pix" className="input" maxLength={120} value={f.pix_key} onChange={(e) => set({ pix_key: e.target.value })} placeholder="CNPJ, celular, e-mail ou chave aleatória" />
-          <p className="mt-1.5 text-[13px] text-black/55">Com a chave, o cliente paga a conta (ou a parte dele) com um Pix já com o valor certo, e na entrega vê a chave para copiar. O dinheiro cai direto na sua conta, sem taxa do Visatto. Confira no seu banco antes de fechar a mesa.</p>
-        </div>
+        <PixEditor f={f} set={set} />
         <div>
           <label className="label" htmlFor="c-serv">Taxa de serviço sugerida na conta da mesa (%)</label>
           <input id="c-serv" className="input max-w-28" inputMode="numeric" value={f.service_pct} onChange={(e) => set({ service_pct: e.target.value.replace(/\D/g, "").slice(0, 2) })} />
@@ -427,6 +492,151 @@ function HoursEditor({ h, onChange }: { h: Hours; onChange: (h: Hours) => void }
           <p className="text-[13.5px] text-black/60">Agora: <b>{st.label || "—"}</b>. Se fecha depois da meia-noite, é só pôr, por exemplo, 18:00 às 02:00.</p>
         </>
       )}
+    </section>
+  );
+}
+
+/** Tipo provável de uma chave já salva (para o seletor do painel). */
+function guessPixType(k: string): "celular" | "documento" | "email" | "aleatoria" {
+  if (!k) return "celular";
+  if (k.includes("@")) return "email";
+  if (/^[0-9a-f]{8}-/i.test(k)) return "aleatoria";
+  if (k.startsWith("+")) return "celular";
+  return "documento";
+}
+
+const PIX_TYPES = [
+  { id: "celular", label: "Celular", ph: "(11) 99999-9999", mode: "tel" },
+  { id: "documento", label: "CPF ou CNPJ", ph: "Só os números", mode: "numeric" },
+  { id: "email", label: "E-mail", ph: "pix@seurestaurante.com.br", mode: "email" },
+  { id: "aleatoria", label: "Chave aleatória", ph: "123e4567-e89b-12d3-a456-426614174000", mode: "text" },
+] as const;
+
+/** Pix da loja: tipo da chave, chave, nome de quem recebe e cidade, com um teste de R$ 1,00. */
+function PixEditor({ f, set }: { f: any; set: (p: Record<string, unknown>) => void }) {
+  const [test, setTest] = useState<{ code: string; qr: string } | null>(null);
+  const type = PIX_TYPES.find((t) => t.id === f.pix_key_type) ?? PIX_TYPES[0];
+  const shown = type.id === "celular" && String(f.pix_key).startsWith("+55") ? String(f.pix_key).slice(3) : f.pix_key;
+  async function makeTest() {
+    const key = type.id === "celular" ? `+55${String(f.pix_key).replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")}` : type.id === "documento" ? String(f.pix_key).replace(/\D/g, "") : normalizePixKey(f.pix_key);
+    const code = pixPayload({ key, name: f.pix_name || f.name, city: f.pix_city || cityFrom(f.address || ""), amountCents: 100, txid: "TESTE" });
+    const Q = await import("qrcode");
+    setTest({ code, qr: await Q.toDataURL(code, { margin: 1, width: 360 }) });
+  }
+  return (
+    <div className="space-y-4 rounded-2xl bg-cream p-4">
+      <div>
+        <p className="label">Tipo da chave Pix</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Tipo da chave Pix">
+          {PIX_TYPES.map((t) => (
+            <button key={t.id} type="button" role="radio" aria-checked={type.id === t.id} onClick={() => { set({ pix_key_type: t.id }); setTest(null); }} className={`h-11 rounded-xl text-[14px] font-semibold ring-1 ${type.id === t.id ? "bg-ink text-white ring-ink" : "bg-white ring-black/15"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="label" htmlFor="c-pix">Chave Pix</label>
+        <input id="c-pix" className="input" maxLength={120} inputMode={type.mode as any} value={shown} onChange={(e) => { const v = e.target.value; set({ pix_key: v, ...(v.includes("@") ? { pix_key_type: "email" } : /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(v.trim()) ? { pix_key_type: "aleatoria" } : {}) }); setTest(null); }} placeholder={type.ph} />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="c-pix-nome">Nome de quem recebe</label>
+          <input id="c-pix-nome" className="input" maxLength={60} value={f.pix_name} onChange={(e) => { set({ pix_name: e.target.value }); setTest(null); }} placeholder={f.name || "Nome da empresa ou seu nome"} />
+          <p className="mt-1 text-[12.5px] text-black/55">Aparece no app do banco do cliente na hora de pagar.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="c-pix-cidade">Cidade</label>
+          <input id="c-pix-cidade" className="input" maxLength={40} value={f.pix_city} onChange={(e) => { set({ pix_city: e.target.value }); setTest(null); }} placeholder="Ex.: São Paulo" />
+        </div>
+      </div>
+      <p className="text-[13px] text-black/60">Na entrega, na retirada e na conta da mesa o cliente recebe o <b>Pix copia e cola</b> e o QR code já com o valor certo. O dinheiro cai direto na sua conta, sem taxa do Visatto. Confira no seu banco antes de liberar o pedido.</p>
+      {f.pix_key && (
+        <div>
+          <button type="button" onClick={makeTest} className="btn-ghost h-10 px-3.5 text-[14px]"><Icon name="qr" size={16} /> Testar com um Pix de R$ 1,00</button>
+          {test && (
+            <div className="mt-3 flex flex-wrap items-center gap-4 rounded-xl bg-white p-3 ring-1 ring-black/10">
+              <img src={test.qr} alt="QR code de teste do Pix" width={140} height={140} />
+              <p className="min-w-0 flex-1 text-[13.5px] text-black/70">Abra o app do seu banco e leia o QR (ou cole o código). Se aparecer o nome certo e R$ 1,00, está tudo pronto. <span className="mt-1 block break-all font-mono text-[11.5px] text-black/50">{test.code}</span></p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Bairros atendidos e a taxa de cada um. */
+function ZonesEditor({ zones, onChange }: { zones: { name: string; fee: string }[]; onChange: (z: { name: string; fee: string }[]) => void }) {
+  const list = zones.length ? zones : [{ name: "", fee: "" }];
+  const up = (i: number, patch: Partial<{ name: string; fee: string }>) => onChange(list.map((z, k) => (k === i ? { ...z, ...patch } : z)));
+  return (
+    <div>
+      <p className="label">Bairros que você atende</p>
+      <div className="space-y-2">
+        {list.map((z, i) => (
+          <div key={i} className="flex gap-2">
+            <input aria-label={`Bairro ${i + 1}`} className="input min-w-0 flex-1" maxLength={60} value={z.name} onChange={(e) => up(i, { name: e.target.value })} placeholder="Nome do bairro" />
+            <div className="relative w-32 shrink-0">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-black/50">R$</span>
+              <input aria-label={`Taxa do bairro ${z.name || i + 1}`} className="input pl-9" inputMode="decimal" value={z.fee} onChange={(e) => up(i, { fee: e.target.value })} placeholder="0,00" />
+            </div>
+            <button type="button" aria-label={`Tirar o bairro ${z.name || i + 1}`} onClick={() => onChange(list.filter((_, k) => k !== i))} className="btn-ghost h-[46px] w-11 shrink-0 px-0"><Icon name="trash" size={17} /></button>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={() => onChange([...list, { name: "", fee: "" }])} className="btn-ghost mt-2 h-10 px-3.5 text-[14px]"><Icon name="plus" size={16} /> Adicionar bairro</button>
+      <p className="mt-2 text-[13px] text-black/55">O cliente escolhe o bairro na lista e a taxa aparece na hora. Bairro fora da lista não consegue pedir entrega (pode pedir para retirar, se estiver ligado).</p>
+    </div>
+  );
+}
+
+/** Logo e foto de capa da loja (aparecem no topo do cardápio). */
+function StorePhotos({ logo, cover, name, color, onChange }: { logo: string; cover: string; name: string; color: string; onChange: (p: Record<string, string>) => void }) {
+  const [busy, setBusy] = useState<"" | "logo" | "cover">("");
+  const [err, setErr] = useState("");
+  async function pick(kind: "logo" | "cover", file?: File) {
+    if (!file) return;
+    setErr("");
+    setBusy(kind);
+    try {
+      const img = await resizeImage(file, kind === "logo" ? 512 : 1600, 0.82);
+      onChange({ [`${kind}_url`]: img });
+      const url = await uploadFile(dataUrlToBlob(img), kind === "logo" ? "logo.jpg" : "capa.jpg");
+      onChange({ [`${kind}_url`]: url });
+    } catch (e: any) {
+      setErr(e.message || "Não deu para enviar a foto.");
+      onChange({ [`${kind}_url`]: kind === "logo" ? logo : cover });
+    }
+    setBusy("");
+  }
+  return (
+    <section className="card space-y-4 p-5" aria-label="Fotos da loja">
+      <div>
+        <h2 className="text-[18px] font-extrabold">Fotos da loja</h2>
+        <p className="mt-1 text-[14px] text-black/60">A capa e a logo aparecem no topo do seu cardápio, do jeito que o cliente vê abaixo.</p>
+      </div>
+      <div className="relative overflow-hidden rounded-2xl bg-ink text-white">
+        {cover ? <img src={cover} alt="Foto de capa" className="h-40 w-full object-cover" /> : <div className="h-40 w-full" style={{ background: `radial-gradient(70% 90% at 100% 0%, ${color}66, transparent 70%)` }} />}
+        <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 bg-gradient-to-t from-black/70 to-transparent p-4">
+          {logo ? <img src={logo} alt="Logo" className="h-14 w-14 rounded-xl bg-white object-cover ring-2 ring-white/80" /> : <span className="grid h-14 w-14 place-items-center rounded-xl bg-white/15 text-[22px] font-extrabold">{(name || "?").slice(0, 1)}</span>}
+          <span className="pb-1 text-[20px] font-extrabold leading-tight">{name}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <label className="btn-ghost h-11 cursor-pointer px-3.5 text-[14px]">
+          <Icon name="image" size={17} /> {busy === "cover" ? "Enviando..." : cover ? "Trocar a capa" : "Colocar foto de capa"}
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => pick("cover", e.target.files?.[0])} disabled={!!busy} />
+        </label>
+        <label className="btn-ghost h-11 cursor-pointer px-3.5 text-[14px]">
+          <Icon name="image" size={17} /> {busy === "logo" ? "Enviando..." : logo ? "Trocar a logo" : "Colocar a logo"}
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => pick("logo", e.target.files?.[0])} disabled={!!busy} />
+        </label>
+        {cover && <button type="button" onClick={() => onChange({ cover_url: "" })} className="btn-ghost h-11 px-3.5 text-[14px] text-red-700">Tirar a capa</button>}
+        {logo && <button type="button" onClick={() => onChange({ logo_url: "" })} className="btn-ghost h-11 px-3.5 text-[14px] text-red-700">Tirar a logo</button>}
+      </div>
+      <p className="text-[13px] text-black/55">Capa: uma foto da fachada, do salão ou de um prato bonito, de preferência deitada. Logo: quadrada. Lembre de salvar no fim da página.</p>
+      {err && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-[14px] text-red-800">{err}</p>}
     </section>
   );
 }

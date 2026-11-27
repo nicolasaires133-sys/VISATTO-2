@@ -76,7 +76,7 @@ export default function Cozinha({ orders, onMove, onClose }: { orders: Order[]; 
               <article key={o.id} className={`flex flex-col overflow-hidden rounded-2xl bg-[#1b2128] ring-2 ${isNew ? "ring-white" : "ring-transparent"}`}>
                 <div className="flex items-center gap-3 px-4 py-3">
                   <span className="tnum text-[28px] font-extrabold leading-none">#{o.number}</span>
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-[16px] font-bold">{o.channel === "mesa" ? `Mesa ${o.table_label}` : "Entrega"}</span>
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-[16px] font-bold">{o.channel === "mesa" ? `Mesa ${o.table_label}` : o.pickup ? "Retirada" : "Entrega"}</span>
                   <span className="flex-1" />
                   <span className={`tnum rounded-full px-3 py-1 text-[16px] font-bold ${tone}`}>{m} min</span>
                 </div>
@@ -94,7 +94,7 @@ export default function Cozinha({ orders, onMove, onClose }: { orders: Order[]; 
                 </ul>
                 {o.notes && <p className="mx-4 mb-3 rounded-xl bg-amber-300 px-3 py-2 text-[16px] font-bold text-black">Obs.: {o.notes}</p>}
                 <button
-                  onClick={() => onMove(o, isNew ? "preparo" : o.channel === "mesa" ? "pronto" : "saiu")}
+                  onClick={() => onMove(o, isNew ? "preparo" : o.channel === "mesa" || o.pickup ? "pronto" : "saiu")}
                   className={`h-16 text-[20px] font-extrabold transition-colors ${isNew ? "bg-white text-black hover:bg-white/90" : "bg-emerald-500 text-white hover:bg-emerald-600"}`}
                 >
                   {isNew ? "Começar a preparar" : "Pronto"}

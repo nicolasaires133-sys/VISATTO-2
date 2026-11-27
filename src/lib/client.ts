@@ -10,25 +10,31 @@ function authHeaders(): Record<string, string> {
   return scanToken ? { "x-scan-token": scanToken } : {};
 }
 
-export async function api<T = any>(url: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T = any>(url: string, opts: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
   let res: Response;
+  const ctl = opts.timeoutMs ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), opts.timeoutMs) : null;
   try {
     res = await fetch(url, {
       method: opts.method || (opts.body ? "POST" : "GET"),
       headers: { ...(opts.body ? { "Content-Type": "application/json" } : {}), ...authHeaders() },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
       cache: "no-store",
+      signal: ctl?.signal,
     });
   } catch {
     const err: any = new Error("Sem conexão com a internet. Confira o sinal e tente de novo.");
     err.status = 0;
     throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const fallback = res.status >= 500 ? "O servidor não conseguiu concluir agora. Tente de novo em alguns segundos." : "Algo deu errado. Tente de novo.";
     const err: any = new Error(data?.error || fallback);
     err.status = res.status;
+    err.data = data;
     throw err;
   }
   return data as T;

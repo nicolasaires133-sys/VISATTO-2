@@ -20,6 +20,9 @@ export type Order = {
   payment?: string;
   change_for_cents?: number;
   closed_at?: string | null;
+  /** cliente busca no balcão (sem entrega) */
+  pickup?: boolean;
+  zone?: string;
   /** prêmio do cartão fidelidade liberado para este cliente */
   reward?: string;
   items: { name: string; qty: number; notes: string; price_cents: number; via_ai?: boolean }[];

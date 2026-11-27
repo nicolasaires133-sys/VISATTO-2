@@ -351,7 +351,7 @@ function DayClose() {
         `*Fechamento do dia · ${c.name}*`,
         label.charAt(0).toUpperCase() + label.slice(1),
         "",
-        `Pedidos: ${c.orders} (${c.mesa} na mesa, ${c.entrega} entrega)${c.canceled ? ` · ${c.canceled} cancelado${c.canceled > 1 ? "s" : ""}` : ""}`,
+        `Pedidos: ${c.orders} (${c.mesa} na mesa, ${c.entrega} entrega${c.retirada ? `, ${c.retirada} retirada` : ""})${c.canceled ? ` · ${c.canceled} cancelado${c.canceled > 1 ? "s" : ""}` : ""}`,
         `Faturamento: ${brl(c.revenue)}`,
         `Ticket médio: ${brl(c.avg)}`,
         ...(c.payments.length ? ["", "*Pagamentos*", ...c.payments.map((p: any) => `${PAY_NAME[p.payment] ?? p.payment}: ${brl(p.total)} (${p.n})`)] : []),
@@ -376,7 +376,7 @@ function DayClose() {
       ) : (
         <>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 [&>*]:min-w-0">
-            <Mini label="Pedidos" value={String(c.orders)} hint={`${c.mesa} mesa · ${c.entrega} entrega`} />
+            <Mini label="Pedidos" value={String(c.orders)} hint={`${c.mesa} mesa · ${c.entrega} entrega${c.retirada ? ` · ${c.retirada} retirada` : ""}`} />
             <Mini label="Faturamento" value={brl(c.revenue)} hint={c.fees ? `${brl(c.fees)} de entrega` : "sem taxas de entrega"} />
             <Mini label="Ticket médio" value={brl(c.avg)} hint="por pedido" />
             <Mini label="Pico" value={c.peak ? `${c.peak.h}h` : "–"} hint={c.peak ? `${c.peak.n} ${c.peak.n === 1 ? "pedido" : "pedidos"} nessa hora` : ""} />

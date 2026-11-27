@@ -10,12 +10,16 @@ import { brl, PAYMENT_LABEL, STATUS_LABEL } from "@/lib/format";
 import { usePainel, type Call, type Order } from "./ctx";
 import Cozinha from "./Cozinha";
 
-const NEXT: Record<string, { mesa: string; delivery: string; label: { mesa: string; delivery: string } }> = {
-  novo: { mesa: "preparo", delivery: "preparo", label: { mesa: "Aceitar", delivery: "Aceitar" } },
-  preparo: { mesa: "pronto", delivery: "saiu", label: { mesa: "Está pronto", delivery: "Saiu para entrega" } },
-  pronto: { mesa: "entregue", delivery: "entregue", label: { mesa: "Entregue na mesa", delivery: "Confirmar entrega" } },
-  saiu: { mesa: "entregue", delivery: "entregue", label: { mesa: "Entregue na mesa", delivery: "Confirmar entrega" } },
+type Kind = "mesa" | "delivery" | "retirada";
+const NEXT: Record<string, Record<Kind, string> & { label: Record<Kind, string> }> = {
+  novo: { mesa: "preparo", delivery: "preparo", retirada: "preparo", label: { mesa: "Aceitar", delivery: "Aceitar", retirada: "Aceitar" } },
+  preparo: { mesa: "pronto", delivery: "saiu", retirada: "pronto", label: { mesa: "Está pronto", delivery: "Saiu para entrega", retirada: "Pronto para retirar" } },
+  pronto: { mesa: "entregue", delivery: "entregue", retirada: "entregue", label: { mesa: "Entregue na mesa", delivery: "Confirmar entrega", retirada: "Cliente retirou" } },
+  saiu: { mesa: "entregue", delivery: "entregue", retirada: "entregue", label: { mesa: "Entregue na mesa", delivery: "Confirmar entrega", retirada: "Cliente retirou" } },
 };
+/** Mesa, entrega ou retirada no balcão. */
+const kindOf = (o: Order): Kind => (o.channel === "mesa" ? "mesa" : o.pickup ? "retirada" : "delivery");
+const whereLabel = (o: Order) => (o.channel === "mesa" ? `Mesa ${o.table_label}` : o.pickup ? "Retirada" : "Entrega");
 
 const COLS = [
   { key: "novo", title: "Novos", match: ["novo"], empty: "Nenhum pedido novo" },
@@ -208,7 +212,7 @@ export default function Pedidos() {
             {done.map((o) => (
               <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-[14px]">
                 <span>
-                  <b className="tnum">#{o.number}</b> · {o.channel === "mesa" ? `Mesa ${o.table_label}` : o.customer_name} · {plural(o.items.reduce((s, i) => s + i.qty, 0), "item", "itens")}
+                  <b className="tnum">#{o.number}</b> · {o.channel === "mesa" ? `Mesa ${o.table_label}` : `${o.customer_name}${o.pickup ? " (retirada)" : ""}`} · {plural(o.items.reduce((s, i) => s + i.qty, 0), "item", "itens")}
                 </span>
                 <span className={`tnum ${o.status === "cancelado" ? "font-semibold text-red-700" : "text-black/60"}`}>
                   {o.status === "cancelado" ? "Recusado" : STATUS_LABEL[o.status]} · {brl(o.total_cents)}
@@ -238,8 +242,8 @@ function OrderCard({ o, onMove, onPrint, onRefuse, onReward }: { o: Order; onMov
           <p className="flex flex-wrap items-center gap-2">
             <span className="tnum font-display text-[20px] font-extrabold leading-none">#{o.number}</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2.5 py-1 text-[12.5px] font-bold text-white">
-              <Icon name={o.channel === "mesa" ? "table" : "bike"} size={13} stroke={2} />
-              {o.channel === "mesa" ? `Mesa ${o.table_label}` : "Entrega"}
+              <Icon name={o.channel === "mesa" ? "table" : o.pickup ? "bag" : "bike"} size={13} stroke={2} />
+              {whereLabel(o)}
             </span>
           </p>
           <p className={`mt-1.5 flex items-center gap-1 text-[13px] ${late ? "font-bold text-red-700" : "text-black/55"}`}>
@@ -273,11 +277,13 @@ function OrderCard({ o, onMove, onPrint, onRefuse, onReward }: { o: Order; onMov
 
       {o.channel === "delivery" && (
         <div className="mt-2.5 space-y-0.5 rounded-xl bg-cream px-3 py-2.5 text-[13.5px]">
-          <p className="font-semibold">{o.customer_name} · {o.customer_phone}</p>
-          <p className="text-black/65">{o.address}</p>
+          <p className="font-semibold">{o.customer_name} · {fmtPhone(o.customer_phone)}</p>
+          {o.pickup ? <p className="font-semibold text-emerald-800">Vai retirar no balcão</p> : <p className="text-black/70">{o.address}</p>}
+          {!o.pickup && <p className="text-black/60">Taxa de entrega: {o.delivery_fee_cents ? brl(o.delivery_fee_cents) : "grátis"}{o.zone ? ` (${o.zone})` : ""}</p>}
           {o.payment && (
             <p className="pt-0.5 font-semibold">
-              Pagamento: {PAYMENT_LABEL[o.payment] ?? o.payment}
+              Pagamento: {o.pickup && o.payment === "cartao" ? "Cartão na retirada" : PAYMENT_LABEL[o.payment] ?? o.payment}
+              {o.payment === "pix" ? " · confira no banco antes de liberar" : ""}
               {o.payment === "dinheiro" && (o.change_for_cents ?? 0) > 0 ? ` · troco para ${brl(o.change_for_cents!)}` : ""}
             </p>
           )}
@@ -286,8 +292,8 @@ function OrderCard({ o, onMove, onPrint, onRefuse, onReward }: { o: Order; onMov
 
       <div className="mt-3.5 flex gap-2">
         {next && (
-          <button onClick={() => onMove(o, next[o.channel])} className={`h-11 flex-1 ${o.status === "novo" ? "btn-primary" : "btn-dark"}`}>
-            {next.label[o.channel]}
+          <button onClick={() => onMove(o, next[kindOf(o)])} className={`h-11 flex-1 ${o.status === "novo" ? "btn-primary" : "btn-dark"}`}>
+            {next.label[kindOf(o)]}
           </button>
         )}
         {o.status === "novo" && (
@@ -386,7 +392,7 @@ function Ticket({ o, name }: { o: Order; name: string }) {
     <div className="print-ticket">
       <p style={{ fontSize: 13 }}>{name}</p>
       <p style={{ fontSize: 30, fontWeight: 800, margin: "4px 0" }}>
-        #{o.number} · {o.channel === "mesa" ? `MESA ${o.table_label}` : "ENTREGA"}
+        #{o.number} · {o.channel === "mesa" ? `MESA ${o.table_label}` : o.pickup ? "RETIRADA" : "ENTREGA"}
       </p>
       <p style={{ fontSize: 13 }}>{new Date(o.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</p>
       <hr />
@@ -400,10 +406,12 @@ function Ticket({ o, name }: { o: Order; name: string }) {
       <hr />
       {o.channel === "delivery" && (
         <p style={{ fontSize: 14 }}>
-          {o.customer_name} · {o.customer_phone}
+          {o.customer_name} · {fmtPhone(o.customer_phone)}
           <br />
-          {o.address}
+          {o.pickup ? "RETIRA NO BALCÃO" : o.address}
           <br />
+          {!o.pickup ? `Entrega: ${o.delivery_fee_cents ? brl(o.delivery_fee_cents) : "grátis"}` : ""}
+          {!o.pickup ? <br /> : null}
           {o.payment ? `Pagamento: ${PAYMENT_LABEL[o.payment] ?? o.payment}` : ""}
           {o.payment === "dinheiro" && (o.change_for_cents ?? 0) > 0 ? ` (troco para ${brl(o.change_for_cents!)})` : ""}
         </p>
@@ -436,4 +444,12 @@ function RefuseDialog({ o, onCancel, onConfirm }: { o: Order; onCancel: () => vo
       </div>
     </div>
   );
+}
+
+/** (11) 98888-7777 */
+function fmtPhone(p: string) {
+  const d = (p || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return p;
 }

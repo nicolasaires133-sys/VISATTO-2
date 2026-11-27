@@ -1,3 +1,4 @@
+import { readMode, readPayMethods, readZones } from "@/lib/delivery";
 import { getDB } from "./db";
 import type { Category, MenuItem } from "./format";
 import { normalizeOptions, normalizePromo } from "./options";
@@ -50,7 +51,9 @@ export async function restaurantBySlug(slug: string) {
   const rows = await db.query(
     `SELECT id, slug, name, primary_color, whatsapp, address, delivery_enabled, dine_in_enabled,
             delivery_fee_cents, min_order_cents, ai_name, ai_tone, ai_instructions, accepting_orders, pix_key,
-            google_review_url, languages, ai_preset, service_pct, loyalty, hours
+            google_review_url, languages, ai_preset, service_pct, loyalty, hours,
+            logo_url, cover_url, pickup_enabled, pickup_eta, delivery_eta, delivery_mode, delivery_zones,
+            free_delivery_cents, pix_name, pix_city, pay_methods
        FROM restaurants WHERE slug = $1`,
     [slug]
   );
@@ -155,6 +158,9 @@ export async function publicMenu(slug: string) {
   pub.loyalty = readLoyalty(pub.loyalty);
   const { readHours } = await import("./hours");
   pub.hours = readHours(pub.hours);
+  pub.delivery_zones = readZones(pub.delivery_zones);
+  pub.delivery_mode = readMode(pub.delivery_mode);
+  pub.pay_methods = readPayMethods(pub.pay_methods);
   const { waiterEnabled } = await import("./ai");
   const [bought, popular] = await Promise.all([boughtTogether(r.id), popularItems(r.id)]);
   return { restaurant: pub, categories, items: publicItems(items, bought, popular), waiter: waiterEnabled() };

@@ -5,8 +5,8 @@ export function ok(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
 }
 
-export function fail(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
+export function fail(message: string, status = 400, extra?: Record<string, unknown>) {
+  return NextResponse.json({ ...extra, error: message }, { status });
 }
 
 /** Garante que há um dono logado. Uso: const r = await owner(); if (r instanceof NextResponse) return r; */

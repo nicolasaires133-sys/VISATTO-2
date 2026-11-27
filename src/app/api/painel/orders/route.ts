@@ -10,7 +10,8 @@ export async function GET() {
   const db = await getDB();
   const orders = await db.query(
     `SELECT id, number, channel, table_label, customer_name, customer_phone, address, notes, status,
-            subtotal_cents, delivery_fee_cents, total_cents, ai_cents, created_at, updated_at, payment, change_for_cents, closed_at
+            subtotal_cents, delivery_fee_cents, total_cents, ai_cents, created_at, updated_at, payment, change_for_cents, closed_at,
+            pickup, zone
        FROM orders
       WHERE restaurant_id=$1
         AND (created_at > NOW() - INTERVAL '24 hours' OR status IN ('novo','preparo','pronto','saiu'))

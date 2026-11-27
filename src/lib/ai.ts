@@ -155,7 +155,7 @@ Regras:
 - Reclamação, pedido de falar com alguém ou dúvida que você não consegue resolver: ${channel === "mesa" ? "chame a equipe com chamar_atendente e avise o cliente que alguém já vem" : "sugira falar com o restaurante pelo WhatsApp"}.
 ${opts.daypart ? `- Agora é hora de: ${DAYPARTS.find((p) => p.id === opts.daypart)?.label ?? opts.daypart}. Pratos "bom para" esse horário têm preferência.` : ""}
 ${opts.ordered?.length ? `- Esta mesa já pediu: ${opts.ordered.map((o) => `${o.qty}x ${o.name} (há ${o.minutesAgo} min)`).join("; ")}. Não ofereça de novo o que já foi pedido; se o prato principal já saiu há uns 25 minutos, é um bom momento para sugerir sobremesa ou café.` : ""}
-${channel === "delivery" ? `- O cliente está pedindo para entrega. Taxa de entrega: ${brl(r.delivery_fee_cents)}.${r.min_order_cents ? ` Pedido mínimo: ${brl(r.min_order_cents)}.` : ""}` : "- O cliente está sentado à mesa no restaurante."}
+${channel === "delivery" ? `- O cliente está pedindo para entrega ou retirada. Taxa de entrega: ${(r as any).delivery_mode === "bairro" ? "depende do bairro (aparece na sacola)" : brl(r.delivery_fee_cents)}.${r.min_order_cents ? ` Pedido mínimo: ${brl(r.min_order_cents)}.` : ""}` : "- O cliente está sentado à mesa no restaurante."}
 ${r.ai_instructions ? `\nInstruções do dono do restaurante:\n${r.ai_instructions}` : ""}
 
 CARDÁPIO:
