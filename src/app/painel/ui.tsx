@@ -108,9 +108,9 @@ export function SwitchRow({ on, onChange, title, text }: { on: boolean; onChange
 }
 
 /** Foto do prato; sem foto, um prato desenhado. */
-export function Thumb({ src, name, className = "" }: { src?: string; name?: string; className?: string }) {
+export function Thumb({ src, name, className = "", description, tags }: { src?: string; name?: string; className?: string; description?: string; tags?: string[] }) {
   if (src) return <img src={src} alt="" loading="lazy" decoding="async" className={`bg-[#efede8] object-cover ${className}`} />;
-  if (name) return <DishArt name={name} className={className} />;
+  if (name) return <DishArt name={name} description={description} tags={tags} className={className} />;
   return (
     <div className={`grid place-items-center bg-[#efede8] ${className}`} aria-hidden="true">
       <svg viewBox="0 0 64 64" className="h-1/2 w-1/2 text-black/20" fill="none" stroke="currentColor" strokeWidth="2.5">
