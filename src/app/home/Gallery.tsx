@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRef } from "react";
 import Model from "./Model";
 import SeeOnTable from "./SeeOnTable";
-import SizeToggle from "./SizeToggle";
 import { useScrollScene } from "./useScroll";
 
 const DISHES = [
@@ -48,7 +47,6 @@ export default function Gallery() {
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     <SeeOnTable prato={d.id} label="Ver na mesa" className="cine-btn-ghost !h-10 !px-4 !text-[14px]" />
-                    <SizeToggle size={d.size} />
                   </div>
                 </div>
               </article>

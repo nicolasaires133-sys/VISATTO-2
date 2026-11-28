@@ -254,6 +254,11 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS zone TEXT DEFAULT '';
 -- o mesmo envio (clique duplo, internet que caiu e voltou) nunca vira dois pedidos
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_client_key ON orders(restaurant_id, client_key) WHERE client_key <> '';
 
+-- v11: legenda do prato, prato sem foto (escolha do dono) e símbolo de cada categoria
+ALTER TABLE items ADD COLUMN IF NOT EXISTS caption TEXT DEFAULT '';
+ALTER TABLE items ADD COLUMN IF NOT EXISTS photo_mode TEXT DEFAULT 'auto';
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT '';
+
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
 `;

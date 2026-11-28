@@ -15,6 +15,11 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
       String(b.name).trim().slice(0, 60),
     ]);
   }
+  if (b.icon != null) {
+    const { CATEGORY_ICONS } = await import("@/lib/catIcons");
+    const icon = CATEGORY_ICONS.some((c) => c.id === b.icon) ? String(b.icon) : "";
+    await db.query(`UPDATE categories SET icon=$3 WHERE id=$1 AND restaurant_id=$2`, [id, r.id, icon]);
+  }
   if (b.position != null) {
     await db.query(`UPDATE categories SET position=$3 WHERE id=$1 AND restaurant_id=$2`, [id, r.id, Number(b.position)]);
   }

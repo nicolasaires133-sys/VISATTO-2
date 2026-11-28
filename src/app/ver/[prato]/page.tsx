@@ -5,7 +5,6 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import DishViewer from "@/components/DishViewer";
 import Logo from "@/components/Logo";
-import { Dims } from "@/app/r/[slug]/parts";
 
 type Prato = { name: string; short?: string; desc: string; glb: string; usdz: string; dims: { w: number; d: number; h: number } };
 const P = (file: string, name: string, short: string, desc: string, dims: Prato["dims"]): Prato => ({ name, short, desc, glb: `/demo/${file}.glb?v=6`, usdz: `/demo/${file}.usdz?v=6`, dims });
@@ -50,7 +49,6 @@ export default function Ver({ params }: { params: Promise<{ prato: string }> }) 
       <div className="mt-4">
         <DishViewer model={{ glb: p.glb, usdz: p.usdz, dims: p.dims }} alt={`${p.name} em 3D`} height={340} hideDims color="#E4572E" arTitle={p.name} arSubtitle="Cardápio de exemplo do Visatto" arAction="Quero no meu restaurante" onArAction={() => router.push("/cadastro")} />
       </div>
-      <div className="mt-3"><Dims dims={p.dims} /></div>
       <p className="mt-6 text-[14px] font-semibold text-slate">Ver outro prato</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {outros.map(([k, o]) => (

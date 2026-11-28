@@ -6,7 +6,7 @@ import { normalizeOptions, normalizePromo } from "./options";
 export async function loadMenu(restaurantId: string, opts: { withImages?: boolean } = {}) {
   const db = await getDB();
   const categories = await db.query<Category>(
-    `SELECT id, name, position, translations FROM categories WHERE restaurant_id = $1 ORDER BY position, name`,
+    `SELECT id, name, position, translations, icon FROM categories WHERE restaurant_id = $1 ORDER BY position, name`,
     [restaurantId]
   );
   const items = await db.query<MenuItem>(
@@ -14,7 +14,7 @@ export async function loadMenu(restaurantId: string, opts: { withImages?: boolea
             serves, tags, available, featured, position,
             model_status, model_glb_url, model_usdz_url, model_width_cm, model_dims, model_progress,
             model_published, model_error, allergens, allergens_known, pairs, promote, substitute_id, dayparts,
-            cost_cents, translations, options, promo
+            cost_cents, translations, options, promo, caption, photo_mode
        FROM items WHERE restaurant_id = $1 ORDER BY position, name`,
     [restaurantId]
   );
@@ -119,8 +119,11 @@ export function publicItems(items: MenuItem[], bought?: Map<string, string[]>, p
       category_id: i.category_id,
       name: i.name,
       description: i.description,
+      caption: i.caption || "",
       price_cents: i.price_cents,
-      image: i.image,
+      // o dono escolheu "sem foto": o cliente não vê foto nem desenho
+      image: i.photo_mode === "none" ? "" : i.image,
+      photo_mode: i.photo_mode === "none" ? "none" : "auto",
       serves: i.serves,
       tags: i.tags,
       available: i.available,
@@ -137,7 +140,8 @@ export function publicItems(items: MenuItem[], bought?: Map<string, string[]>, p
       options: i.options ?? [],
       promo: i.promo ?? null,
       popular: popular?.has(i.id) ?? false,
-      model: has3d ? { glb: i.model_glb_url, usdz: i.model_usdz_url || "", dims: i.model_dims || null } : null,
+      // as medidas (cm) ficam só no painel: o cliente vê o prato em tamanho real, sem números
+      model: has3d ? { glb: i.model_glb_url, usdz: i.model_usdz_url || "", dims: null } : null,
     };
   });
 }
@@ -163,5 +167,6 @@ export async function publicMenu(slug: string) {
   pub.pay_methods = readPayMethods(pub.pay_methods);
   const { waiterEnabled } = await import("./ai");
   const [bought, popular] = await Promise.all([boughtTogether(r.id), popularItems(r.id)]);
-  return { restaurant: pub, categories, items: publicItems(items, bought, popular), waiter: waiterEnabled() };
+  const { categoryIcon } = await import("./catIcons");
+  return { restaurant: pub, categories: categories.map((c) => ({ ...c, icon: categoryIcon(c.name, c.icon) })), items: publicItems(items, bought, popular), waiter: waiterEnabled() };
 }

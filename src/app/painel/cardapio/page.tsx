@@ -9,6 +9,8 @@ import { OptionsEditor, PromoEditor, fromEditGroups, fromEditPromo, toEditGroups
 import { usePainel } from "../ctx";
 import { Confirm, Dialog, IconButton, Notice, PageHead, Switch, SwitchRow, Thumb } from "../ui";
 import { brl, TAG_OPTIONS, type Category, type MenuItem } from "@/lib/format";
+import { CAT_ICON, CATEGORY_ICONS, categoryIcon } from "@/lib/catIcons";
+import type { IconName } from "@/components/Icon";
 import { ALLERGENS, DAYPARTS } from "@/lib/sell";
 
 type Draft = Partial<MenuItem> & { price?: string; cost?: string; tab?: "info" | "venda" | "3d" };
@@ -21,6 +23,7 @@ export default function Cardapio() {
   const [newCat, setNewCat] = useState("");
   const [addingCat, setAddingCat] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [pickingIcon, setPickingIcon] = useState<string | null>(null);
   const [delCat, setDelCat] = useState<Category | null>(null);
   const [query, setQuery] = useState("");
   const [only3d, setOnly3d] = useState(false);
@@ -79,6 +82,12 @@ export default function Cardapio() {
     await api(`/api/painel/categories/${renaming.id}`, { method: "PUT", body: { name: renaming.name } });
     setRenaming(null);
     load();
+  }
+
+  async function setCatIcon(c: Category, icon: string) {
+    setMenu((m) => m && { ...m, categories: m.categories.map((x) => (x.id === c.id ? { ...x, icon } : x)) });
+    setPickingIcon(null);
+    await api(`/api/painel/categories/${c.id}`, { method: "PUT", body: { icon } });
   }
 
   async function deleteCategory(c: Category) {
@@ -186,6 +195,11 @@ export default function Cardapio() {
                 </form>
               ) : (
                 <>
+                  {cat && (
+                    <button type="button" onClick={() => setPickingIcon(pickingIcon === cat.id ? null : cat.id)} aria-label={`Símbolo de ${cat.name}: ${CATEGORY_ICONS.find((x) => x.id === categoryIcon(cat.name, cat.icon))?.label}. Trocar`} aria-expanded={pickingIcon === cat.id} className="mr-1.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand ring-1 ring-brand/15 hover:bg-brand/15">
+                      <Icon name={(CAT_ICON[categoryIcon(cat.name, cat.icon)] ?? "bowl") as IconName} size={19} />
+                    </button>
+                  )}
                   <h2 className="text-[20px] font-extrabold">{cat?.name ?? "Sem categoria"}</h2>
                   <span className="tnum ml-1.5 mr-1 rounded-full bg-black/[0.06] px-2 py-0.5 text-[12.5px] font-semibold text-black/55">{list.length}</span>
                   {cat && !filtering && (
@@ -202,6 +216,21 @@ export default function Cardapio() {
                 </>
               )}
             </div>
+            {cat && pickingIcon === cat.id && (
+              <div className="mb-3 rounded-2xl bg-cream p-3" role="radiogroup" aria-label={`Símbolo da categoria ${cat.name}`}>
+                <p className="mb-2 text-[13.5px] text-black/65">Escolha o símbolo que aparece para o cliente nas abas e no título desta categoria:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {CATEGORY_ICONS.map((ic) => {
+                    const on = categoryIcon(cat.name, cat.icon) === ic.id;
+                    return (
+                      <button key={ic.id} type="button" role="radio" aria-checked={on} onClick={() => setCatIcon(cat, ic.id)} className={`inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-[13.5px] font-semibold ring-1 ${on ? "bg-ink text-white ring-ink" : "bg-white ring-black/10"}`}>
+                        <Icon name={CAT_ICON[ic.id] as IconName} size={17} /> {ic.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {list.length === 0 && <p className="rounded-2xl border border-dashed border-black/15 px-4 py-6 text-center text-[14px] text-black/60">Nenhum prato nesta categoria ainda.</p>}
             <div className="grid gap-3 md:grid-cols-2">
               {list.map((i) => (
@@ -213,6 +242,7 @@ export default function Cardapio() {
                     <div className="flex items-start gap-1">
                       <button type="button" onClick={() => edit(i)} className={`min-w-0 flex-1 text-left ${i.available ? "" : "opacity-50"}`}>
                         <p className="truncate font-display text-[16.5px] font-bold leading-tight">{i.name}</p>
+                        {i.caption && <p className="truncate text-[13px] font-semibold text-brand">{i.caption}</p>}
                         <p className="mt-1 line-clamp-1 text-[13.5px] text-black/55">
                           <b className="tnum text-[14.5px] text-ink">{brl(i.price_cents)}</b>
                           {i.promo ? <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[11.5px] font-bold text-emerald-800">promoção</span> : null}
@@ -445,9 +475,22 @@ function ItemForm({
               <input type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e.target.files?.[0])} />
             </label>
 
+            <fieldset className="flex flex-wrap gap-2" aria-label="Foto no cardápio">
+              {([["auto", "Com foto", f.image ? "A foto que você colocou" : "Sem foto, aparece um desenho do prato"], ["none", "Sem foto", "Só o texto, sem foto nem desenho"]] as const).map(([k, t, d]) => (
+                <button key={k} type="button" aria-pressed={(f.photo_mode ?? "auto") === k} onClick={() => setF({ ...f, photo_mode: k })} className={`min-w-0 flex-1 rounded-xl px-3 py-2 text-left ring-1 ${(f.photo_mode ?? "auto") === k ? "bg-white ring-2 ring-ink" : "bg-black/[0.03] ring-black/10"}`}>
+                  <span className="block text-[14px] font-bold">{t}</span>
+                  <span className="block text-[12.5px] text-black/60">{d}</span>
+                </button>
+              ))}
+            </fieldset>
             <div>
               <label className="label" htmlFor="it-nome">Nome</label>
               <input id="it-nome" className="input" required maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="label" htmlFor="it-legenda">Legenda <span className="font-normal text-black/60">(opcional)</span></label>
+              <input id="it-legenda" className="input" maxLength={80} value={f.caption ?? ""} onChange={(e) => setF({ ...f, caption: e.target.value })} placeholder="Ex.: Receita da nonna · serve 2 pessoas" />
+              <p className="mt-1 text-[12.5px] text-black/55">Uma frase curta que aparece logo abaixo do nome, em destaque.</p>
             </div>
             <div>
               <div className="flex items-end justify-between gap-2">

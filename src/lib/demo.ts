@@ -6,17 +6,17 @@ import { getDB, newId } from "@/lib/db";
 // (ninguém consegue entrar no painel dele, a não ser que DEMO_PASSWORD esteja definida na Vercel).
 const MENU: [string, [string, string, number, number, string[], boolean][]][] = [
   ["Pizzas", [
-    ["Pizza Margherita Grande", "Molho de tomate italiano, muçarela de búfala, manjericão fresco e azeite. 35 cm, 8 fatias.", 79.9, 3, ["vegetariano", "mais pedido"], true],
-    ["Pizza Calabresa Grande", "Calabresa artesanal fatiada, cebola roxa, muçarela e orégano. 35 cm, 8 fatias.", 74.9, 3, [], false],
-    ["Pizza Quatro Queijos Grande", "Muçarela, gorgonzola, parmesão e catupiry. 35 cm, 8 fatias.", 84.9, 3, ["vegetariano"], false],
-    ["Pizza Broto Margherita", "A clássica em tamanho individual. 25 cm, 4 fatias.", 44.9, 1, ["vegetariano"], false],
-    ["Pizza Mussarela Grande", "Muçarela, rodelas de tomate, azeitona preta e orégano. 35 cm, 8 fatias.", 64.9, 3, ["vegetariano"], false],
-    ["Pizza Frango com Catupiry Grande", "Frango desfiado temperado, Catupiry original e orégano. 35 cm, 8 fatias.", 76.9, 3, ["mais pedido"], false],
-    ["Pizza Frango com Bacon Grande", "Frango desfiado, bacon em cubos crocante e muçarela. 35 cm, 8 fatias.", 79.9, 3, [], false],
-    ["Pizza Bacon com Cheddar Grande", "Muçarela, bacon crocante e fios de cheddar cremoso. 35 cm, 8 fatias.", 79.9, 3, [], false],
-    ["Pizza Portuguesa Grande", "Presunto, ovo, cebola, ervilha, azeitona e muçarela. 35 cm, 8 fatias.", 76.9, 3, [], false],
-    ["Pizza Pepperoni Grande", "Pepperoni fatiado, muçarela e molho de tomate. 35 cm, 8 fatias.", 82.9, 3, [], false],
-    ["Pizza de Brigadeiro Grande", "Chocolate cremoso, granulado e brigadeiros. Pizza doce, 35 cm, 8 fatias.", 69.9, 3, [], false],
+    ["Pizza Margherita Grande", "Molho de tomate italiano, muçarela de búfala, manjericão fresco e azeite. 8 fatias.", 79.9, 3, ["vegetariano", "mais pedido"], true],
+    ["Pizza Calabresa Grande", "Calabresa artesanal fatiada, cebola roxa, muçarela e orégano. 8 fatias.", 74.9, 3, [], false],
+    ["Pizza Quatro Queijos Grande", "Muçarela, gorgonzola, parmesão e catupiry. 8 fatias.", 84.9, 3, ["vegetariano"], false],
+    ["Pizza Broto Margherita", "A clássica em tamanho individual. 4 fatias.", 44.9, 1, ["vegetariano"], false],
+    ["Pizza Mussarela Grande", "Muçarela, rodelas de tomate, azeitona preta e orégano. 8 fatias.", 64.9, 3, ["vegetariano"], false],
+    ["Pizza Frango com Catupiry Grande", "Frango desfiado temperado, Catupiry original e orégano. 8 fatias.", 76.9, 3, ["mais pedido"], false],
+    ["Pizza Frango com Bacon Grande", "Frango desfiado, bacon em cubos crocante e muçarela. 8 fatias.", 79.9, 3, [], false],
+    ["Pizza Bacon com Cheddar Grande", "Muçarela, bacon crocante e fios de cheddar cremoso. 8 fatias.", 79.9, 3, [], false],
+    ["Pizza Portuguesa Grande", "Presunto, ovo, cebola, ervilha, azeitona e muçarela. 8 fatias.", 76.9, 3, [], false],
+    ["Pizza Pepperoni Grande", "Pepperoni fatiado, muçarela e molho de tomate. 8 fatias.", 82.9, 3, [], false],
+    ["Pizza de Brigadeiro Grande", "Chocolate cremoso, granulado e brigadeiros. Pizza doce, 8 fatias.", 69.9, 3, [], false],
   ]],
   ["Hambúrgueres", [
     ["X-Burger", "Pão com gergelim, hambúrguer de 150 g e queijo cheddar derretido.", 26.9, 1, [], false],
@@ -24,6 +24,11 @@ const MENU: [string, [string, string, number, number, string[], boolean][]][] = 
     ["X-Egg", "Hambúrguer de 150 g, queijo e ovo frito com gema mole.", 30.9, 1, [], false],
     ["X-Bacon", "Hambúrguer de 150 g, queijo e tiras de bacon crocante.", 33.9, 1, [], false],
     ["X-Tudo", "Hambúrguer de 150 g, queijo, presunto, ovo, bacon, alface e tomate.", 39.9, 1, [], true],
+  ]],
+  ["Combos", [
+    ["Combo Família", "1 pizza grande salgada (qualquer sabor) + Coca-Cola 2L + 4 fatias de pudim. Serve 4 pessoas.", 129.9, 4, ["combo", "mais pedido"], false],
+    ["Combo Burger", "X-Salada + batata frita crocante + refrigerante lata.", 39.9, 1, ["combo"], false],
+    ["Combo Casal", "2 massas à escolha + 2 taças do vinho tinto da casa + 1 tiramisù para dividir.", 149.0, 2, ["combo", "novidade"], false],
   ]],
   ["Massas", [
     ["Lasanha à Bolonhesa", "Massa fresca, ragu de carne cozido por 6 horas, bechamel e parmesão gratinado.", 62.0, 1, ["mais pedido"], true],
@@ -78,6 +83,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
     await applySell(db, exists[0].id, Boolean(k?.n)); // pratos novos (pizzas e hambúrgueres) ganham combinações e alergênicos
     await applyLoyalty(db, exists[0].id);
     await applyOptions(db, exists[0].id);
+    await applyExtras(db, exists[0].id);
     await applyModels(db, exists[0].id, true);
     return { created: false, password: null };
   }
@@ -115,6 +121,7 @@ async function create(randomPassword: boolean): Promise<{ created: boolean; pass
   await applySell(db, rid);
   await applyLoyalty(db, rid);
   await applyOptions(db, rid);
+  await applyExtras(db, rid);
   return { created: true, password };
 }
 
@@ -199,6 +206,10 @@ async function applyOptions(db: Awaited<ReturnType<typeof getDB>>, rid: string) 
       { id: "add", name: "Adicionais", min: 0, max: 2, choices: [{ id: "parm", name: "Parmesão extra", price_cents: 500 }, { id: "bac", name: "Bacon crocante", price_cents: 700 }, { id: "alm", name: "Almôndegas (3 un.)", price_cents: 1400 }] },
     ], {}],
     ["Bruschetta Tradicional (4 un.)", [], { price_cents: 2790, days: [], from: "", to: "" }],
+    ["Pizza Pepperoni Grande", [], { price_cents: 6990, days: [], from: "", to: "" }],
+    ["X-Bacon", [], { price_cents: 2990, days: [], from: "", to: "" }],
+    ["Combo Burger", [], { price_cents: 3490, days: [], from: "", to: "" }],
+    ["Pizza Frango com Catupiry Grande", [], { price_cents: 6990, days: [], from: "", to: "" }],
     ["Vinho Tinto da Casa (taça)", [], { price_cents: 1900, days: [1, 2, 3, 4, 5], from: "17:00", to: "20:00" }],
   ];
   for (const [n, options, promo] of list) {
@@ -209,6 +220,41 @@ async function applyOptions(db: Awaited<ReturnType<typeof getDB>>, rid: string) 
       [rid, n, JSON.stringify(options), JSON.stringify(promo)]
     );
   }
+}
+
+/** Legendas, etiquetas e um prato "sem foto" no exemplo (só onde o dono ainda não mexeu). */
+async function applyExtras(db: Awaited<ReturnType<typeof getDB>>, rid: string) {
+  const captions: [string, string][] = [
+    ["Pizza Margherita Grande", "A clássica italiana · massa de fermentação natural"],
+    ["Pizza Calabresa Grande", "Calabresa artesanal defumada aqui na casa"],
+    ["Pizza Quatro Queijos Grande", "Para quem ama queijo · bem cremosa"],
+    ["Pizza Frango com Catupiry Grande", "A queridinha do Brasil · Catupiry original"],
+    ["Pizza Pepperoni Grande", "Levemente picante · pepperoni importado"],
+    ["Pizza Bacon com Cheddar Grande", "Novidade · cheddar cremoso por cima"],
+    ["Pizza Portuguesa Grande", "Receita tradicional, bem recheada"],
+    ["Pizza de Brigadeiro Grande", "Pizza doce · perfeita para dividir"],
+    ["X-Tudo", "O mais completo da casa · 150 g de carne"],
+    ["X-Salada", "Leve e fresquinho"],
+    ["X-Bacon", "Bacon crocante de verdade"],
+    ["Combo Família", "Economize R$ 25 · serve 4 pessoas"],
+    ["Combo Burger", "Lanche + batata + bebida"],
+    ["Combo Casal", "Jantar a dois completo"],
+    ["Lasanha à Bolonhesa", "Receita da nonna · ragu cozido por 6 horas"],
+    ["Nhoque da Nonna (para 2)", "Feito à mão todos os dias · serve 2"],
+    ["Burrata com Tomates", "Para abrir o apetite · serve 2"],
+    ["Tiramisù da Casa", "O doce mais pedido da casa"],
+    ["Pudim de Leite", "Lisinho, sem furinhos"],
+    ["Suco de Laranja Natural 500ml", "Espremido na hora"],
+  ];
+  for (const [n, c] of captions)
+    await db.query(`UPDATE items SET caption=$3 WHERE restaurant_id=$1 AND name=$2 AND COALESCE(caption,'')=''`, [rid, n, c]);
+  const tags: [string, string[]][] = [["Pizza Pepperoni Grande", ["picante"]], ["Pizza Bacon com Cheddar Grande", ["novidade"]]];
+  for (const [n, t] of tags)
+    await db.query(`UPDATE items SET tags=$3::jsonb WHERE restaurant_id=$1 AND name=$2 AND (tags IS NULL OR tags='[]'::jsonb)`, [rid, n, JSON.stringify(t)]);
+  // o exemplo não fala em centímetros (medida fica só no painel)
+  await db.query(`UPDATE items SET description = regexp_replace(description, '\\s*\\d+ cm, ', ' ', 'g') WHERE restaurant_id=$1 AND description ~ '\\d+ cm, '`, [rid]);
+  // exemplo de prato que o dono preferiu deixar sem foto (só o texto)
+  await db.query(`UPDATE items SET photo_mode='none' WHERE restaurant_id=$1 AND name='Água com gás' AND COALESCE(photo_mode,'auto')='auto' AND COALESCE(image,'')=''`, [rid]);
 }
 
 /** Combinações, alergênicos, horários e custo dos pratos da demonstração. */
@@ -240,6 +286,9 @@ async function applySell(db: Awaited<ReturnType<typeof getDB>>, rid: string, onl
     ["X-Egg", { allergens: ["gluten", "leite", "ovo", "gergelim"], pairs: ["Coca-Cola 2L"], cost: 10 }],
     ["X-Bacon", { allergens: ["gluten", "leite", "gergelim"], pairs: ["Coca-Cola 2L"], cost: 12 }],
     ["X-Tudo", { allergens: ["gluten", "leite", "ovo", "gergelim"], pairs: ["Coca-Cola 2L", "Brownie com Sorvete"], cost: 15, promote: true }],
+    ["Combo Família", { allergens: ["gluten", "leite", "ovo"], cost: 45, promote: true }],
+    ["Combo Burger", { allergens: ["gluten", "leite", "ovo", "gergelim"], cost: 14 }],
+    ["Combo Casal", { allergens: ["gluten", "leite", "ovo"], cost: 52 }],
     ["Lasanha à Bolonhesa", { allergens: ["gluten", "leite", "ovo"], pairs: ["Vinho Tinto da Casa (taça)", "Panna Cotta com Frutas Vermelhas"], dayparts: ["almoco"], cost: 17, promote: true }],
     ["Espaguete ao Pomodoro", { allergens: ["gluten", "leite"], dayparts: ["almoco"], cost: 9 }],
     ["Nhoque da Nonna (para 2)", { allergens: ["gluten", "leite", "ovo"], pairs: ["Burrata com Tomates"], cost: 20 }],

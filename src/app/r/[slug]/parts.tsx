@@ -2,7 +2,7 @@
 // Peças compartilhadas do cardápio do cliente.
 import { DishArt } from "@/components/DishArt";
 import { useEffect, useRef, useState } from "react";
-import Icon from "@/components/Icon";
+import Icon, { type IconName } from "@/components/Icon";
 import type { PublicItem as MenuItem } from "@/lib/format";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
@@ -124,10 +124,33 @@ export function ArBadge({ className = "" }: { className?: string }) {
   );
 }
 
-/** Foto do prato; sem foto, um desenho do tipo de prato (pizza, massa, bebida...), igual em todo celular. */
-export function Thumb({ item, className = "", art = 0.72 }: { item: Pick<MenuItem, "image" | "name"> & { description?: string }; className?: string; art?: number }) {
+/** Foto do prato; sem foto, um desenho do tipo de prato (pizza, massa, bebida...), igual em todo celular.
+ *  Se o dono escolheu "sem foto", aparece só um bloco com o símbolo da categoria (nos carrosséis). */
+export function Thumb({ item, className = "", art = 0.72, icon }: { item: Pick<MenuItem, "image" | "name"> & { description?: string; photo_mode?: string }; className?: string; art?: number; icon?: string }) {
+  if (item.photo_mode === "none")
+    return (
+      <span className={`grid place-items-center bg-[color-mix(in_srgb,var(--color-brand)_10%,#f4f3ef)] text-[color-mix(in_srgb,var(--color-brand)_70%,#172033)] ${className}`} aria-hidden>
+        <Icon name={(CAT_ICON[icon ?? ""] ?? "bowl") as IconName} size={34} stroke={1.6} />
+      </span>
+    );
   if (item.image) return <img src={item.image} alt="" loading="lazy" decoding="async" className={`bg-[#ececE7] object-cover ${className}`} />;
   return <DishArt name={item.name} description={item.description} className={className} size={art} />;
+}
+
+import { CAT_ICON } from "@/lib/catIcons";
+export { CAT_ICON };
+
+/** Etiqueta com símbolo: combo, vegano, picante, novidade... */
+const TAG_ICON: Record<string, string> = { combo: "layers", vegano: "leaf", vegetariano: "leaf", picante: "flame", novidade: "sparkle", "mais pedido": "star", kids: "kid", fit: "leaf", "sem glúten": "check", "sem lactose": "check" };
+export function TagPill({ tag }: { tag: string }) {
+  const icon = TAG_ICON[tag];
+  const tone = tag === "picante" ? "bg-red-50 text-red-800" : tag === "vegano" || tag === "vegetariano" || tag === "fit" ? "bg-emerald-50 text-emerald-800" : tag === "combo" ? "bg-indigo-50 text-indigo-900" : tag === "novidade" ? "bg-amber-50 text-amber-900" : "bg-black/[0.06] text-black/65";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${tone}`}>
+      {icon && <Icon name={icon as IconName} size={12} stroke={2} />}
+      {tag.charAt(0).toUpperCase() + tag.slice(1)}
+    </span>
+  );
 }
 
 export function Stepper({ qty, onChange, min = 0, size = "md" }: { qty: number; onChange: (q: number) => void; min?: number; size?: "md" | "lg" }) {
@@ -146,23 +169,3 @@ export function Stepper({ qty, onChange, min = 0, size = "md" }: { qty: number; 
 }
 
 
-/** Medidas reais do prato, desenhadas como cotas (a régua é a marca do Visatto). */
-/** Tamanho do prato só quando o cliente quer ver: um botão discreto que mostra "40 cm". */
-export function Dims({ dims, label = "Ver o tamanho", sizeLabel = "Tamanho", note = "medido no restaurante" }: { dims: { w: number; d: number; h: number }; label?: string; sizeLabel?: string; note?: string }) {
-  const [open, setOpen] = useState(false);
-  const size = `${Math.round(Math.max(dims.w, dims.d || 0))} cm`;
-  return open ? (
-    <button type="button" onClick={() => setOpen(false)} className="animate-enter flex w-full items-center gap-3 rounded-2xl bg-[#efefeb] px-4 py-3 text-left">
-      <Icon name="ruler" size={20} className="shrink-0 text-black/60" />
-      <span className="flex-1">
-        <b className="tnum text-[17px]">{sizeLabel}: {size}</b>
-        <span className="block text-[12.5px] text-black/60">{note}</span>
-      </span>
-      <Icon name="close" size={16} className="text-black/35" />
-    </button>
-  ) : (
-    <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-semibold text-black/65 ring-1 ring-black/12 transition-colors hover:bg-black/[0.04]">
-      <Icon name="ruler" size={16} /> {label}
-    </button>
-  );
-}

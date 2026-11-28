@@ -12,7 +12,8 @@ import { basePrice, hasRequired, picksKey, priceWith, promoActive, type Picks } 
 import { openState, readHours } from "@/lib/hours";
 import { addressProblem, deliveryQuote, EMPTY_ADDRESS, formatAddress, readAddress, zoneKey, type Address } from "@/lib/delivery";
 import { brl, PAYMENT_LABEL, type CartLine, type Category, type PublicItem as MenuItem, type PublicRestaurant } from "@/lib/format";
-import { ArBadge, CloseButton, Dims, leavingPage, Pill, save, Sheet, Stepper, store, Thumb } from "./parts";
+import { ArBadge, CAT_ICON, CloseButton, leavingPage, Pill, save, Sheet, Stepper, store, TagPill, Thumb } from "./parts";
+import type { IconName } from "@/components/Icon";
 import type { ChatEntry } from "./Waiter";
 import { allergenLabel, categoryKind, daypartAt, hourIn, suggest, tr, type Kind, type Lang } from "@/lib/sell";
 import { makeT, type T } from "./i18n";
@@ -76,6 +77,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     return remote && !mesa ? "delivery" : r.dine_in_enabled ? "mesa" : "delivery";
   });
   const [table, setTable] = useState(mesa);
+  // abriu pelo QR da mesa: o cardápio já fica na mesa certa (sem entrega no meio do caminho)
+  const fromQr = Boolean(mesa) && Boolean(initial.restaurant.dine_in_enabled);
   const [activeCat, setActiveCat] = useState("");
   const [detail, setDetail] = useState<MenuItem | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -175,6 +178,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const paused = r.accepting_orders === false || closed;
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const catName = useMemo(() => new Map(categories.map((c) => [c.id, tr(c, lang).name])), [categories, lang]);
+  // símbolo de cada categoria (bebidas, combos, pizzas...) para as abas, os títulos e os pratos sem foto
+  const catIcon = useMemo(() => new Map(categories.map((c) => [c.id, c.icon || "prato"])), [categories]);
   const kinds = useMemo(() => new Map(categories.map((c) => [c.id, categoryKind(c.name)])), [categories]);
   const kindOf = (catId: string | null): Kind => kinds.get(catId ?? "") ?? "principal";
   const daypart = useMemo(() => daypartAt(hourIn()), [now]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -198,12 +203,14 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const groups = useMemo(
     () =>
       [
-        ...categories.map((c) => ({ id: c.id, name: catName.get(c.id) ?? c.name, items: items.filter((i) => i.category_id === c.id && fits(i)) })),
-        { id: "outros", name: t("others"), items: items.filter((i) => (!i.category_id || !catName.has(i.category_id)) && fits(i)) },
+        ...categories.map((c) => ({ id: c.id, name: catName.get(c.id) ?? c.name, icon: c.icon || "prato", items: items.filter((i) => i.category_id === c.id && fits(i)) })),
+        { id: "outros", name: t("others"), icon: "prato", items: items.filter((i) => (!i.category_id || !catName.has(i.category_id)) && fits(i)) },
       ].filter((g) => g.items.length),
     [categories, items, catName, t, fits]
   );
   const featured = useMemo(() => items.filter((i) => i.featured && i.available && fits(i)).slice(0, 8), [items, fits]);
+  // ofertas valendo agora (preço promocional no dia e horário certos) ficam numa vitrine no topo
+  const offers = useMemo(() => items.filter((i) => i.available && promoActive(i.promo ?? null, i.price_cents) && fits(i)).slice(0, 10), [items, fits, now]); // eslint-disable-line react-hooks/exhaustive-deps
   // favoritos e o que a pessoa já pediu neste restaurante (fica guardado só no celular dela)
   const usuals = useMemo(() => {
     const score = (id: string) => (favs.includes(id) ? 1000 : 0) + (hist[id] ?? 0);
@@ -252,7 +259,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     );
     sections.forEach((s) => io.observe(s));
     return () => io.disconnect();
-  }, [groups, featured.length, forNow.length, usuals.length, results]);
+  }, [groups, featured.length, forNow.length, usuals.length, offers.length, results]);
   useEffect(() => {
     const el = tabsRef.current?.querySelector<HTMLElement>(`[data-tab="${activeCat}"]`);
     el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
@@ -304,14 +311,15 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   function goTo(id: string) {
     clickedTab.current = Date.now();
     setActiveCat(id);
-    document.getElementById(id === "destaques" || id === "agora" || id === "sempre" ? id : `cat-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(id === "destaques" || id === "agora" || id === "sempre" || id === "ofertas" ? id : `cat-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const tabs = [
-    ...(usuals.length ? [{ id: "sempre", name: t("againTab") }] : []),
-    ...(forNow.length ? [{ id: "agora", name: t("nowTab") }] : []),
-    ...(featured.length ? [{ id: "destaques", name: t("featuredTab") }] : []),
-    ...groups.map((g) => ({ id: g.id, name: g.name })),
+  const tabs: { id: string; name: string; icon: string }[] = [
+    ...(offers.length ? [{ id: "ofertas", name: t("offersTab"), icon: "tag" }] : []),
+    ...(usuals.length ? [{ id: "sempre", name: t("againTab"), icon: "heart" }] : []),
+    ...(forNow.length ? [{ id: "agora", name: t("nowTab"), icon: "clock" }] : []),
+    ...(featured.length ? [{ id: "destaques", name: t("featuredTab"), icon: "star" }] : []),
+    ...groups.map((g) => ({ id: g.id, name: g.name, icon: CAT_ICON[g.icon] ?? "bowl" })),
   ];
   const canCall = r.dine_in_enabled && channel === "mesa";
 
@@ -354,7 +362,11 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
             {r.address}
           </p>
         )}
-        {(r.dine_in_enabled || r.delivery_enabled || r.pickup_enabled) && (
+        {fromQr ? (
+          <p className="relative mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[14.5px] font-bold text-ink">
+            <Icon name="table" size={17} /> {t("youAtTable", { n: table })}
+          </p>
+        ) : (r.dine_in_enabled || r.delivery_enabled || r.pickup_enabled) && (
           <div className="relative mt-5 inline-flex rounded-full bg-white/10 p-1 text-[13.5px] font-semibold ring-1 ring-white/10" role="tablist" aria-label={t("howOrder")}>
             {r.dine_in_enabled && (
               <button role="tab" aria-selected={channel === "mesa"} onClick={() => setChannel("mesa")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "mesa" ? "bg-white text-ink" : "text-white/65"}`}>
@@ -438,7 +450,8 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                 </button>
               )}
               {tabs.map((t) => (
-                <button key={t.id} data-tab={t.id} onClick={() => goTo(t.id)} className={`shrink-0 rounded-full px-3.5 py-2 text-[14px] font-semibold transition-colors duration-200 ${activeCat === t.id ? "bg-ink text-white" : "bg-[#efefeb] text-black/70 hover:bg-[#e6e6e1]"}`}>
+                <button key={t.id} data-tab={t.id} onClick={() => goTo(t.id)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full py-2 pl-3 pr-3.5 text-[14px] font-semibold transition-colors duration-200 ${activeCat === t.id ? "bg-ink text-white" : "bg-[#efefeb] text-black/70 hover:bg-[#e6e6e1]"}`}>
+                  <Icon name={t.icon as IconName} size={16} stroke={1.9} />
                   {t.name}
                 </button>
               ))}
@@ -488,12 +501,38 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           </p>
           <div className="divide-y divide-line">
             {results.map((i) => (
-              <Row key={i.id} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={(el) => addToCart(i.id, 1, "", false, false, el)} />
+              <Row key={i.id} icon={catIcon.get(i.category_id ?? "")} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={(el) => addToCart(i.id, 1, "", false, false, el)} />
             ))}
           </div>
         </section>
       ) : (
         <>
+          {offers.length > 0 && (
+            <section id="ofertas" data-cat="ofertas" className="scroll-mt-20 pt-6" aria-label={t("offersTab")}>
+              <SectionTitle icon="tag" title={t("offersTitle")} sub={t("offersSub")} color={color} className="px-5" />
+              <div className="no-scrollbar mt-3 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
+                {offers.map((i) => {
+                  const off = Math.round((1 - basePrice(i) / i.price_cents) * 100);
+                  return (
+                    <button key={i.id} onClick={() => setDetail(i)} className="group w-[44%] max-w-[200px] shrink-0 snap-start text-left transition active:scale-[0.98]">
+                      <span className="relative block overflow-hidden rounded-[20px]">
+                        <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
+                        {off > 0 && <span className="tnum absolute left-2 top-2 rounded-full bg-[#b3261e] px-2 py-1 text-[12.5px] font-extrabold text-white shadow-sm">-{off}%</span>}
+                        {i.model && <ArBadge className="absolute bottom-2 left-2" />}
+                      </span>
+                      <span className="mt-2 line-clamp-2 block text-[14.5px] font-bold leading-tight">{name(i)}</span>
+                      {i.caption && <span className="mt-0.5 line-clamp-1 block text-[12.5px] text-black/60">{i.caption}</span>}
+                      <span className="mt-0.5 flex items-baseline gap-1.5">
+                        <span className="tnum text-[15px] font-bold" style={{ color }}>{brl(basePrice(i))}</span>
+                        <span className="tnum text-[12.5px] text-black/55 line-through">{brl(i.price_cents)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {usuals.length > 0 && (
             <section id="sempre" data-cat="sempre" className="scroll-mt-20 pt-6">
               <h2 className="px-5 text-[21px] font-extrabold">{t("again")}</h2>
@@ -503,7 +542,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                   <div key={i.id} className="w-[38%] max-w-[170px] shrink-0 snap-start">
                     <div className="relative">
                       <button onClick={() => setDetail(i)} aria-label={name(i)} className="group block w-full overflow-hidden rounded-[20px] transition active:scale-[0.98]">
-                        <Thumb item={i} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
+                        <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
                       </button>
                       {favs.includes(i.id) && <Icon name="heart" size={18} filled className="pointer-events-none absolute left-2.5 top-2.5 text-white drop-shadow" />}
                       {!paused && (
@@ -536,7 +575,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                 {forNow.map((i) => (
                   <button key={i.id} onClick={() => setDetail(i)} className="group w-[38%] max-w-[170px] shrink-0 snap-start text-left transition active:scale-[0.98]">
                     <span className="relative block overflow-hidden rounded-[20px]">
-                      <Thumb item={i} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
+                      <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
                       {i.model && <ArBadge className="absolute left-2 top-2" />}
                     </span>
                     <span className="mt-2 line-clamp-2 block text-[14.5px] font-bold leading-tight">{name(i)}</span>
@@ -553,10 +592,11 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
               <div className="no-scrollbar mt-3 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
                 {featured.map((i) => (
                   <button key={i.id} onClick={() => setDetail(i)} className="group relative w-[46%] max-w-[210px] shrink-0 snap-start overflow-hidden rounded-[22px] text-left shadow-[0_14px_30px_-20px_rgba(29,26,22,0.6)] transition active:scale-[0.98]">
-                    <Thumb item={i} className="aspect-[4/5] w-full transition-transform duration-500 group-hover:scale-[1.04]" />
+                    <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-[4/5] w-full transition-transform duration-500 group-hover:scale-[1.04]" />
                     {i.model && <ArBadge className="absolute left-2.5 top-2.5" />}
                     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent p-3 pt-10 text-white">
                       <span className="line-clamp-2 font-display text-[16px] font-bold leading-tight">{name(i)}</span>
+                      {i.caption && <span className="mt-0.5 line-clamp-1 block text-[12.5px] text-white/80">{i.caption}</span>}
                       <span className="tnum mt-0.5 block text-[14px] font-semibold">{brl(basePrice(i))}</span>
                     </span>
                   </button>
@@ -566,11 +606,11 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           )}
 
           {groups.map((g) => (
-            <section key={g.id} id={`cat-${g.id}`} data-cat={g.id} className="scroll-mt-20 px-5 pt-8">
-              <h2 className="text-[21px] font-extrabold">{g.name}</h2>
+            <section key={g.id} id={`cat-${g.id}`} data-cat={g.id} className="scroll-mt-20 px-5 pt-9">
+              <SectionTitle icon={CAT_ICON[g.icon] ?? "bowl"} title={g.name} sub={t("nItems", { n: g.items.length })} color={color} />
               <div className="mt-1 divide-y divide-line">
                 {g.items.map((i) => (
-                  <Row key={i.id} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={(el) => addToCart(i.id, 1, "", false, false, el)} />
+                  <Row key={i.id} icon={g.icon} item={i} lang={lang} t={t} sub={byId.get(i.substitute_id ?? "")} color={color} qty={qtyOf(i.id)} paused={paused} onOpen={() => setDetail(i)} onOpenSub={(x) => setDetail(x)} onAdd={(el) => addToCart(i.id, 1, "", false, false, el)} />
                 ))}
               </div>
             </section>
@@ -729,6 +769,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
           }}
           channel={channel}
           setChannel={setChannel}
+          fromQr={fromQr}
           table={table}
           setTable={setTable}
           subtotal={subtotal}
@@ -749,14 +790,17 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   );
 }
 
-function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onAdd }: { item: MenuItem; lang: Lang; t: T; sub?: MenuItem; color: string; qty: number; paused: boolean; onOpen: () => void; onOpenSub: (x: MenuItem) => void; onAdd: (el: Element) => void }) {
+function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onAdd, icon }: { item: MenuItem; lang: Lang; t: T; sub?: MenuItem; color: string; qty: number; paused: boolean; onOpen: () => void; onOpenSub: (x: MenuItem) => void; onAdd: (el: Element) => void; icon?: string }) {
   const { name, description } = tr(i, lang);
+  const noPhoto = i.photo_mode === "none";
+  const tags = [...(i.tags.includes("combo") ? ["combo"] : []), ...i.tags.filter((x) => x !== "combo" && x !== "mais pedido")];
   return (
     <div className="relative py-4">
       <div className={`relative flex gap-3.5 ${i.available ? "" : "opacity-55"}`}>
-        <button onClick={onOpen} className="flex min-w-0 flex-1 gap-3.5 text-left">
+        <button onClick={onOpen} className={`flex min-w-0 flex-1 gap-3.5 text-left ${noPhoto ? "pr-12" : ""}`}>
           <span className="min-w-0 flex-1">
             <span className="block font-display text-[17px] font-bold leading-snug">{name}</span>
+            {i.caption && <span className="mt-0.5 block text-[13.5px] font-semibold leading-snug" style={{ color: `color-mix(in srgb, ${color} 80%, #172033)` }}>{i.caption}</span>}
             {description && <span className="mt-1 line-clamp-2 block text-[14px] leading-snug text-black/60">{description}</span>}
             <span className="mt-2 flex flex-wrap items-center gap-1.5">
               <PriceTag item={i} color={color} t={t} />
@@ -765,10 +809,10 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
               {i.available && i.popular && <PopularPill t={t} />}
               {i.model && <ArBadge />}
               {i.serves > 1 && <Pill>{t("serves", { n: i.serves })}</Pill>}
-              {i.tags.slice(0, i.model ? 1 : 2).map((tag) => <Pill key={tag}>{tag}</Pill>)}
+              {tags.slice(0, i.model ? 2 : 3).map((tag) => <TagPill key={tag} tag={tag} />)}
             </span>
           </span>
-          <Thumb item={i} art={0.8} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />
+          {!noPhoto && <Thumb item={i} icon={icon} art={0.8} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />}
         </button>
         {i.available && !paused && (
           <button
@@ -896,6 +940,8 @@ function ItemSheet({
                 onArAction={!paused && item.available && !hasRequired(groups) ? () => onAdd(1, "", {}) : undefined}
               />
             </div>
+          ) : item.photo_mode === "none" ? (
+            <div className="h-[76px]" />
           ) : (
             <Thumb item={item} art={0.62} className="h-72 w-full" />
           )}
@@ -935,13 +981,13 @@ function ItemSheet({
                 {item.popular && <PopularPill t={t} />}
               </div>
             )}
+            {item.caption && <p className="mt-1 text-[15px] font-semibold" style={{ color: `color-mix(in srgb, ${color} 80%, #172033)` }}>{item.caption}</p>}
             {description && <p className="mt-2 text-[15.5px] leading-relaxed text-black/70">{description}</p>}
             <div className="mt-3 flex flex-wrap gap-1.5">
               <Pill>{t("servesLong", { n: item.serves, p: item.serves === 1 ? t("person") : t("people") })}</Pill>
-              {item.tags.map((tag) => <Pill key={tag}>{tag}</Pill>)}
+              {item.tags.map((tag) => <TagPill key={tag} tag={tag} />)}
             </div>
           </div>
-          {item.model?.dims && item.model.dims.w > 0 && <Dims dims={item.model.dims} label={t("seeSize")} sizeLabel={t("size")} note={t("sizeNote")} />}
 
           <div className="rounded-2xl bg-[#efefeb] p-3.5 text-[14px]">
             <p className="flex items-center gap-1.5 font-semibold"><Icon name="info" size={16} /> {t("allergens")}</p>
@@ -1108,6 +1154,7 @@ function CartSheet(props: {
   onEdit: (idx: number) => void;
   channel: "mesa" | "delivery";
   setChannel: (c: "mesa" | "delivery") => void;
+  fromQr?: boolean;
   table: string;
   setTable: (t: string) => void;
   subtotal: number;
@@ -1119,6 +1166,7 @@ function CartSheet(props: {
   // endereço separado (rua, número, bairro...): fica guardado neste celular para o próximo pedido
   const [addr, setAddr] = useState<Address>(() => ({ ...EMPTY_ADDRESS, ...store<Partial<Address>>("gia:addr", {}) }));
   const [cepState, setCepState] = useState<"" | "busy" | "notfound">("");
+  const [editTable, setEditTable] = useState(false);
   const [pickup, setPickup] = useState<boolean>(() => Boolean((r.pickup_enabled && !r.delivery_enabled) || (r.pickup_enabled && store<string>(`gia:${slug}:modo`, "") === "retirada")));
   const zones = r.delivery_mode === "bairro" ? r.delivery_zones ?? [] : [];
   const [zone, setZone] = useState(() => zones.find((z) => zoneKey(z.name) === zoneKey(addr.district))?.name ?? "");
@@ -1279,7 +1327,7 @@ function CartSheet(props: {
             </div>
           )}
 
-          {r.dine_in_enabled && (r.delivery_enabled || r.pickup_enabled) && (
+          {!props.fromQr && r.dine_in_enabled && (r.delivery_enabled || r.pickup_enabled) && (
             <div className="flex rounded-xl bg-[#efefeb] p-1 text-[14px] font-semibold">
               <button type="button" onClick={() => props.setChannel("mesa")} className={`flex-1 rounded-lg py-2.5 transition-colors ${channel === "mesa" ? "bg-white shadow-sm" : "text-black/55"}`}>{t("imAtTable")}</button>
               <button type="button" onClick={() => props.setChannel("delivery")} className={`flex-1 rounded-lg py-2.5 transition-colors ${channel === "delivery" ? "bg-white shadow-sm" : "text-black/55"}`}>{r.delivery_enabled && r.pickup_enabled ? t("remote") : r.delivery_enabled ? t("delivery") : t("pickupShort")}</button>
@@ -1288,10 +1336,17 @@ function CartSheet(props: {
 
           {channel === "mesa" ? (
             <div className="space-y-3">
-              <div>
-                <label className="label" htmlFor="mesa">{t("tableNumber")}</label>
-                <input id="mesa" className="input h-12 max-w-32 text-lg font-bold" required inputMode="numeric" maxLength={20} value={table} onChange={(e) => props.setTable(e.target.value)} />
-              </div>
+              {props.fromQr && table && !editTable ? (
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#efefeb] px-4 py-3">
+                  <span className="flex items-center gap-2 text-[16px] font-bold"><Icon name="table" size={19} /> {t("orderForTable", { n: table })}</span>
+                  <button type="button" onClick={() => setEditTable(true)} className="text-[13.5px] font-semibold underline underline-offset-2">{t("changeTable")}</button>
+                </div>
+              ) : (
+                <div>
+                  <label className="label" htmlFor="mesa">{t("tableNumber")}</label>
+                  <input id="mesa" className="input h-12 max-w-32 text-lg font-bold" required inputMode="numeric" maxLength={20} value={table} onChange={(e) => props.setTable(e.target.value)} />
+                </div>
+              )}
               {r.loyalty?.on && (
                 <div className="rounded-2xl p-3.5" style={{ background: `${color}10` }}>
                   <label className="label flex items-center gap-1.5" htmlFor="fone-fid"><Icon name="gift" size={16} /> {t("loyaltyPhone")}</label>
@@ -1491,4 +1546,19 @@ function PopularPill({ t }: { t: T }) {
 function PromoPill({ item, t }: { item: MenuItem; t: T }) {
   const to = item.promo?.to;
   return <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-bold text-emerald-900">{to ? t("promoUntil", { h: to.replace(":00", "h").replace(":", "h") }) : t("promo")}</span>;
+}
+
+/** Título de seção com o símbolo da categoria (bebidas, combos, ofertas...). */
+function SectionTitle({ icon, title, sub, color, className = "" }: { icon: string; title: string; sub?: string; color: string; className?: string }) {
+  return (
+    <div className={`flex items-center gap-3 ${className}`}>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ background: `color-mix(in srgb, ${color} 12%, white)`, color: `color-mix(in srgb, ${color} 85%, #172033)` }} aria-hidden>
+        <Icon name={icon as IconName} size={21} stroke={1.8} />
+      </span>
+      <div className="min-w-0">
+        <h2 className="text-[21px] font-extrabold leading-tight">{title}</h2>
+        {sub && <p className="text-[13px] text-black/55">{sub}</p>}
+      </div>
+    </div>
+  );
 }

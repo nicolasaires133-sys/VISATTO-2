@@ -15,6 +15,7 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 export const TAG_OPTIONS = [
+  "combo",
   "vegano",
   "vegetariano",
   "sem glúten",
@@ -58,6 +59,10 @@ export type MenuItem = {
   options?: import("./options").OptionGroup[];
   /** preço promocional, com dias e horário opcionais */
   promo?: import("./options").Promo;
+  /** legenda curta que aparece logo abaixo do nome (ex.: "Receita da nonna · serve 2") */
+  caption?: string;
+  /** "auto": foto ou, sem foto, um desenho do prato; "none": o dono prefere sem foto */
+  photo_mode?: "auto" | "none";
 };
 
 /** nenhum → gerando (IA) → processando → revisar (dono confere) → pronto | erro */
@@ -72,7 +77,7 @@ export type PublicItem = Omit<MenuItem, `model_${string}` | "cost_cents"> & {
   popular?: boolean;
 };
 
-export type Category = { id: string; name: string; position: number; translations?: import("./sell").Translations };
+export type Category = { id: string; name: string; position: number; translations?: import("./sell").Translations; icon?: string };
 
 export type PublicRestaurant = {
   slug: string;

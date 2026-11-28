@@ -28,6 +28,8 @@ export function itemFields(b: any) {
     dayparts: Array.isArray(b.dayparts) ? [...new Set<string>(b.dayparts.map(String))].filter((d) => DAYPART_IDS.includes(d)) : [],
     cost_cents: b.cost != null ? toCents(b.cost) : typeof b.cost_cents === "number" ? Math.max(0, Math.round(b.cost_cents)) : 0,
     options: normalizeOptions(b.options),
+    caption: String(b.caption ?? "").replace(/\s+/g, " ").trim().slice(0, 80),
+    photo_mode: b.photo_mode === "none" ? "none" : "auto",
     promo: b.promo && typeof b.promo === "object" ? normalizePromo({ ...b.promo, price_cents: b.promo.price != null ? toCents(b.promo.price) : b.promo.price_cents }) : null,
   };
 }
