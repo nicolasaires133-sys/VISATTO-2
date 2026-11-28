@@ -46,6 +46,7 @@ export default function Config() {
     pix_key_type: guessPixType(r.pix_key || ""),
     pix_name: r.pix_name || "",
     pix_city: r.pix_city || "",
+    menu_theme: (r.menu_theme as string) || "claro",
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -115,6 +116,27 @@ export default function Config() {
             </div>
             <p className="mt-1.5 text-[13px] text-black/60">Usada nos preços e nos botões do seu cardápio.</p>
           </div>
+        </div>
+      </section>
+
+      <section className="card space-y-3 p-5" aria-label="Aparência do cardápio">
+        <div>
+          <h2 className="text-[18px] font-extrabold">Aparência do cardápio</h2>
+          <p className="mt-1 text-[14px] text-black/60">Como o cliente vê o seu cardápio no celular.</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Tema do cardápio">
+          {([["claro", "Claro", "Fundo branco"], ["escuro", "Escuro", "Fundo escuro, ótimo à noite e em bares"], ["auto", "Automático", "Segue o modo do celular do cliente"]] as const).map(([k, t, d]) => (
+            <button key={k} type="button" role="radio" aria-checked={f.menu_theme === k} onClick={() => set({ menu_theme: k })} className={`overflow-hidden rounded-2xl text-left ring-1 ${f.menu_theme === k ? "ring-2 ring-ink" : "ring-black/10"}`}>
+              <span className={`block h-16 ${k === "claro" ? "bg-[#f4f3ef]" : k === "escuro" ? "bg-[#121418]" : "bg-gradient-to-r from-[#f4f3ef] from-50% to-[#121418] to-50%"}`} aria-hidden>
+                <span className={`mx-3 mt-3 block h-2.5 w-2/3 rounded-full ${k === "escuro" ? "bg-white/70" : "bg-[#172033]/70"}`} />
+                <span className="mx-3 mt-1.5 block h-2 w-1/3 rounded-full" style={{ background: f.primary_color }} />
+              </span>
+              <span className="block px-3 pb-2.5 pt-2">
+                <span className="block text-[14.5px] font-bold">{t}</span>
+                <span className="block text-[12.5px] leading-snug text-black/60">{d}</span>
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 

@@ -1,14 +1,14 @@
 "use client";
 // Acompanhamento do pedido: o cliente vê em que etapa está, sem precisar perguntar ao garçom.
 import { use, useEffect, useRef, useState } from "react";
-import { readable } from "@/lib/color";
+import { readable, readableOnDark } from "@/lib/color";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import Icon from "@/components/Icon";
 import { brl, PAYMENT_LABEL } from "@/lib/format";
 import Rate from "../../Rate";
 import Stamps from "../../Stamps";
-import { save } from "../../parts";
+import { save, useMenuTheme } from "../../parts";
 
 const STEPS = {
   mesa: [
@@ -89,6 +89,7 @@ const hhmm = (d: string) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-d
 export default function Pedido({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const [d, setD] = useState<any>(null);
+  useMenuTheme(d?.restaurant?.menu_theme);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
   const lastStatus = useRef("");
@@ -160,7 +161,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
   }
 
   return (
-    <main className="mx-auto min-h-dvh max-w-md bg-white px-5 pb-10 pt-8">
+    <main className="mx-auto min-h-dvh max-w-md bg-white px-5 pb-10 pt-8" style={{ ["--accent-light" as any]: color, ["--accent-dark" as any]: readableOnDark(color) }}>
       <p className="text-[13.5px] font-semibold text-black/55">
         {r.name} · {ch === "mesa" ? `Mesa ${o.table_label}` : o.pickup ? "Retirada no local" : "Entrega"}
       </p>
@@ -222,7 +223,7 @@ export default function Pedido({ params }: { params: Promise<{ slug: string; id:
           <div className="min-w-0">
             <h3 className="text-[16px] font-bold">Onde buscar</h3>
             <p className="mt-0.5 text-[14.5px] text-black/70">{r.address}</p>
-            <a className="mt-1.5 inline-block text-[14px] font-semibold underline underline-offset-2" style={{ color }} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name} ${r.address}`)}`} target="_blank" rel="noopener">Abrir no mapa</a>
+            <a className="mt-1.5 inline-block text-[14px] font-semibold underline underline-offset-2" style={{ color: "var(--accent-ink)" }} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${r.name} ${r.address}`)}`} target="_blank" rel="noopener">Abrir no mapa</a>
           </div>
         </section>
       )}

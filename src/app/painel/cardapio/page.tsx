@@ -10,6 +10,7 @@ import { usePainel } from "../ctx";
 import { Confirm, Dialog, IconButton, Notice, PageHead, Switch, SwitchRow, Thumb } from "../ui";
 import { brl, TAG_OPTIONS, type Category, type MenuItem } from "@/lib/format";
 import { CAT_ICON, CATEGORY_ICONS, categoryIcon } from "@/lib/catIcons";
+import { DictateButton } from "../Dictate";
 import type { IconName } from "@/components/Icon";
 import { ALLERGENS, DAYPARTS } from "@/lib/sell";
 
@@ -363,6 +364,20 @@ function ItemForm({
   const others = items.filter((i) => i.id !== draft.id);
   const { aiEnabled } = usePainel();
   const [describing, setDescribing] = useState(false);
+  const [capBusy, setCapBusy] = useState(false);
+  const [capErr, setCapErr] = useState("");
+  async function improveCap() {
+    setCapBusy(true);
+    setCapErr("");
+    try {
+      const cat = categories.find((c) => c.id === f.category_id)?.name ?? "";
+      const { caption } = await api<{ caption: string }>(`/api/painel/items/${draft.id ?? "novo"}/caption`, { body: { name: f.name, caption: f.caption, description: f.description, category: cat } });
+      setF((x) => ({ ...x, caption }));
+    } catch (e: any) {
+      setCapErr(e.message);
+    }
+    setCapBusy(false);
+  }
   async function describe() {
     setDescribing(true);
     setErr("");
@@ -488,13 +503,28 @@ function ItemForm({
               <input id="it-nome" className="input" required maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="it-legenda">Legenda <span className="font-normal text-black/60">(opcional)</span></label>
-              <input id="it-legenda" className="input" maxLength={80} value={f.caption ?? ""} onChange={(e) => setF({ ...f, caption: e.target.value })} placeholder="Ex.: Receita da nonna · serve 2 pessoas" />
-              <p className="mt-1 text-[12.5px] text-black/55">Uma frase curta que aparece logo abaixo do nome, em destaque.</p>
+              <div className="flex items-end justify-between gap-2">
+                <label className="label" htmlFor="it-legenda">Legenda <span className="font-normal text-black/60">(opcional)</span></label>
+                <span className="mb-1 flex items-center gap-1">
+                  <DictateButton value={f.caption ?? ""} onChange={(v) => setF((x) => ({ ...x, caption: v }))} label="a legenda" max={160} />
+                  {aiEnabled && (
+                    <button type="button" onClick={improveCap} disabled={capBusy || !f.name?.trim()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-semibold text-brand hover:bg-brand/5 disabled:opacity-40">
+                      <Icon name="sparkle" size={14} /> {capBusy ? "Escrevendo..." : f.caption?.trim() ? "Melhorar com IA" : "Criar com IA"}
+                    </button>
+                  )}
+                </span>
+              </div>
+              <textarea id="it-legenda" className="input" rows={2} maxLength={160} value={f.caption ?? ""} onChange={(e) => setF({ ...f, caption: e.target.value })} placeholder="Ex.: 8 fatias · serve 3 pessoas · receita da nonna" />
+              <p className="mt-1 flex justify-between gap-3 text-[12.5px] text-black/55">
+                <span>Frase em destaque abaixo do nome. Pode falar a quantidade, para quantos serve, o peso ou o que vem junto.</span>
+                <span className="tnum shrink-0">{(f.caption ?? "").length}/160</span>
+              </p>
+              {capErr && <p className="mt-1 text-[12.5px] text-red-700" role="alert">{capErr}</p>}
             </div>
             <div>
               <div className="flex items-end justify-between gap-2">
                 <label className="label" htmlFor="it-desc">Descrição</label>
+                <span className="mb-1 ml-auto"><DictateButton value={f.description ?? ""} onChange={(v) => setF((x) => ({ ...x, description: v }))} label="a descrição" max={500} sep=". " /></span>
                 {aiEnabled && (
                   <button type="button" onClick={describe} disabled={describing || !f.name?.trim()} className="mb-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-brand disabled:opacity-40">
                     <Icon name="sparkle" size={14} /> {describing ? "Escrevendo..." : "Sugerir com IA"}

@@ -62,7 +62,8 @@ export async function PUT(req: Request) {
        dine_in_enabled=$7, delivery_fee_cents=$8, min_order_cents=$9, ai_name=$10, ai_tone=$11, ai_instructions=$12,
        accepting_orders=$13, pix_key=$14, google_review_url=$15, hours=$18::jsonb,
        logo_url=$19, cover_url=$20, pickup_enabled=$21, pickup_eta=$22, delivery_eta=$23, delivery_mode=$24,
-       delivery_zones=$25::jsonb, free_delivery_cents=$26, pix_name=$27, pix_city=$28, pay_methods=$29::jsonb
+       delivery_zones=$25::jsonb, free_delivery_cents=$26, pix_name=$27, pix_city=$28, pay_methods=$29::jsonb,
+       menu_theme=$30
      WHERE id=$1`,
     [
       r.id,
@@ -94,6 +95,7 @@ export async function PUT(req: Request) {
       String(b.pix_name ?? r.pix_name ?? "").replace(/\s+/g, " ").trim().slice(0, 60),
       String(b.pix_city ?? r.pix_city ?? "").replace(/\s+/g, " ").trim().slice(0, 40),
       JSON.stringify(payMethods),
+      ["claro", "escuro", "auto"].includes(b.menu_theme) ? b.menu_theme : r.menu_theme || "claro",
     ]
   );
   return ok({ ok: true });

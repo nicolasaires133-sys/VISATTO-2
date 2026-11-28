@@ -124,17 +124,44 @@ export function ArBadge({ className = "" }: { className?: string }) {
   );
 }
 
+/** Tema escuro do cardápio: "escuro" sempre, "auto" quando o celular do cliente está no modo escuro. */
+export function useMenuTheme(theme?: string) {
+  useEffect(() => {
+    const el = document.documentElement;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      if (theme === "escuro" || (theme === "auto" && mq.matches)) el.dataset.theme = "dark";
+      else delete el.dataset.theme;
+    };
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => {
+      mq.removeEventListener?.("change", apply);
+      delete el.dataset.theme;
+    };
+  }, [theme]);
+}
+
+/** Selo discreto de 3D no canto da foto (o "ver na mesa" aparece quando a pessoa abre o prato). */
+export function Chip3D({ className = "", label = "3D" }: { className?: string; label?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-0.5 rounded-full bg-[rgba(255,255,255,0.95)] px-1.5 py-[3px] text-[10.5px] font-bold text-[#172033] shadow-sm ${className}`} aria-label={label} title={label}>
+      <Icon name="cube" size={12} stroke={2} />3D
+    </span>
+  );
+}
+
 /** Foto do prato; sem foto, um desenho do tipo de prato (pizza, massa, bebida...), igual em todo celular.
  *  Se o dono escolheu "sem foto", aparece só um bloco com o símbolo da categoria (nos carrosséis). */
-export function Thumb({ item, className = "", art = 0.72, icon }: { item: Pick<MenuItem, "image" | "name"> & { description?: string; photo_mode?: string }; className?: string; art?: number; icon?: string }) {
+export function Thumb({ item, className = "", art = 0.72, icon }: { item: Pick<MenuItem, "image" | "name"> & { description?: string; photo_mode?: string; tags?: string[] }; className?: string; art?: number; icon?: string }) {
   if (item.photo_mode === "none")
     return (
-      <span className={`grid place-items-center bg-[color-mix(in_srgb,var(--color-brand)_10%,#f4f3ef)] text-[color-mix(in_srgb,var(--color-brand)_70%,#172033)] ${className}`} aria-hidden>
+      <span className={`grid place-items-center bg-[color-mix(in_srgb,var(--color-brand)_10%,var(--surface-2,#f4f3ef))] text-[color-mix(in_srgb,var(--color-brand)_70%,var(--ink-mix,#172033))] ${className}`} aria-hidden>
         <Icon name={(CAT_ICON[icon ?? ""] ?? "bowl") as IconName} size={34} stroke={1.6} />
       </span>
     );
   if (item.image) return <img src={item.image} alt="" loading="lazy" decoding="async" className={`bg-[#ececE7] object-cover ${className}`} />;
-  return <DishArt name={item.name} description={item.description} className={className} size={art} />;
+  return <DishArt name={item.name} description={item.description} tags={item.tags} className={className} size={art} />;
 }
 
 import { CAT_ICON } from "@/lib/catIcons";

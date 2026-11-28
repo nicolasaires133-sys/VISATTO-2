@@ -439,6 +439,29 @@ Regras: português do Brasil, no máximo 2 frases e 180 caracteres; dê vontade 
   return text.replace(/^["“]|["”]$/g, "").slice(0, 300);
 }
 
+/** Legenda curta e vendedora (cria do zero ou melhora a que o dono escreveu ou ditou). */
+export async function improveCaption(opts: { name: string; caption: string; description: string; category: string; restaurant: string }): Promise<string> {
+  if (!aiEnabled()) throw new Error("A ajuda da IA na legenda precisa da ANTHROPIC_API_KEY configurada.");
+  const res: any = await client().messages.create({
+    model: CHAT_MODEL,
+    max_tokens: 200,
+    messages: [
+      {
+        role: "user",
+        content: `Escreva a LEGENDA de um prato para o cardápio digital do restaurante "${opts.restaurant}". A legenda é uma frase curta em destaque logo abaixo do nome do prato.
+Prato: ${opts.name}
+Categoria: ${opts.category || "não informada"}
+Descrição: ${opts.description || "(vazia)"}
+Legenda que o dono escreveu ou ditou: ${opts.caption || "(vazia: crie uma)"}
+
+Regras: português do Brasil; no máximo 110 caracteres; pode usar " · " para separar duas ideias; destaque o que faz o prato especial e informações práticas que o dono citou (quantidade de peças ou fatias, para quantas pessoas serve, peso, acompanhamentos); corrija erros de digitação e de ditado; NÃO invente ingredientes, quantidades ou números que não estejam no texto acima; sem emoji, sem aspas, sem ponto final. Responda só com a legenda.`,
+      },
+    ],
+  });
+  const text = (res.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text).join(" ").trim();
+  return text.replace(/^["“]|["”]$/g, "").replace(/\.$/, "").slice(0, 160);
+}
+
 // ---------- Resumo das perguntas dos clientes ----------
 export async function summarizeQuestions(restaurantName: string, questions: string[]): Promise<string> {
   if (!aiEnabled()) throw new Error("Configure a ANTHROPIC_API_KEY para gerar o resumo.");

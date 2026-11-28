@@ -108,6 +108,8 @@ export type PublicRestaurant = {
   pix_name?: string;
   pix_city?: string;
   pay_methods?: import("./delivery").PayMethod[];
+  /** aparência do cardápio do cliente */
+  menu_theme?: "claro" | "escuro" | "auto";
 };
 
 export const PAYMENT_LABEL: Record<string, string> = { pix: "Pix", cartao: "Cartão na entrega", dinheiro: "Dinheiro" };

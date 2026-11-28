@@ -53,7 +53,7 @@ export async function restaurantBySlug(slug: string) {
             delivery_fee_cents, min_order_cents, ai_name, ai_tone, ai_instructions, accepting_orders, pix_key,
             google_review_url, languages, ai_preset, service_pct, loyalty, hours,
             logo_url, cover_url, pickup_enabled, pickup_eta, delivery_eta, delivery_mode, delivery_zones,
-            free_delivery_cents, pix_name, pix_city, pay_methods
+            free_delivery_cents, pix_name, pix_city, pay_methods, menu_theme
        FROM restaurants WHERE slug = $1`,
     [slug]
   );

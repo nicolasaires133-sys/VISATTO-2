@@ -21,3 +21,16 @@ export function readable(hex: string | null | undefined, fallback = "#CC4A24") {
   return toHex(r, g, b);
 }
 const toHex = (r: number, g: number, b: number) => "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
+
+/** Mesma cor, clareada até ler bem como texto no fundo escuro do tema escuro (#121418). */
+export function readableOnDark(hex: string) {
+  let [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const bg = lum("#121418");
+  const ratio = () => (lum(toHex(r, g, b)) + 0.05) / (bg + 0.05);
+  for (let i = 0; i < 40 && ratio() < 4.8; i++) {
+    r = Math.round(r + (255 - r) * 0.1);
+    g = Math.round(g + (255 - g) * 0.1);
+    b = Math.round(b + (255 - b) * 0.1);
+  }
+  return toHex(r, g, b);
+}

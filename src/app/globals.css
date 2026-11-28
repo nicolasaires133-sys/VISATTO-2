@@ -402,3 +402,51 @@ details.faq[open]::details-content { block-size: auto; }
 /* granulado leve também no celular (sem mistura de cores, que pesa) */
 @media (max-width: 767px) { .cine-grain-m { opacity: 0.05; } }
 @media (prefers-reduced-motion: reduce) { .cine-aurora, .cine-floor { animation: none; } }
+
+/* ---------- Tema escuro do cardápio do cliente (o dono escolhe em Configurações) ----------
+   Vale para o cardápio, a sacola, o prato aberto e o acompanhamento do pedido. */
+main { --accent-ink: var(--accent-light, var(--color-brand)); }
+html[data-theme="dark"] main { --accent-ink: var(--accent-dark, #ff8a6b); }
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1b1e24;
+  --surface-2: #23262d;
+  --ink-mix: #ffffff;
+}
+html[data-theme="dark"] nav[aria-label="Categorias"] .bg-ink { background-color: #f4f3ef; color: #121418; }
+html[data-theme="dark"] body,
+html[data-theme="dark"] main {
+  background: #121418;
+  color: #eeeeea;
+}
+html[data-theme="dark"] .bg-white { background-color: var(--surface); }
+html[data-theme="dark"] main.bg-white { background-color: #121418; }
+html[data-theme="dark"] [class*="bg-white/9"] { background-color: rgb(18 20 24 / 0.94); }
+html[data-theme="dark"] .text-ink { color: #f4f3ef; }
+html[data-theme="dark"] [class*="text-black/"] { color: rgb(238 238 234 / 0.66); }
+html[data-theme="dark"] [class*="bg-black/"] { background-color: rgb(255 255 255 / 0.07); }
+html[data-theme="dark"] [class*="ring-black/"] { --tw-ring-color: rgb(255 255 255 / 0.1); }
+html[data-theme="dark"] [class*="ring-[#172033]"] { --tw-ring-color: rgb(255 255 255 / 0.1); }
+html[data-theme="dark"] .border-line,
+html[data-theme="dark"] .divide-line > * + * { border-color: rgb(255 255 255 / 0.09); }
+html[data-theme="dark"] [class*="bg-[#efefeb]"],
+html[data-theme="dark"] [class*="bg-[#ececE7]"],
+html[data-theme="dark"] .bg-cream { background-color: var(--surface-2); }
+html[data-theme="dark"] .input {
+  background-color: var(--surface-2);
+  border-color: rgb(255 255 255 / 0.14);
+  color: #f4f3ef;
+}
+html[data-theme="dark"] .input::placeholder { color: rgb(238 238 234 / 0.4); }
+html[data-theme="dark"] .label { color: rgb(238 238 234 / 0.75); }
+html[data-theme="dark"] .btn-ghost { background-color: var(--surface-2); color: #f4f3ef; }
+html[data-theme="dark"] .btn-dark,
+html[data-theme="dark"] .bg-ink { background-color: #2c313b; }
+html[data-theme="dark"] .bg-amber-50 { background-color: #3a2f12; color: #fde7a8; }
+html[data-theme="dark"] .bg-emerald-50,
+html[data-theme="dark"] .bg-emerald-100 { background-color: #12321f; color: #b9f0cc; }
+html[data-theme="dark"] .bg-red-50 { background-color: #3a1616; color: #ffc9c3; }
+html[data-theme="dark"] .bg-indigo-50 { background-color: #20244a; color: #cdd2ff; }
+html[data-theme="dark"] .from-white { --tw-gradient-from: #121418; }
+html[data-theme="dark"] .via-white\/90 { --tw-gradient-via: rgb(18 20 24 / 0.9); }
+html[data-theme="dark"] .skeleton { background-color: var(--surface-2); }

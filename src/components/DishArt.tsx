@@ -374,8 +374,53 @@ function Drawing({ art }: { art: Art }) {
   }
 }
 
+/** Todos os itens citados (na ordem em que aparecem), para desenhar combos com mais de uma coisa. */
+export function artsFor(text: string): Art[] {
+  // "X-Salada", "X-Bacon"... são lanches (não salada nem bacon à parte)
+  const n = norm(text).replace(/\bx-?\s?(salada|bacon|egg|tudo|burger|frango|calabresa)\b/g, "burger");
+  const found: { a: Art; at: number }[] = [];
+  for (const [a, re] of RULES) {
+    const m = new RegExp(re.source, "g").exec(n);
+    if (m && !found.some((f) => f.a === a)) found.push({ a, at: m.index });
+  }
+  // "massas à escolha" e "lasanha" no mesmo combo: fica um desenho de massa só
+  const list = found.sort((x, y) => x.at - y.at).map((f) => f.a);
+  return list.filter((a, i) => !(a === "nhoque" && list.includes("massa")) && list.indexOf(a) === i);
+}
+const isCombo = (name: string, tags?: string[]) => /\bcombo|\bkit\b/.test(norm(name)) || Boolean(tags?.includes("combo"));
+
+/** Combo: 2 ou 3 itens juntos no mesmo quadro (o principal na frente). */
+function ComboDrawing({ arts }: { arts: Art[] }) {
+  const [a, b, c] = arts;
+  if (!c)
+    return (
+      <>
+        <svg x="40" y="8" width="58" height="58" viewBox="0 0 100 100"><Drawing art={b} /></svg>
+        <svg x="0" y="30" width="70" height="70" viewBox="0 0 100 100"><Drawing art={a} /></svg>
+      </>
+    );
+  return (
+    <>
+      <svg x="-2" y="2" width="52" height="52" viewBox="0 0 100 100"><Drawing art={b} /></svg>
+      <svg x="50" y="2" width="52" height="52" viewBox="0 0 100 100"><Drawing art={c} /></svg>
+      <svg x="17" y="32" width="66" height="66" viewBox="0 0 100 100"><Drawing art={a} /></svg>
+    </>
+  );
+}
+
 /** Desenho do prato sobre um fundo da cor dele. `size` controla o tamanho do desenho dentro do quadro. */
-export function DishArt({ name, description = "", className = "", size = 0.72 }: { name: string; description?: string; className?: string; size?: number }) {
+export function DishArt({ name, description = "", className = "", size = 0.72, tags }: { name: string; description?: string; className?: string; size?: number; tags?: string[] }) {
+  if (isCombo(name, tags)) {
+    let arts = artsFor(`${name} ${description}`).slice(0, 3);
+    if (arts.length < 2) arts = [...arts, ...(["hamburguer", "batata", "refri"] as Art[]).filter((x) => !arts.includes(x))].slice(0, 3);
+    return (
+      <div className={`grid place-items-center overflow-hidden ${className}`} style={{ background: BG[arts[0]] }} aria-hidden="true" data-art={`combo:${arts.join("+")}`}>
+        <svg viewBox="0 0 100 100" style={{ width: `${Math.min(0.96, size + 0.2) * 100}%`, height: `${Math.min(0.96, size + 0.2) * 100}%`, maxWidth: 300, maxHeight: 300 }}>
+          <ComboDrawing arts={arts} />
+        </svg>
+      </div>
+    );
+  }
   const art = artFor(name, description);
   return (
     <div className={`grid place-items-center overflow-hidden ${className}`} style={{ background: BG[art] }} aria-hidden="true" data-art={art}>

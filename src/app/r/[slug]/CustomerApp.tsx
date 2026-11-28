@@ -1,7 +1,7 @@
 "use client";
 // Cardápio do cliente: abre pelo QR da mesa ou pelo link do delivery.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { readable } from "@/lib/color";
+import { readableOnDark, readable } from "@/lib/color";
 import { searchMenu } from "@/lib/search";
 import Stamps from "./Stamps";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ import { basePrice, hasRequired, picksKey, priceWith, promoActive, type Picks } 
 import { openState, readHours } from "@/lib/hours";
 import { addressProblem, deliveryQuote, EMPTY_ADDRESS, formatAddress, readAddress, zoneKey, type Address } from "@/lib/delivery";
 import { brl, PAYMENT_LABEL, type CartLine, type Category, type PublicItem as MenuItem, type PublicRestaurant } from "@/lib/format";
-import { ArBadge, CAT_ICON, CloseButton, leavingPage, Pill, save, Sheet, Stepper, store, TagPill, Thumb } from "./parts";
+import { CAT_ICON, Chip3D, CloseButton, useMenuTheme, leavingPage, Pill, save, Sheet, Stepper, store, TagPill, Thumb } from "./parts";
 import type { IconName } from "@/components/Icon";
 import type { ChatEntry } from "./Waiter";
 import { allergenLabel, categoryKind, daypartAt, hourIn, suggest, tr, type Kind, type Lang } from "@/lib/sell";
@@ -79,6 +79,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const [table, setTable] = useState(mesa);
   // abriu pelo QR da mesa: o cardápio já fica na mesa certa (sem entrega no meio do caminho)
   const fromQr = Boolean(mesa) && Boolean(initial.restaurant.dine_in_enabled);
+  useMenuTheme(initial.restaurant.menu_theme);
   const [activeCat, setActiveCat] = useState("");
   const [detail, setDetail] = useState<MenuItem | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -209,6 +210,12 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
     [categories, items, catName, t, fits]
   );
   const featured = useMemo(() => items.filter((i) => i.featured && i.available && fits(i)).slice(0, 8), [items, fits]);
+  // capa sem foto: os pratos mais bonitos da casa (com foto ou 3D primeiro)
+  const heroItems = useMemo(() => {
+    const pool = items.filter((i) => i.available && i.photo_mode !== "none");
+    const score = (i: MenuItem) => (i.image ? 4 : 0) + (i.featured ? 2 : 0) + (i.model ? 1 : 0);
+    return [...pool].sort((a, b) => score(b) - score(a)).slice(0, 3);
+  }, [items]);
   // ofertas valendo agora (preço promocional no dia e horário certos) ficam numa vitrine no topo
   const offers = useMemo(() => items.filter((i) => i.available && promoActive(i.promo ?? null, i.price_cents) && fits(i)).slice(0, 10), [items, fits, now]); // eslint-disable-line react-hooks/exhaustive-deps
   // favoritos e o que a pessoa já pediu neste restaurante (fica guardado só no celular dela)
@@ -324,106 +331,144 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
   const canCall = r.dine_in_enabled && channel === "mesa";
 
   return (
-    <main className="mx-auto min-h-dvh max-w-2xl bg-white pb-32 sm:my-0" style={{ ["--color-brand" as any]: color }}>
-      <header className={`relative overflow-hidden rounded-b-[30px] bg-ink px-5 pb-6 text-white ${r.cover_url ? "pt-36" : "pt-8"}`}>
-        {r.cover_url ? (
-          <>
-            {/* foto da loja (capa): escurece embaixo para o nome continuar legível */}
-            <img src={r.cover_url} alt="" className="absolute inset-x-0 top-0 h-56 w-full object-cover" />
-            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-black/10 via-black/30 to-ink" />
-          </>
-        ) : (
-          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60" style={{ background: `radial-gradient(70% 90% at 100% 0%, ${color}55, transparent 70%)` }} />
-        )}
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3.5">
-            {r.logo_url && <img src={r.logo_url} alt={`Logo ${r.name}`} className="h-16 w-16 shrink-0 rounded-2xl bg-white object-cover ring-2 ring-white/80" />}
-            <div className="min-w-0">
-            <h1 className="text-[32px] font-extrabold leading-[1.02]">{r.name}</h1>
-            {hoursNow.label && (
-              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[13px] font-semibold ring-1 ring-white/10">
-                <span className={`h-2 w-2 rounded-full ${hoursNow.open ? "bg-emerald-400" : "bg-red-400"}`} aria-hidden />
-                {hoursNow.label}
-              </p>
-            )}
+    <main className="mx-auto min-h-dvh max-w-2xl bg-white pb-32 sm:my-0" style={{ ["--color-brand" as any]: color, ["--accent-light" as any]: color, ["--accent-dark" as any]: readableOnDark(color) }}>
+      <header className="relative">
+        {/* capa: a foto da loja; sem foto, um mosaico com os pratos da casa */}
+        <div className="relative h-[210px] overflow-hidden bg-ink">
+          {r.cover_url ? (
+            <img src={r.cover_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full grid-cols-3 gap-0.5" aria-hidden>
+              {heroItems.map((i) => (
+                <Thumb key={i.id} item={i} icon={catIcon.get(i.category_id ?? "")} art={0.82} className="h-full w-full" />
+              ))}
             </div>
-          </div>
+          )}
+          <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-black/5 to-black/45" />
           {langs.length > 0 && (
-            <div className="mt-1 flex shrink-0 rounded-full bg-white/10 p-0.5 text-[12px] font-bold ring-1 ring-white/10" role="group" aria-label={t("language")}>
+            <div className="absolute right-4 top-4 flex rounded-full bg-black/35 p-0.5 text-[12px] font-bold text-white ring-1 ring-white/20 backdrop-blur" role="group" aria-label={t("language")}>
               {LANGS.filter((l) => l.id === "pt" || langs.includes(l.id)).map((l) => (
-                <button key={l.id} aria-pressed={lang === l.id} onClick={() => setLang(l.id)} className={`rounded-full px-2.5 py-1 transition-colors ${lang === l.id ? "bg-white text-ink" : "text-white/70"}`}>{l.label}</button>
+                <button key={l.id} aria-pressed={lang === l.id} onClick={() => setLang(l.id)} className={`rounded-full px-2.5 py-1 transition-colors ${lang === l.id ? "bg-white text-ink" : "text-white/85"}`}>{l.label}</button>
               ))}
             </div>
           )}
         </div>
-        {r.address && (
-          <p className="relative mt-2 flex items-start gap-1.5 text-[14px] text-white/65">
-            <Icon name="pin" size={16} className="mt-0.5" />
-            {r.address}
-          </p>
-        )}
-        {fromQr ? (
-          <p className="relative mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[14.5px] font-bold text-ink">
-            <Icon name="table" size={17} /> {t("youAtTable", { n: table })}
-          </p>
-        ) : (r.dine_in_enabled || r.delivery_enabled || r.pickup_enabled) && (
-          <div className="relative mt-5 inline-flex rounded-full bg-white/10 p-1 text-[13.5px] font-semibold ring-1 ring-white/10" role="tablist" aria-label={t("howOrder")}>
-            {r.dine_in_enabled && (
-              <button role="tab" aria-selected={channel === "mesa"} onClick={() => setChannel("mesa")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "mesa" ? "bg-white text-ink" : "text-white/65"}`}>
-                <Icon name="table" size={16} />
-                {table ? `${t("table")} ${table}` : t("atTable")}
-              </button>
+
+        {/* cartão da loja, por cima da capa */}
+        <div className="relative z-[1] mx-4 -mt-12 rounded-[26px] bg-white p-4 shadow-[0_18px_40px_-24px_rgba(23,32,51,0.45)] ring-1 ring-black/[0.06]">
+          <div className="flex items-start gap-3.5">
+            {r.logo_url ? (
+              <img src={r.logo_url} alt={`Logo ${r.name}`} className="-mt-10 h-[72px] w-[72px] shrink-0 rounded-[20px] bg-white object-cover shadow-md ring-4 ring-white" />
+            ) : (
+              <span className="-mt-10 grid h-[72px] w-[72px] shrink-0 place-items-center rounded-[20px] font-display text-[30px] font-extrabold text-white shadow-md ring-4 ring-white" style={{ background: color }} aria-hidden>
+                {r.name.trim().charAt(0).toUpperCase()}
+              </span>
             )}
-            {(r.delivery_enabled || r.pickup_enabled) && (
-              <button role="tab" aria-selected={channel === "delivery"} onClick={() => setChannel("delivery")} className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 transition-colors duration-200 ${channel === "delivery" ? "bg-white text-ink" : "text-white/65"}`}>
-                <Icon name={r.delivery_enabled ? "bike" : "bag"} size={16} />
-                {r.delivery_enabled ? t("delivery") : t("pickupShort")}
-              </button>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-display text-[26px] font-extrabold leading-[1.05]">{r.name}</h1>
+              {r.address && (
+                <p className="mt-1 flex items-start gap-1 text-[13.5px] text-black/60">
+                  <Icon name="pin" size={15} className="mt-0.5 shrink-0" />
+                  <span className="line-clamp-2">{r.address}</span>
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {hoursNow.label && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-2.5 py-1 text-[12.5px] font-semibold text-black/75">
+                <span className={`h-2 w-2 rounded-full ${hoursNow.open ? "bg-emerald-500" : "bg-red-500"}`} aria-hidden />
+                {hoursNow.label}
+              </span>
+            )}
+            {items.some((i) => i.model) && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-2.5 py-1 text-[12.5px] font-semibold text-black/75">
+                <Icon name="cube" size={13} stroke={2} /> {t("has3d")}
+              </span>
             )}
           </div>
-        )}
-
-        {paused && (
-          <p className="relative mt-4 flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-[14px] text-amber-950">
-            <Icon name="pause" size={18} className="mt-0.5" />
-            {closed ? t("closedNow", { when: hoursNow.label.replace(/^Fechado agora · /, "") }) : t("paused")}
-          </p>
-        )}
-
-        {lastOrder && (
-          <a href={`/r/${slug}/pedido/${lastOrder.id}`} className="relative mt-4 flex items-center gap-3 rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10 transition-colors hover:bg-white/15">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-ink"><Icon name="receipt" size={20} /></span>
-            <span className="flex-1 text-[14.5px]">
-              <b className="block">{t("orderSent", { n: lastOrder.number })}</b>
-              <span className="text-white/65">{t("trackOrder")}</span>
-            </span>
-            <Icon name="right" size={18} className="text-white/50" />
-          </a>
-        )}
-
-        {loyalty && (
-          <div className="relative mt-4 rounded-2xl bg-white/10 p-3.5 ring-1 ring-white/10">
-            <p className="flex items-center gap-2 text-[14.5px] font-bold"><Icon name="gift" size={18} /> {card?.ready ? t("loyaltyReady") : t("loyaltyTitle")}</p>
-            <p className="mt-0.5 text-[13.5px] text-white/70">
-              {card?.ready
-                ? t("loyaltyReadySub", { r: loyalty.reward })
-                : card
-                  ? t("loyaltyProgress", { n: card.stamps, g: card.goal, r: loyalty.reward })
-                  : t("loyaltyHow", { g: loyalty.goal, r: loyalty.reward })}
+          {fromQr ? (
+            <p className="mt-3 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-[15px] font-bold text-white" style={{ background: "#172033" }}>
+              <Icon name="table" size={18} /> {t("youAtTable", { n: table })}
             </p>
-            {card && <div className="[&_span]:h-6 [&_span]:w-6 [&>div]:mt-2"><Stamps n={card.stamps} goal={card.goal} color={color} /></div>}
-          </div>
-        )}
+          ) : (r.dine_in_enabled || r.delivery_enabled || r.pickup_enabled) && (
+            <div className="mt-3 flex rounded-2xl bg-black/[0.05] p-1 text-[13.5px] font-semibold" role="tablist" aria-label={t("howOrder")}>
+              {r.dine_in_enabled && (
+                <button role="tab" aria-selected={channel === "mesa"} onClick={() => setChannel("mesa")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 transition-colors duration-200 ${channel === "mesa" ? "bg-white text-ink shadow-sm" : "text-black/60"}`}>
+                  <Icon name="table" size={16} />
+                  {table ? `${t("table")} ${table}` : t("atTable")}
+                </button>
+              )}
+              {(r.delivery_enabled || r.pickup_enabled) && (
+                <button role="tab" aria-selected={channel === "delivery"} onClick={() => setChannel("delivery")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 transition-colors duration-200 ${channel === "delivery" ? "bg-white text-ink shadow-sm" : "text-black/60"}`}>
+                  <Icon name={r.delivery_enabled ? "bike" : "bag"} size={16} />
+                  {r.delivery_enabled ? t("delivery") : t("pickupShort")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
-        {data.waiter && (
-          <button onClick={() => setChatOpen(true)} className="relative mt-4 flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left text-ink transition active:scale-[0.99]">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white" style={{ background: color }}><Icon name="chat" size={22} /></span>
-            <span className="flex-1">
-              <span className="block font-display text-[17px] font-bold">{t("askWaiter", { name: r.ai_name })}</span>
-              <span className="block text-[13.5px] text-black/60">{t("askWaiterSub")}</span>
-            </span>
-            <Icon name="right" size={18} />
-          </button>
+        <div className="space-y-3 px-4 pt-3">
+          {paused && (
+            <p className="flex gap-2 rounded-2xl bg-amber-50 p-3.5 text-[14px] text-amber-950 ring-1 ring-amber-200/60">
+              <Icon name="pause" size={18} className="mt-0.5" />
+              {closed ? t("closedNow", { when: hoursNow.label.replace(/^Fechado agora · /, "") }) : t("paused")}
+            </p>
+          )}
+
+          {lastOrder && (
+            <a href={`/r/${slug}/pedido/${lastOrder.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3.5 ring-1 ring-black/[0.08] transition-colors hover:bg-black/[0.02]">
+              <span className="grid h-10 w-10 place-items-center rounded-full text-white" style={{ background: color }}><Icon name="receipt" size={20} /></span>
+              <span className="flex-1 text-[14.5px]">
+                <b className="block">{t("orderSent", { n: lastOrder.number })}</b>
+                <span className="text-black/60">{t("trackOrder")}</span>
+              </span>
+              <Icon name="right" size={18} className="text-black/40" />
+            </a>
+          )}
+
+          {loyalty && (
+            <div className="rounded-2xl p-3.5 ring-1 ring-black/[0.06]" style={{ background: `color-mix(in srgb, ${color} 8%, var(--surface, white))` }}>
+              <p className="flex items-center gap-2 text-[14.5px] font-bold"><span style={{ color: "var(--accent-ink)" }}><Icon name="gift" size={18} /></span> {card?.ready ? t("loyaltyReady") : t("loyaltyTitle")}</p>
+              <p className="mt-0.5 text-[13.5px] text-black/65">
+                {card?.ready
+                  ? t("loyaltyReadySub", { r: loyalty.reward })
+                  : card
+                    ? t("loyaltyProgress", { n: card.stamps, g: card.goal, r: loyalty.reward })
+                    : t("loyaltyHow", { g: loyalty.goal, r: loyalty.reward })}
+              </p>
+              {card && <div className="[&_span]:h-6 [&_span]:w-6 [&>div]:mt-2"><Stamps n={card.stamps} goal={card.goal} color={color} /></div>}
+            </div>
+          )}
+
+          {data.waiter && (
+            <button onClick={() => setChatOpen(true)} className="flex w-full items-center gap-3 rounded-2xl bg-ink p-4 text-left text-white transition active:scale-[0.99]">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white" style={{ background: color }}><Icon name="chat" size={22} /></span>
+              <span className="flex-1">
+                <span className="block font-display text-[17px] font-bold">{t("askWaiter", { name: r.ai_name })}</span>
+                <span className="block text-[13.5px] text-white/70">{t("askWaiterSub")}</span>
+              </span>
+              <Icon name="right" size={18} />
+            </button>
+          )}
+        </div>
+
+        {/* atalhos: o que a pessoa procura (ofertas, combos, bebidas...) */}
+        {tabs.length > 2 && (
+          <div className="pt-5" aria-label={t("explore")}>
+            <h2 className="px-5 text-[15px] font-bold text-black/70">{t("explore")}</h2>
+            <div className="no-scrollbar mt-2.5 flex gap-2.5 overflow-x-auto px-5 pb-1">
+              {tabs.filter((x) => x.id !== "sempre" && x.id !== "agora").map((x) => (
+                <button key={x.id} type="button" onClick={() => goTo(x.id)} className="group flex w-[76px] shrink-0 flex-col items-center gap-1.5 text-center">
+                  <span className="grid h-[60px] w-[60px] place-items-center rounded-[20px] transition-transform group-active:scale-95" style={{ background: x.id === "ofertas" ? color : `color-mix(in srgb, ${color} 10%, var(--surface-2, #f4f3ef))`, color: x.id === "ofertas" ? "white" : `color-mix(in srgb, var(--accent-ink) 85%, var(--ink-mix, #172033))` }}>
+                    <Icon name={x.icon as IconName} size={26} stroke={1.7} />
+                  </span>
+                  <span className="line-clamp-2 text-[12.5px] font-semibold leading-tight">{x.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </header>
 
@@ -518,12 +563,12 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                       <span className="relative block overflow-hidden rounded-[20px]">
                         <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
                         {off > 0 && <span className="tnum absolute left-2 top-2 rounded-full bg-[#b3261e] px-2 py-1 text-[12.5px] font-extrabold text-white shadow-sm">-{off}%</span>}
-                        {i.model && <ArBadge className="absolute bottom-2 left-2" />}
+                        {i.model && <Chip3D label={t("in3d")} className="absolute bottom-2 right-2" />}
                       </span>
                       <span className="mt-2 line-clamp-2 block text-[14.5px] font-bold leading-tight">{name(i)}</span>
-                      {i.caption && <span className="mt-0.5 line-clamp-1 block text-[12.5px] text-black/60">{i.caption}</span>}
+                      {i.caption && <span className="mt-0.5 line-clamp-2 block text-[12.5px] text-black/60">{i.caption}</span>}
                       <span className="mt-0.5 flex items-baseline gap-1.5">
-                        <span className="tnum text-[15px] font-bold" style={{ color }}>{brl(basePrice(i))}</span>
+                        <span className="tnum text-[15px] font-bold" style={{ color: "var(--accent-ink)" }}>{brl(basePrice(i))}</span>
                         <span className="tnum text-[12.5px] text-black/55 line-through">{brl(i.price_cents)}</span>
                       </span>
                     </button>
@@ -559,7 +604,7 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                     </div>
                     <button onClick={() => setDetail(i)} className="block w-full text-left">
                       <span className="mt-2 line-clamp-2 block pr-1 text-[14.5px] font-bold leading-tight">{name(i)}</span>
-                      <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(basePrice(i))}</span>
+                      <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color: "var(--accent-ink)" }}>{brl(basePrice(i))}</span>
                       {hist[i.id] > 0 && <span className="block text-[12.5px] text-black/60">{t("orderedTimes", { n: hist[i.id] })}</span>}
                     </button>
                   </div>
@@ -576,10 +621,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                   <button key={i.id} onClick={() => setDetail(i)} className="group w-[38%] max-w-[170px] shrink-0 snap-start text-left transition active:scale-[0.98]">
                     <span className="relative block overflow-hidden rounded-[20px]">
                       <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-square w-full transition-transform duration-500 group-hover:scale-[1.04]" />
-                      {i.model && <ArBadge className="absolute left-2 top-2" />}
+                      {i.model && <Chip3D label={t("in3d")} className="absolute left-2 top-2" />}
                     </span>
                     <span className="mt-2 line-clamp-2 block text-[14.5px] font-bold leading-tight">{name(i)}</span>
-                    <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color }}>{brl(basePrice(i))}</span>
+                    <span className="tnum mt-0.5 block text-[14px] font-semibold" style={{ color: "var(--accent-ink)" }}>{brl(basePrice(i))}</span>
                   </button>
                 ))}
               </div>
@@ -593,10 +638,10 @@ export default function CustomerApp({ slug, mesa, modo, prato = "", initial }: {
                 {featured.map((i) => (
                   <button key={i.id} onClick={() => setDetail(i)} className="group relative w-[46%] max-w-[210px] shrink-0 snap-start overflow-hidden rounded-[22px] text-left shadow-[0_14px_30px_-20px_rgba(29,26,22,0.6)] transition active:scale-[0.98]">
                     <Thumb item={i} icon={catIcon.get(i.category_id ?? "")} className="aspect-[4/5] w-full transition-transform duration-500 group-hover:scale-[1.04]" />
-                    {i.model && <ArBadge className="absolute left-2.5 top-2.5" />}
+                    {i.model && <Chip3D label={t("in3d")} className="absolute left-2.5 top-2.5" />}
                     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent p-3 pt-10 text-white">
                       <span className="line-clamp-2 font-display text-[16px] font-bold leading-tight">{name(i)}</span>
-                      {i.caption && <span className="mt-0.5 line-clamp-1 block text-[12.5px] text-white/80">{i.caption}</span>}
+                      {i.caption && <span className="mt-0.5 line-clamp-2 block text-[12.5px] text-white/80">{i.caption}</span>}
                       <span className="tnum mt-0.5 block text-[14px] font-semibold">{brl(basePrice(i))}</span>
                     </span>
                   </button>
@@ -800,19 +845,23 @@ function Row({ item: i, lang, t, sub, color, qty, paused, onOpen, onOpenSub, onA
         <button onClick={onOpen} className={`flex min-w-0 flex-1 gap-3.5 text-left ${noPhoto ? "pr-12" : ""}`}>
           <span className="min-w-0 flex-1">
             <span className="block font-display text-[17px] font-bold leading-snug">{name}</span>
-            {i.caption && <span className="mt-0.5 block text-[13.5px] font-semibold leading-snug" style={{ color: `color-mix(in srgb, ${color} 80%, #172033)` }}>{i.caption}</span>}
+            {i.caption && <span className="mt-0.5 line-clamp-3 block text-[13.5px] font-semibold leading-snug" style={{ color: `color-mix(in srgb, var(--accent-ink) 85%, var(--ink-mix, #172033))` }}>{i.caption}</span>}
             {description && <span className="mt-1 line-clamp-2 block text-[14px] leading-snug text-black/60">{description}</span>}
             <span className="mt-2 flex flex-wrap items-center gap-1.5">
               <PriceTag item={i} color={color} t={t} />
               {!i.available && <Pill tone="warn">{t("soldOut")}</Pill>}
               {i.available && promoActive(i.promo ?? null, i.price_cents) && <PromoPill item={i} t={t} />}
               {i.available && i.popular && <PopularPill t={t} />}
-              {i.model && <ArBadge />}
               {i.serves > 1 && <Pill>{t("serves", { n: i.serves })}</Pill>}
               {tags.slice(0, i.model ? 2 : 3).map((tag) => <TagPill key={tag} tag={tag} />)}
             </span>
           </span>
-          {!noPhoto && <Thumb item={i} icon={icon} art={0.8} className="h-[104px] w-[104px] shrink-0 rounded-2xl" />}
+          {!noPhoto && (
+            <span className="relative shrink-0">
+              <Thumb item={i} icon={icon} art={0.8} className="h-[112px] w-[112px] rounded-[22px]" />
+              {i.model && <Chip3D label={t("in3d")} className="absolute left-1.5 top-1.5" />}
+            </span>
+          )}
         </button>
         {i.available && !paused && (
           <button
@@ -971,7 +1020,7 @@ function ItemSheet({
             <div className="flex items-start justify-between gap-4">
               <h3 className="text-[24px] font-extrabold leading-tight">{name}</h3>
               <div className="shrink-0 pt-1 text-right">
-                <p className="tnum font-display text-[20px] font-bold" style={{ color }}>{brl(basePrice(item))}</p>
+                <p className="tnum font-display text-[20px] font-bold" style={{ color: "var(--accent-ink)" }}>{brl(basePrice(item))}</p>
                 {basePrice(item) < item.price_cents && <p className="tnum text-[13px] text-black/60 line-through">{brl(item.price_cents)}</p>}
               </div>
             </div>
@@ -981,7 +1030,7 @@ function ItemSheet({
                 {item.popular && <PopularPill t={t} />}
               </div>
             )}
-            {item.caption && <p className="mt-1 text-[15px] font-semibold" style={{ color: `color-mix(in srgb, ${color} 80%, #172033)` }}>{item.caption}</p>}
+            {item.caption && <p className="mt-1 text-[15px] font-semibold" style={{ color: `color-mix(in srgb, var(--accent-ink) 85%, var(--ink-mix, #172033))` }}>{item.caption}</p>}
             {description && <p className="mt-2 text-[15.5px] leading-relaxed text-black/70">{description}</p>}
             <div className="mt-3 flex flex-wrap gap-1.5">
               <Pill>{t("servesLong", { n: item.serves, p: item.serves === 1 ? t("person") : t("people") })}</Pill>
@@ -1306,7 +1355,7 @@ function CartSheet(props: {
                   {l.notes && <p className="mt-0.5 text-[13px] text-black/55">{l.notes}</p>}
                   <p className="mt-0.5 flex items-center gap-3 text-[14px]">
                     <span className="tnum text-black/65">{brl(unitOf(it!, l.opts) * l.qty)}</span>
-                    <button type="button" onClick={() => props.onEdit(idx)} aria-label={t("editAria", { name: tr(it!, lang).name })} className="-my-2 inline-flex min-h-[36px] items-center gap-1 px-1 font-semibold underline decoration-black/25 underline-offset-2" style={{ color }}>
+                    <button type="button" onClick={() => props.onEdit(idx)} aria-label={t("editAria", { name: tr(it!, lang).name })} className="-my-2 inline-flex min-h-[36px] items-center gap-1 px-1 font-semibold underline decoration-black/25 underline-offset-2" style={{ color: "var(--accent-ink)" }}>
                       <Icon name="edit" size={14} /> {t("edit")}
                     </button>
                   </p>
@@ -1531,7 +1580,7 @@ function PriceTag({ item, color, t }: { item: MenuItem; color: string; t: T }) {
   return (
     <span className="mr-1 inline-flex items-baseline gap-1.5">
       {from && <span className="text-[12.5px] text-black/60">{t("fromPrice")}</span>}
-      <span className="tnum text-[15.5px] font-bold" style={{ color }}>{brl(now + minAdd)}</span>
+      <span className="tnum text-[15.5px] font-bold" style={{ color: "var(--accent-ink)" }}>{brl(now + minAdd)}</span>
       {now < item.price_cents && <span className="tnum text-[13px] text-black/60 line-through">{brl(item.price_cents + minAdd)}</span>}
     </span>
   );
@@ -1552,7 +1601,7 @@ function PromoPill({ item, t }: { item: MenuItem; t: T }) {
 function SectionTitle({ icon, title, sub, color, className = "" }: { icon: string; title: string; sub?: string; color: string; className?: string }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ background: `color-mix(in srgb, ${color} 12%, white)`, color: `color-mix(in srgb, ${color} 85%, #172033)` }} aria-hidden>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ background: `color-mix(in srgb, ${color} 12%, var(--surface, white))`, color: `color-mix(in srgb, ${color} 85%, var(--ink-mix, #172033))` }} aria-hidden>
         <Icon name={icon as IconName} size={21} stroke={1.8} />
       </span>
       <div className="min-w-0">

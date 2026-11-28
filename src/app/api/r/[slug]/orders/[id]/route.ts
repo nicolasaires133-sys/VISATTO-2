@@ -38,6 +38,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string; 
       primary_color: r.primary_color,
       pix_key: order.payment === "pix" ? r.pix_key || "" : "",
       pix_code: pixCode,
+      menu_theme: r.menu_theme || "claro",
       pix_name: order.payment === "pix" ? r.pix_name || r.name : "",
       address: order.pickup ? r.address || "" : "",
       pickup_eta: order.pickup ? r.pickup_eta || "" : "",

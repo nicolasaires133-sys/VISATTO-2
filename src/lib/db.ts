@@ -258,6 +258,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_client_key ON orders(restaurant_id
 ALTER TABLE items ADD COLUMN IF NOT EXISTS caption TEXT DEFAULT '';
 ALTER TABLE items ADD COLUMN IF NOT EXISTS photo_mode TEXT DEFAULT 'auto';
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT '';
+-- v12: tema do cardápio do cliente (claro, escuro ou automático pelo celular)
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS menu_theme TEXT DEFAULT 'claro';
 
 -- v2: número do pedido único por restaurante
 CREATE UNIQUE INDEX IF NOT EXISTS orders_rest_number ON orders(restaurant_id, number);
